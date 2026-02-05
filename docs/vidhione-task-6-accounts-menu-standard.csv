@@ -1,0 +1,19 @@
+legacy_menu,legacy_label,legacy_form,vidhione_section,vidhione_label_current,standard_label,vidhione_route,legacy_to_standard,notes
+Accounts,Ledger Month Wise Summary,frmLedgerMonthSummary,Accounts > Books,Ledger Month Wise Summary,Ledger Month-wise Summary,/apps/accounts/ledger/month-wise-summary,rename,Pending legacy parity
+Accounts,Ledger,frmLedgerNew,Accounts > Books,Ledger (Report),Ledger Statement,/apps/accounts/ledger,rename,Legacy label was Ledger
+Accounts,Day Book,frmDayBook,Accounts > Books,Day Book,Day Book,/apps/accounts/day-book,same,Legacy parity partial
+Accounts,Invoice Rollover,frmASInvoiceRollover,Accounts > Utilities,Invoice Rollover,Invoice Rollover,/apps/accounts/invoice-rollover,same,Agency-only workflow
+Accounts,Voucher Entry,frmVoucherEntry2,Accounts > Transactions,Voucher Entry,Voucher Entry,/apps/accounts/voucher-entry,same,Large legacy form pending
+Accounts,Cash Expenditure Entry,frmExpenditure,Accounts > Transactions,Cash Expenditure Entry,Cash Expenditure Entry,/apps/accounts/cash-expenditure-entry,same,Pending legacy parity
+Accounts,Bank Cash Deposit,frmBankCashDeposit,Accounts > Transactions,Bank Cash Deposit,Bank Cash Deposit,/apps/accounts/bank-cash-deposit,same,Pending legacy parity
+Accounts,Bank Cheque Issue,frmBankChequeIssue,Accounts > Transactions,Bank Cheque Issue,Bank Cheque Issue,/apps/accounts/bank-cheque-issue,same,Pending legacy parity
+Accounts,Bank Reconciliation,frmBankReconciliation,Accounts > Banking & Audit,Bank Reconciliation,Bank Reconciliation,/apps/accounts/bank-reconciliation,same,Pending legacy parity
+Accounts,Stock In Hand,frmStockInHand,Accounts > Inventory & Fixed Assets,Stock In Hand,Stock In Hand,/apps/accounts/stock-in-hand,same,Pending legacy parity
+Accounts,Depreciation,frmDepreciation,Accounts > Inventory & Fixed Assets,Depreciation,Depreciation,/apps/accounts/depreciation,same,Pending legacy parity
+Accounts,VAT Reports,frmVATReports,Accounts > Reports,VAT Reports,VAT Reports,/apps/accounts/vat-reports,same,Legacy VAT only (not planned)
+Accounts,Accounts Reports,frmAccountReports,Accounts > Reports,Accounts Reports,Accounts Reports,/apps/accounts/accounts-reports,same,Legacy menu hidden
+Accounts,Trial Balance,frmTrialBalance,Accounts > Reports,Trial Balance (Summarized),Trial Balance (Summarized),/apps/accounts/trial-balance/summarized,rename,Legacy label was Trial Balance
+Accounts,Profit & Loss,frmProfitLoss,Accounts > Reports,Profit & Loss,Profit & Loss,/apps/accounts/profit-loss,same,Placeholder computation
+Accounts,Balance Sheet 2,frmBalanceSheet2,Accounts > Reports,Balance Sheet,Balance Sheet,/apps/accounts/balance-sheet/detailed,rename,Latest balance sheet layout (legacy menu label Balance Sheet 2)
+Accounts,Audit,frmAudit,Accounts > Banking & Audit,Audit (Posting Details),Audit (Posting Details),/apps/accounts/audit,rename,Legacy label was Audit
+Accounts,Book Printing,frmBookPrinting,Accounts > Utilities,Book Printing,Book Printing,/apps/accounts/book-printing,same,Pending legacy parity

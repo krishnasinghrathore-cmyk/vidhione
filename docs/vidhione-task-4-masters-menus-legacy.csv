@@ -1,0 +1,54 @@
+legacy_menu,legacy_submenu,legacy_label,vidhione_section,vidhione_label,vidhione_route,status
+Masters,,Item Group,Inventory,Product Groups,/apps/inventory/product-groups,matched
+Masters,,Item Brand,Inventory,Product Brands,/apps/inventory/product-brands,matched
+Masters,,Item Type,Inventory,Product Attribute Types,/apps/inventory/product-attribute-types,matched
+Masters,,Unit,Inventory,Units,/apps/inventory/units,matched
+Masters,,HSN Code,Inventory,HSN Codes,/apps/inventory/hsn-codes,matched
+Masters,,Item GST,Inventory,Products GST,/apps/inventory/product-gst,matched
+Masters,,Scheme Batch,Inventory,Scheme Batches,/apps/inventory/scheme-batches,matched
+Masters,,Ledger Group,Accounting,Ledger Groups,/apps/accounts/ledger-groups,matched
+Masters,,Ledger,Accounting,Ledgers,/apps/accounts/ledgers,matched
+Masters,,Other Ledgers,Accounting,Other Ledgers,/apps/accounts/other-ledgers,skipped
+Masters,,Manager,Accounting,Managers,/apps/accounts/managers,matched
+Masters,,Salesman,Accounting,Salesmen,/apps/accounts/salesmen,matched
+Masters,,Bank,Accounting,Banks,/apps/accounts/banks,matched
+Masters,,Branch,Accounting,Branches,/apps/accounts/branches,matched
+Masters,Delivery Process,Delivery By,Logistics & Delivery,Delivery By,/apps/inventory/delivery-by,matched
+Masters,Delivery Process,Delivery Status,Logistics & Delivery,Delivery Status,/apps/inventory/delivery-status,matched
+Masters,Delivery Process,Checked By,Logistics & Delivery,Checked By,/apps/inventory/checked-by,matched
+Masters,Delivery Process,Bill Collection Status,Logistics & Delivery,Bill Collection Status,/apps/inventory/bill-collection-status,matched
+Masters,,Transport,Logistics & Delivery,Transport,/apps/inventory/transporters,matched
+Masters,,Godown,Logistics & Delivery,Godowns,/apps/inventory/godowns,matched
+Masters,,Area,Geography,Areas,/apps/accounts/areas,matched
+Masters,,City,Geography,Cities,/apps/accounts/cities,matched
+Masters,,State,Geography,States,/apps/accounts/states,matched
+Masters,,Users,Users & Forms,Users,/apps/accounts/users,matched
+Masters,,Company,,,,legacy_only
+,,,Accounting,Voucher Types,/apps/accounts/voucher-types,vidhione_only
+Transactions,Programs,Scheme,Billing,Schemes,/apps/billing/schemes,matched
+Transactions,Sales,Sales Invoice,Billing,Sales Invoices,/apps/billing/sales-invoices,matched
+Transactions,Sales,Sales Return Invoice,Billing,Sales Return Invoices,/apps/billing/sales-returns,matched
+Transactions,Sales,Sales Voucher,Billing,Sales Vouchers,/apps/billing/sales-vouchers,matched
+Transactions,Sales,Sales Return Voucher,Billing,Sales Return Vouchers,/apps/billing/sales-return-vouchers,matched
+Transactions,Sales,Estimate,Billing,Estimates,/apps/billing/estimates,matched
+Transactions,Sales,GST Sales Invoice,Billing,GST Sales Invoices,/apps/billing/gst-sales-invoices,matched
+Transactions,Sales,GST Sales Return Invoice,Billing,GST Sales Return Invoices,/apps/billing/gst-sales-returns,matched
+Transactions,Purchases,Purchase Invoice,Billing,Purchase Invoices,/apps/billing/purchase-invoices,matched
+Transactions,Purchases,Purchase Return Invoice,Billing,Purchase Return Invoices,/apps/billing/purchase-returns,matched
+Transactions,Purchases,Purchase Voucher,Billing,Purchase Vouchers,/apps/billing/purchase-vouchers,matched
+Transactions,Purchases,Purchase Return Voucher,Billing,Purchase Return Vouchers,/apps/billing/purchase-return-vouchers,matched
+Transactions,Purchases,GST Purchase Invoice,Billing,GST Purchase Invoices,/apps/billing/gst-purchase-invoices,matched
+Transactions,Purchases,GST Purchase Return Invoice,Billing,GST Purchase Return Invoices,/apps/billing/gst-purchase-returns,matched
+Transactions,Collections,Delivery Process,Billing,Delivery Process,/apps/billing/delivery-process,matched
+Transactions,Collections,Bill Collection,Billing,Bill Collection,/apps/billing/bill-collection,matched
+Transactions,Collections,Money Receipt Cash,Billing,Money Receipt (Cash),/apps/billing/money-receipt-cash,matched
+Transactions,Collections,Money Receipt Bank,Billing,Money Receipt (Bank),/apps/billing/money-receipt-bank,matched
+Transactions,Collections,Money Receipt Manual Book Issue,Billing,Money Receipt Manual Book Issue,/apps/billing/money-receipt-manual-book-issue,matched
+Transactions,Inventory,Closing Stock,Inventory,Closing Stock,/apps/inventory/closing-stock,matched
+Transactions,Inventory,Party Rates,Inventory,Party Rates,/apps/inventory/party-rates,matched
+Transactions,Programs,Retailer Foot Path,Billing,Retailer Foot Path,/apps/billing/retailer-foot-path,matched
+Transactions,Programs,Party Loyalty Program,Billing,Party Loyalty Program,/apps/billing/party-loyalty-program,matched
+Transactions,Banking,Cheque Book Issue,Accounting,Cheque Book Issue,/apps/accounts/cheque-book-issue,matched
+Transactions,Banking,Cheque Inward,Accounting,Cheque Inward,/apps/accounts/cheque-inward,matched
+Transactions,Utilities,Update Ledger Balance,Accounting,Update Ledger Balance,/apps/accounts/update-ledger-balance,matched
+Transactions,Inventory,Fast Item Edit,Inventory,Fast Item Edit,/apps/inventory/fast-item-edit,skipped

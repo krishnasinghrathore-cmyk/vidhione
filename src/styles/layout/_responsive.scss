@@ -1,0 +1,138 @@
+@use './_variables' as *;
+
+@media screen and (min-width: $breakpoint) {
+    .layout-container {
+        &.layout-static {
+            .layout-sidebar {
+                transition: transform .3s cubic-bezier(0, 0, 0.2, 1);
+            }
+
+            .layout-content-wrapper {
+                margin-left: 17rem;
+                transition: margin-left .3s cubic-bezier(0, 0, 0.2, 1);
+            }
+
+            .layout-topbar {
+                .layout-menu-button {
+                    i {
+                        transform: rotate(180deg);
+                    }
+                }
+            }
+        }
+
+        &.layout-static-inactive {
+            .layout-sidebar {
+                transform: translateX(-100%);
+            }
+
+            .layout-content-wrapper {
+                margin-left: 0;
+            }
+
+            .layout-topbar {
+                .layout-menu-button {
+                    i {
+                        transform: rotate(0deg);
+                    }
+                }
+            }
+        }
+
+        &.layout-overlay {
+            .layout-content-wrapper {
+                margin-left: 0;
+            }
+
+            .layout-sidebar {
+                z-index: 999;
+                transform: translateX(-100%);
+                transition: transform .3s cubic-bezier(0, 0, 0.2, 1);
+            }
+
+            &.layout-overlay-active {
+                .layout-sidebar {
+                    transform: translateX(0);
+                }
+
+                .layout-topbar {
+                    .layout-menu-button {
+                        i {
+                            transform: rotate(180deg);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@media screen and (max-width: $breakpoint) {
+    .body-overflow-hidden {
+        overflow: hidden;
+    }
+
+    .layout-topbar {
+        .layout-topbar-start {
+            display: none;
+        }
+
+        .layout-topbar-end {
+            width: 100%;
+
+            .layout-topbar-actions {
+                width: 100%;
+                justify-content: space-between;
+            }
+
+        }
+
+        .layout-topbar-center {
+            max-width: 70%;
+
+            .layout-topbar-context {
+                font-size: 0.9rem;
+            }
+        }
+    }
+
+    .layout-content-wrapper {
+        padding-left: 1.5rem;
+        padding-right: 1.5rem;
+    }
+
+    .layout-mask {
+        background-color: var(--mask-bg);
+        z-index: 998;
+    }
+
+    .layout-sidebar {
+        z-index: 999;
+        transform: translateX(-100%);
+    }
+
+    .layout-megamenu {
+        .layout-megamenu-button {
+            display: none !important;
+        }
+    }
+
+    .layout-mobile-active {
+        .layout-sidebar {
+            transform: translateX(0);
+        }
+
+        .layout-mask {
+            opacity: 1;
+            visibility: visible;
+        }
+    }
+}
+
+@media screen and (min-width: 1729px) {
+    .layout-content {
+        width: 1504px;
+        margin-left: auto !important;
+        margin-right: auto !important;
+    }
+}

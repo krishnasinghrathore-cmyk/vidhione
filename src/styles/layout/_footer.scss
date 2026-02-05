@@ -1,0 +1,26 @@
+.layout-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    background-color: var(--surface-card);
+}
+
+.layout-footer-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.layout-footer-support {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.175rem 0.375rem;
+    border-radius: 999px;
+    border: 1px solid var(--surface-border);
+    background: var(--surface-ground);
+}

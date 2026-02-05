@@ -1,0 +1,11 @@
+$primaryColor: #00bcd4;
+$primaryLightestColor: #e0f7fa;
+$primaryMenuTextColor: #00838f;
+$primaryTextColor: #212121;
+$accentColor: #d41900;
+$accentTextColor: #ffffff;
+
+@import '../_variables';
+@import '../../_compact';
+@import '../../theme-base/_components';
+@import '../../extensions/_vendor_extensions';

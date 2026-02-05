@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-label="Vidhione">
+  <defs>
+    <linearGradient id="vidhione-feather" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#34d399" />
+      <stop offset="1" stop-color="#2dd4bf" />
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="#0f172a" />
+  <g fill="url(#vidhione-feather)" transform="translate(220 190) scale(0.7)">
+    <path d="M112 360 C124 280 170 214 232 176 C266 154 306 146 340 152 C302 208 270 262 252 318 C232 382 182 408 128 416 Z" />
+    <path d="M206 382 C234 298 286 244 344 214 C374 198 404 190 432 190 C398 230 372 266 352 312 C330 372 286 406 240 420 Z" />
+  </g>
+  <text x="560" y="360" font-family="'Sora', 'Space Grotesk', 'Avenir Next', 'Segoe UI', sans-serif" font-size="120" font-weight="600" letter-spacing="6" fill="#f8fafc">VIDHIONE</text>
+</svg>
