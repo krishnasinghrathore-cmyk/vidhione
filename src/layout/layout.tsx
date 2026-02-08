@@ -55,7 +55,7 @@ const Layout = () => {
             menuHoverActive: false,
             resetMenu: (isSlim() || isSlimPlus() || isHorizontal()) && isDesktop()
         }));
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+         
     }, [isSlim, isSlimPlus, isHorizontal, isDesktop]);
 
     const blockBodyScroll = () => {
@@ -201,7 +201,7 @@ const Layout = () => {
             unbindDocumentResizeListener();
             unblockBodyScroll();
         };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+         
     }, [layoutState.overlayMenuActive, layoutState.staticMenuMobileActive, layoutState.overlaySubmenuActive]);
 
     useUnmountEffect(() => {

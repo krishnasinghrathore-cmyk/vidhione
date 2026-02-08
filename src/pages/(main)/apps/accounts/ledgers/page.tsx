@@ -15,6 +15,9 @@ import { useQuery, useMutation, gql } from '@apollo/client';
 import { z } from 'zod';
 import { Checkbox } from 'primereact/checkbox';
 import { InputNumber } from 'primereact/inputnumber';
+import { useAuth } from '@/lib/auth/context';
+import { resolveFiscalRange } from '@/lib/fiscalRange';
+import { validateSingleDate } from '@/lib/reportDateValidation';
 
 interface LedgerRow {
   ledgerId: number;
@@ -313,6 +316,20 @@ const parseJsonValue = (value?: string | null) => {
 const normalizeExtraFields = (value?: Record<string, any> | null) =>
   value && typeof value === 'object' ? value : {};
 
+const parseExtraDateValue = (value: unknown): Date | null => {
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value;
+  }
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    const normalized = /^\d{4}-\d{2}-\d{2}$/.test(trimmed) ? `${trimmed}T00:00:00` : trimmed;
+    const parsed = new Date(normalized);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+  return null;
+};
+
 const isEmptyExtraValue = (value: any) => {
   if (value == null) return true;
   if (typeof value === 'string') return value.trim().length === 0;
@@ -388,6 +405,7 @@ const ledgerSchema = z.object({
 );
 
 export default function AccountsLedgerListPage() {
+  const { companyContext } = useAuth();
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [first, setFirst] = useState(0);
   const [search, setSearch] = useState('');
@@ -450,6 +468,10 @@ export default function AccountsLedgerListPage() {
   const [ensureLedgerYearBalance] = useMutation(ENSURE_LEDGER_YEAR_BALANCE);
   const toastRef = useRef<Toast>(null);
   const ensuredLedgerIdsRef = useRef<Set<number>>(new Set());
+  const fiscalRange = useMemo(
+    () => resolveFiscalRange(companyContext?.fiscalYearStart ?? null, companyContext?.fiscalYearEnd ?? null),
+    [companyContext?.fiscalYearEnd, companyContext?.fiscalYearStart]
+  );
 
   const dtRef = useRef<DataTable<LedgerRow[]>>(null);
 
@@ -607,6 +629,21 @@ export default function AccountsLedgerListPage() {
         dynamicErrors[`extraFields.${def.key}`] = `${def.label} is required`;
       }
     });
+    fieldDefinitions.forEach((def) => {
+      if (def.fieldType !== 'date') return;
+      const rawValue = extraFields[def.key];
+      if (isEmptyExtraValue(rawValue)) return;
+      const parsedDate = parseExtraDateValue(rawValue);
+      if (!parsedDate) {
+        dynamicErrors[`extraFields.${def.key}`] = `${def.label} must be a valid date`;
+        return;
+      }
+      const validation = validateSingleDate({ date: parsedDate }, fiscalRange);
+      if (!validation.ok) {
+        dynamicErrors[`extraFields.${def.key}`] =
+          validation.errors.date ?? `${def.label} must be within the financial year`;
+      }
+    });
     if (Object.keys(dynamicErrors).length > 0) {
       setFormErrors(dynamicErrors);
       toastRef.current?.show({ severity: 'warn', summary: 'Please fill required extra fields' });
@@ -758,6 +795,9 @@ export default function AccountsLedgerListPage() {
               value={parsedDate && !Number.isNaN(parsedDate.getTime()) ? parsedDate : null}
               onChange={(next) => updateExtraField(def.key, next ? next.toISOString().slice(0, 10) : null)}
               placeholder="DD/MM/YYYY"
+              fiscalYearStart={fiscalRange?.start ?? null}
+              fiscalYearEnd={fiscalRange?.end ?? null}
+              enforceFiscalRange
             />
             {renderError(errorKey as any)}
           </div>

@@ -409,16 +409,8 @@ export default function AccountsBankChequeIssuePage() {
         () => resolveFiscalRange(companyContext?.fiscalYearStart ?? null, companyContext?.fiscalYearEnd ?? null),
         [companyContext?.fiscalYearStart, companyContext?.fiscalYearEnd]
     );
-    const maxReportDate = useMemo(
-        () => resolveReportRange(companyContext?.fiscalYearStart ?? null, companyContext?.fiscalYearEnd ?? null).end ?? null,
-        [companyContext?.fiscalYearStart, companyContext?.fiscalYearEnd]
-    );
     const hasTouchedDatesRef = useRef(false);
     const canRefresh = Boolean(fromDate && toDate);
-    const clampToMaxReportDate = (value: Date | null) => {
-        if (!value || !maxReportDate) return value;
-        return value > maxReportDate ? maxReportDate : value;
-    };
     const focusRefreshButton = () => {
         if (typeof document === 'undefined') return;
         const element = document.getElementById(refreshButtonId);
@@ -882,14 +874,12 @@ export default function AccountsBankChequeIssuePage() {
                                 onChange={(value) => {
                                     setFirst(0);
                                     hasTouchedDatesRef.current = true;
-                                    setDateRange((prev) => [clampToMaxReportDate(value), prev[1]]);
+                                    setDateRange((prev) => [value, prev[1]]);
                                     setDateErrors({});
                                 }}
                                 placeholder="From date"
                                 fiscalYearStart={fiscalRange?.start ?? null}
                                 fiscalYearEnd={fiscalRange?.end ?? null}
-                                minDate={fiscalRange?.start ?? undefined}
-                                maxDate={maxReportDate ?? undefined}
                                 inputRef={fromDateInputRef}
                                 onEnterNext={() => toDateInputRef.current?.focus()}
                                 autoFocus
@@ -901,14 +891,12 @@ export default function AccountsBankChequeIssuePage() {
                                 onChange={(value) => {
                                     setFirst(0);
                                     hasTouchedDatesRef.current = true;
-                                    setDateRange((prev) => [prev[0], clampToMaxReportDate(value)]);
+                                    setDateRange((prev) => [prev[0], value]);
                                     setDateErrors({});
                                 }}
                                 placeholder="To date"
                                 fiscalYearStart={fiscalRange?.start ?? null}
                                 fiscalYearEnd={fiscalRange?.end ?? null}
-                                minDate={fiscalRange?.start ?? undefined}
-                                maxDate={maxReportDate ?? undefined}
                                 inputRef={toDateInputRef}
                                 onEnterNext={() => focusDropdown(bankLedgerInputRef)}
                                 style={{ width: '130px' }}
@@ -1060,6 +1048,7 @@ export default function AccountsBankChequeIssuePage() {
                                     }}
                                     fiscalYearStart={fiscalRange?.start ?? null}
                                     fiscalYearEnd={fiscalRange?.end ?? null}
+                                    enforceFiscalRange
                                     style={{ width: '100%' }}
                                 />
                                 {voucherDateError && <small className="text-red-500">{voucherDateError}</small>}
@@ -1074,6 +1063,7 @@ export default function AccountsBankChequeIssuePage() {
                                     }}
                                     fiscalYearStart={fiscalRange?.start ?? null}
                                     fiscalYearEnd={fiscalRange?.end ?? null}
+                                    enforceFiscalRange
                                     style={{ width: '100%' }}
                                 />
                                 {postingDateError && <small className="text-red-500">{postingDateError}</small>}
@@ -1108,6 +1098,7 @@ export default function AccountsBankChequeIssuePage() {
                                     }}
                                     fiscalYearStart={fiscalRange?.start ?? null}
                                     fiscalYearEnd={fiscalRange?.end ?? null}
+                                    enforceFiscalRange
                                     style={{ width: '100%' }}
                                 />
                                 {chequeDateError && <small className="text-red-500">{chequeDateError}</small>}

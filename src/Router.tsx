@@ -40,22 +40,22 @@ const AccountsVoucherTypesPage = lazy(
   () => import('./pages/(main)/apps/accounts/voucher-types/page')
 );
 const AccountsDayBookPage = lazy(
-  () => import('./pages/(main)/apps/accounts/day-book/page')
+  () => import('./pages/(main)/apps/accounts/books/day-book/page')
 );
 const AccountsTrialBalancePage = lazy(
-  () => import('./pages/(main)/apps/accounts/trial-balance/TrialBalanceReport')
+  () => import('./pages/(main)/apps/accounts/reports/trial-balance/TrialBalanceReport')
 );
 const AccountsBalanceSheetPage = lazy(
-  () => import('./pages/(main)/apps/accounts/balance-sheet/page')
+  () => import('./pages/(main)/apps/accounts/reports/balance-sheet/page')
 );
 const AccountsProfitLossPage = lazy(
-  () => import('./pages/(main)/apps/accounts/profit-loss/page')
+  () => import('./pages/(main)/apps/accounts/reports/profit-loss/page')
 );
 const AccountsLedgerReportPage = lazy(
-  () => import('./pages/(main)/apps/accounts/ledger/page')
+  () => import('./pages/(main)/apps/accounts/books/ledger/page')
 );
 const AccountsLedgerMonthWiseSummaryPage = lazy(
-  () => import('./pages/(main)/apps/accounts/ledger-month-wise-summary/page')
+  () => import('./pages/(main)/apps/accounts/books/ledger-month-wise-summary/page')
 );
 const AccountsVoucherEntryPage = lazy(
   () => import('./pages/(main)/apps/accounts/voucher-entry/page')
@@ -70,10 +70,10 @@ const AccountsBankChequeIssuePage = lazy(
   () => import('./pages/(main)/apps/accounts/bank-cheque-issue/page')
 );
 const AccountsChequeBookIssuePage = lazy(
-  () => import('./pages/(main)/apps/accounts/cheque-book-issue/page')
+  () => import('./pages/(main)/apps/accounts/bank-audit/cheque-book-issue/page')
 );
 const AccountsLedgerReconciliationPage = lazy(
-    () => import('./pages/(main)/apps/accounts/ledger-reconciliation/page')
+    () => import('./pages/(main)/apps/accounts/bank-audit/ledger-reconciliation/page')
 );
 const AccountsStockInHandPage = lazy(
   () => import('./pages/(main)/apps/accounts/stock-in-hand/page')
@@ -82,7 +82,7 @@ const AccountsDepreciationPage = lazy(
   () => import('./pages/(main)/apps/accounts/depreciation/page')
 );
 const AccountsAuditPage = lazy(
-  () => import('./pages/(main)/apps/accounts/audit/page')
+  () => import('./pages/(main)/apps/accounts/bank-audit/audit/page')
 );
 const AccountsBookPrintingPage = lazy(
   () => import('./pages/(main)/apps/accounts/book-printing/page')
@@ -91,7 +91,7 @@ const AccountsAccountsReportsPage = lazy(
   () => import('./pages/(main)/apps/accounts/accounts-reports/page')
 );
 const AccountsInvoiceRolloverPage = lazy(
-  () => import('./pages/(main)/apps/accounts/invoice-rollover/page')
+  () => import('./pages/(main)/apps/accounts/books/invoice-rollover/page')
 );
 const AccountsCompanyProfilePage = lazy(
   () => import('./pages/(main)/apps/accounts/company-profile/page')
@@ -293,6 +293,10 @@ const AppRoutes = [
                     { path: 'accounts/ledger/month-wise-summary', element: <AccountsLedgerMonthWiseSummaryPage /> },
                     { path: 'accounts/voucher-entry', element: <AccountsVoucherEntryPage /> },
                     { path: 'accounts/payment-voucher', element: <AccountsCashExpenditureEntryPage /> },
+                    { path: 'accounts/payment-vouchers', element: <AccountsCashExpenditureEntryPage /> },
+                    { path: 'accounts/payment-vouchers/:mode', element: <AccountsCashExpenditureEntryPage /> },
+                    { path: 'accounts/payment-vouchers/:mode/new', element: <AccountsCashExpenditureEntryPage /> },
+                    { path: 'accounts/payment-vouchers/:mode/edit/:voucherNo', element: <AccountsCashExpenditureEntryPage /> },
                     { path: 'accounts/bank-cash-deposit', element: <AccountsBankCashDepositPage /> },
                     { path: 'accounts/bank-cheque-issue', element: <AccountsBankChequeIssuePage /> },
                     { path: 'accounts/cheque-book-issue', element: <AccountsChequeBookIssuePage /> },

@@ -413,7 +413,7 @@ const DashboardAnalytics = () => {
                 }
             }
         });
-    }, [layoutConfig]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [layoutConfig]);  
 
     useEffect(() => {
         let storeInterval = setInterval(() => {
@@ -437,7 +437,7 @@ const DashboardAnalytics = () => {
         return () => {
             clearInterval(storeInterval);
         };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+         
     }, [storeADiff]);
 
     const imageTemplate = (rowData: Demo.Product) => {

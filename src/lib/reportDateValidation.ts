@@ -18,14 +18,19 @@ export type FiscalRange = {
     end?: Date | null;
 };
 
+type DateRangeValidationOptions = {
+    enforceFiscalRange?: boolean;
+};
+
 const toDateOrUndefined = (value: unknown) => (value instanceof Date ? value : undefined);
 
 const formatDateLabel = (value: Date) =>
     value.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
-export const buildDateRangeSchema = (range?: FiscalRange | null) => {
+export const buildDateRangeSchema = (range?: FiscalRange | null, options?: DateRangeValidationOptions) => {
     const start = range?.start ?? null;
     const end = range?.end ?? null;
+    const enforceFiscalRange = options?.enforceFiscalRange ?? false;
 
     let schema = z.object({
         fromDate: z.preprocess(
@@ -43,7 +48,7 @@ export const buildDateRangeSchema = (range?: FiscalRange | null) => {
         message: 'To date must be on or after From date'
     });
 
-    if (start) {
+    if (enforceFiscalRange && start) {
         const label = formatDateLabel(start);
         schema = schema.refine((data) => data.fromDate >= start, {
             path: ['fromDate'],
@@ -55,7 +60,7 @@ export const buildDateRangeSchema = (range?: FiscalRange | null) => {
         });
     }
 
-    if (end) {
+    if (enforceFiscalRange && end) {
         const label = formatDateLabel(end);
         schema = schema.refine((data) => data.fromDate <= end, {
             path: ['fromDate'],
@@ -100,8 +105,8 @@ export const buildSingleDateSchema = (range?: FiscalRange | null) => {
     return schema;
 };
 
-export const validateDateRange = (input: DateRangeInput, range?: FiscalRange | null) => {
-    const result = buildDateRangeSchema(range).safeParse(input);
+export const validateDateRange = (input: DateRangeInput, range?: FiscalRange | null, options?: DateRangeValidationOptions) => {
+    const result = buildDateRangeSchema(range, options).safeParse(input);
     if (result.success) {
         return { ok: true as const, data: result.data, errors: {} as DateRangeErrors };
     }

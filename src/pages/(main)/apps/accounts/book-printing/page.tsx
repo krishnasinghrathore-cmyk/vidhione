@@ -389,7 +389,7 @@ export default function AccountsBookPrintingPage() {
     };
 
     const handleRefresh = () => {
-        const validation = validateDateRange({ fromDate: dateRange[0], toDate: dateRange[1] }, fiscalRange);
+        const validation = validateDateRange({ fromDate: dateRange[0], toDate: dateRange[1] });
         if (!validation.ok) {
             setDateErrors(validation.errors);
             return;

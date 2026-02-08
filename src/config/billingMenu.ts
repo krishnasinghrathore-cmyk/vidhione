@@ -19,6 +19,7 @@ export const BILLING_MENU_GROUPS: BillingMenuGroup[] = [
         label: 'Sales',
         icon: 'pi pi-shopping-cart',
         items: [
+            { slug: 'invoice-form', label: 'Invoice Form', icon: 'pi pi-file-edit' },
             { slug: 'estimates', label: 'Estimates', icon: 'pi pi-file' },
             { slug: 'gst-sales-invoices', label: 'GST Sales Invoices', icon: 'pi pi-percentage' },
             { slug: 'gst-sales-returns', label: 'GST Sales Return Invoices', icon: 'pi pi-percentage' }

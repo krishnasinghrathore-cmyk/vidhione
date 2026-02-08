@@ -3,8 +3,10 @@ import React from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { BILLING_MENU_MAP } from '@/config/billingMenu';
 import GstSalesInvoicesPage from '../gst-sales-invoices/page';
+import InvoiceFormPage from '../invoice-form/page';
 
 const SECTION_COMPONENTS: Record<string, React.ReactNode> = {
+    'invoice-form': <InvoiceFormPage />,
     'gst-sales-invoices': <GstSalesInvoicesPage />
 };
 

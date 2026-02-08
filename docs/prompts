@@ -1,0 +1,3372 @@
+
+
+
+You said:
+item entry grid user friendly examples
+
+ChatGPT said:
+Here are some user-friendly item entry grid examples that work really well for POS, inventory, billing, ERP, and admin panels—especially relevant for the kind of systems you’re building (Retail / Accounts / Inventory / WhatsApp billing 👀).
+
+1️⃣ Spreadsheet-Style Inline Entry (Fastest for Power Users)
+
+https://framerusercontent.com/images/83RAuqFYXKxLhHAyqzthzuTKWI.webp
+
+https://miro.medium.com/1%2ALkvMHNkwy86n4kfMFWWRoQ.png
+
+https://miro.medium.com/v2/resize%3Afit%3A2000/1%2AvA7tkmGdcUCkw-sfGHvkRA.gif
+Best for: POS counters, bulk item entry, experienced users
+
+Why it works
+
+Familiar Excel-like flow
+
+Keyboard-first (Tab / Enter)
+
+Minimal clicks
+
+Key UX features
+
+Inline editable cells
+
+Auto-focus next cell
+
+Row auto-add on last row
+
+Sticky header + footer totals
+
+Typical columns
+
+| Item | Qty | Unit | Rate | Discount | Tax | Amount |
+2️⃣ Hybrid Grid + Search (Most Popular for POS)
+
+https://cdn.dribbble.com/userupload/28028063/file/still-42f994cfa90b54dfdfb766b51b66377b.png?format=webp&resize=400x300&vertical=center
+
+https://cdn.dribbble.com/userupload/8091604/file/still-9fe8deb9707a386ba72f3182894981e6.png?resize=400x0
+
+https://alignbooks.com/ABHelp/drex_pos_invoice_screen.png
+Best for: Retail POS, restaurants, pharmacies
+
+Why it works
+
+Search once, edit inline
+
+Reduces typing errors
+
+Fast for barcode & SKU users
+
+UX highlights
+
+Item search dropdown (name / SKU / barcode)
+
+Auto-fill rate, tax, unit
+
+Qty editable only
+
+Inline delete icon
+
+💡 This is the sweet spot for most businesses.
+
+3️⃣ Card → Grid Combo (Beginner-Friendly)
+
+https://cdn.dribbble.com/userupload/38933111/file/original-17a48083176b030d91f09cf520b6cc6b.jpg?resize=400x0
+
+https://cdn.dribbble.com/userupload/8293567/file/original-cdf7b7f41df9793c8f69df85afa6f88d.png?format=webp&resize=400x300&vertical=center
+
+https://cdn.dribbble.com/userupload/33333833/file/original-ec10dc4d5fbdbd4ec25ef2d20c2a1ed3.png
+Best for: New users, admin panels, onboarding
+
+Why it works
+
+Less intimidating
+
+Guided entry
+
+Clear separation of actions
+
+Flow
+
+Add item via modal / card
+
+Confirm details
+
+Item appears in grid
+
+Great for Super Admin / Masters screens.
+
+4️⃣ Touch-Optimized Grid (Tablet / Mobile POS)
+
+https://i.pinimg.com/originals/91/72/3c/91723c936494ba3df8c9e4a411f9d1f8.jpg
+
+https://omedia.dev/sites/default/files/inline-images/03.jpeg
+
+https://cdn.dribbble.com/userupload/29047477/file/original-30b7b44f05779fad838f1f3f064e985a.png?format=webp&resize=400x300&vertical=center
+Best for: Tablets, touch screens, restaurants
+
+UX rules
+
+Big row height
+
++/- buttons for quantity
+
+Swipe to delete
+
+Bottom sticky total bar
+
+📱 Works beautifully with PrimeReact + responsive layout.
+
+5️⃣ Smart Grid with Inline Validation (Professional ERP)
+
+https://cdn.dribbble.com/userupload/32966361/file/original-55d2a92468a6c8291e893b9b04c751c6.jpg?format=webp&resize=400x300&vertical=center
+
+https://media.licdn.com/dms/image/v2/D4D12AQFa5JoJAAaPEg/article-cover_image-shrink_720_1280/article-cover_image-shrink_720_1280/0/1693463535345?e=2147483647&t=Xw1zSPpDJq00wmVjU8rYBl7xHMAS7tWhTMaW9YvOxwI&v=beta
+
+https://cdn.dribbble.com/userupload/3772968/file/original-8f9608283461ba64c43945b8226b0fae.png?resize=1600x1200
+Best for: Accounts, GST invoices, B2B ERP
+
+Power features
+
+Inline validation messages
+
+Auto tax calculation
+
+Color-coded errors
+
+Editable tax slabs
+
+Example:
+
+🔴 Qty = 0 → highlight row
+
+🟡 Rate missing → warning tooltip
+
+6️⃣ Advanced Power-User Grid (Your “Pro Mode”)
+
+https://miro.medium.com/v2/resize%3Afit%3A2000/1%2AY-utudmSiqb1AcEzCbNOkw.png
+
+https://fast.eou.edu/FASTPORTAL/Documentation/1/FASTSTU/WebHelp/User/assets/images/ss_general_data_entry_grid.gif
+
+https://repository-images.githubusercontent.com/504730903/2d2d9a4e-82fa-432e-b7c0-fb643a462d2c
+Best for: Accountants, bulk uploads
+
+Features
+
+Keyboard shortcuts
+
+Paste from Excel
+
+Column reordering
+
+Row duplication
+
+Undo / redo
+
+💼 Loved by finance teams.
+
+✅ Recommended Pattern for Your Stack (PrimeReact + ERP)
+Since you’re using PrimeReact (Ultima theme), I’d suggest:
+
+🔥 Ideal combo:
+Hybrid Search + Inline Grid
+
+Keyboard + mouse friendly
+
+Optional “Advanced Mode” toggle
+
+PrimeReact Components to use:
+DataTable (cell editing mode)
+
+AutoComplete (item search)
+
+InputNumber (qty, rate)
+
+OverlayPanel (tax details)
+
+Toast (validation feedback)
+
+Want something specific?
+If you want, I can:
+
+🎨 Design PrimeReact item grid UI
+
+🧩 Share column structure + validations
+
+⌨️ Add keyboard navigation logic
+
+📱 Make mobile POS version
+
+📦 Align with inventory + accounts flow
+
+Just tell me where this grid will be used (POS, Admin, Accounts, Inventory) and device (desktop / tablet / mobile).
+
+
+You said:
+POS, Accounts, Inventory
+desktop
+
+ChatGPT said:
+Cool — for desktop POS + Accounts + Inventory, the best UX is:
+
+The recommended pattern
+✅ Hybrid Search + Spreadsheet Grid (same UI across all 3)
+Top bar = fast item find, grid = fast edit, right/foot = totals.
+
+Why it fits all
+
+POS: speed (barcode/search → qty → enter)
+
+Accounts: accuracy (tax/discount validations, ledger-friendly totals)
+
+Inventory: control (batch/expiry/serial, stock warnings)
+
+Layout (desktop)
+Header row
+
+Customer / Supplier
+
+Invoice type (Sale / Purchase / Return)
+
+Warehouse/Store
+
+Price list (Retail/Wholesale)
+
+Search box (barcode/SKU/name)
+
+Body
+
+Item grid (inline editable)
+
+Right panel (optional)
+
+Summary: Subtotal, Discount, Tax, Round off, Net
+
+Payment / Save / Print buttons
+
+Sticky footer
+
+Totals + quick actions (F2 payment, F4 save, Del remove row)
+
+Grid columns (works for POS + Accounts + Inventory)
+Keep core columns always visible, push advanced into “More” drawer.
+
+Core (always)
+| # | Item (search) | Qty | Unit | Rate | Disc | Tax | Amount | ❌ |
+
+Item = autocomplete + shows stock + price
+
+Qty/Rate/Disc inline with keyboard
+
+Tax shows % and computed value on hover
+
+Advanced (toggle / expand row)
+Batch/Lot
+
+Expiry
+
+Serial/IMEI
+
+MRP
+
+Cost
+
+Warehouse bin
+
+Notes
+
+UX rules that make it “user friendly”
+Keyboard flow (must-have)
+Scan/Search → Enter selects item
+
+Focus lands on Qty
+
+Enter moves across: Qty → Rate → Disc → next row
+
+Shortcuts:
+
+F1 item search focus
+
+F2 payment
+
+F4 save
+
+F6 add discount
+
+Del remove row
+
+Ctrl+D duplicate row
+
+Smart defaults
+Qty default = 1
+
+Rate auto from price list
+
+Tax auto from item master
+
+Unit auto (with conversion support)
+
+Prevent mistakes (accounts-friendly)
+Inline validation:
+
+Qty <= 0
+
+Rate < cost (warning)
+
+Discount > max allowed
+
+Stock negative (block/warn depending on role)
+
+Row highlight:
+
+🟡 warning
+
+🔴 error (cannot save)
+
+Fast “edit without clutter”
+Hover shows details popover (stock by warehouse, last sale rate, margin)
+
+Expand row only when needed (batch/serial)
+
+3 screen variants (same base grid)
+1) POS Sale (fastest)
+Hide cost/margin by default
+
+Focus on scan + qty
+
+Payment panel always visible
+
+2) Purchase / Accounts Entry
+Show supplier, invoice ref, tax breakup, round off
+
+Extra fields: freight, other charges, GST split
+
+3) Inventory Transfer / Adjustment
+Show warehouse From → To
+
+Stock available shown beside item
+
+Reason dropdown (damage, expiry, audit)
+
+Quick wireframe (simple)
+Top: Customer | Warehouse | Price List | 🔎 Item Search
+Grid: Items table (inline edit)
+Bottom sticky: Subtotal | Tax | Net | [Save] [Payment] [Print]
+
+If you tell me 2 things, I’ll give you a perfect column set + keyboard map for your exact flow:
+
+Do you use GST (CGST/SGST/IGST) or simple tax %?
+
+For inventory, do you need Batch/Expiry/Serial or normal items only?
+
+
+You said:
+1
+
+ChatGPT said:
+Perfect 👍 — GST (CGST / SGST / IGST) it is.
+Here’s a clean, user-friendly desktop item entry grid that works consistently for POS, Accounts, and Inventory under GST rules.
+
+🧾 GST-Ready Item Entry Grid (Desktop)
+
+https://tiimg.tistatic.com/fp/1/003/682/point-of-sale-pos-billing-software-with-gst-tamil-english--088.jpg
+
+https://assets.refrens.com/367_gst_invoice_format_by_refrens_0a9f49ff46.webp
+
+https://miro.medium.com/1%2AEOr0R7PGPLhsxoO5EjdjJw.png
+✅ Core Grid Columns (GST Optimized)
+🔹 Always Visible (fast + safe)
+#	Item	Qty	Unit	Rate	Disc	Tax %	Amount	❌
+Column behavior
+
+Item: AutoComplete (Name / SKU / Barcode)
+
+Qty: Default = 1, numeric only
+
+Rate: Auto from price list (editable with permission)
+
+Disc: % or ₹ (toggle)
+
+Tax %: Auto from item master
+
+Amount: Read-only (computed)
+
+❌ Remove row
+
+🔍 GST Breakup (Clean, No Clutter)
+Option A — Hover Tooltip (recommended for POS)
+Hover on Tax % or Amount:
+
+Taxable: ₹1,000.00
+CGST 9%: ₹90.00
+SGST 9%: ₹90.00
+Option B — Expand Row (Accounts users)
+⬇ Expand row to show:
+
+Taxable value
+
+CGST %
+
+CGST amount
+
+SGST %
+
+SGST amount
+
+IGST % (auto switch)
+
+🧠 Smart GST Logic (Automatic)
+State-based tax
+Same state → CGST + SGST
+
+Inter-state → IGST only
+
+Switch happens automatically based on:
+
+Company GST State
+
+Customer GST State
+
+Inclusive / Exclusive tax
+Item master flag:
+
+☐ Rate inclusive of tax
+
+☑ Rate exclusive of tax
+
+Grid recalculates instantly
+
+⌨️ Keyboard Flow (Very Important)
+Action	Key
+Focus item search	F1
+Select item	Enter
+Move cell	Enter / Tab
+Duplicate row	Ctrl + D
+Remove row	Delete
+Payment	F2
+Save invoice	F4
+Print	F9
+➡️ Flow:
+Scan/Search → Enter → Qty → Rate → Disc → next row
+
+🛑 GST Validations (Accounts-Safe)
+Inline (row level)
+🔴 Qty ≤ 0
+
+🔴 Tax % missing
+
+🔴 GST enabled item but customer GSTIN missing (B2B)
+
+🟡 Rate < cost (warning)
+
+Header level
+GSTIN format validation
+
+Place of supply required for IGST
+
+Rounding difference shown explicitly
+
+📊 Sticky Footer Summary (Always Visible)
+Taxable Value : ₹12,450.00
+CGST          : ₹1,120.50
+SGST          : ₹1,120.50
+IGST          : ₹0.00
+Round Off     : ₹-0.00
+--------------------------------
+NET PAYABLE   : ₹14,691.00
+✔ Clicking any tax line opens tax-wise breakup modal (Accounts users love this).
+
+🧩 Same Grid, 3 Use-Cases
+🛒 POS Sale
+Compact view
+
+Tax breakup on hover
+
+Payment buttons visible
+
+📘 Accounts (Sales / Purchase)
+Expandable GST breakup
+
+Freight / other charges (taxable / non-taxable)
+
+Invoice ref, due date
+
+📦 Inventory (GST neutral)
+Same grid
+
+Tax hidden or read-only
+
+Focus on qty + warehouse
+
+🎯 PrimeReact Mapping (for your stack)
+DataTable → cell edit mode
+
+AutoComplete → item search
+
+InputNumber → qty, rate, discount
+
+OverlayPanel → GST breakup
+
+Toast → validation messages
+
+Dialog → tax summary / payment
+
+If you want next:
+
+🧩 Exact column config JSON
+
+⌨️ Full keyboard handler logic
+
+🎨 PrimeReact DataTable JSX example
+
+🧾 GST rounding + freight tax rules
+
+Just tell me 👉 B2B only, B2C only, or mixed invoices?
+
+
+You said:
+mixed invoices
+
+ChatGPT said:
+Got it — mixed invoices (B2C + B2B). Here’s the cleanest desktop UX that keeps POS fast but still satisfies Accounts/GST.
+
+Header UX for Mixed (B2C/B2B)
+Customer selector + “Invoice Type” toggle
+
+Customer (walk-in allowed)
+
+Invoice Type: B2C | B2B (GST)
+
+Place of Supply (State) (auto from customer; required for B2B)
+
+GSTIN field appears only when B2B is selected
+
+Price List: Retail/Wholesale (optional)
+
+Smart rule
+
+If user enters a valid GSTIN, auto-switch to B2B.
+
+If customer = Walk-in, default B2C.
+
+Grid (same for both)
+Visible columns (keep it simple)
+| Item | Qty | Unit | Rate | Disc | Tax % | Amount |
+
+Tax % always visible (good for both)
+
+Tax breakup shown via hover/expand
+
+B2B-only (optional toggle columns)
+Add a “More” column set (not always shown):
+
+HSN/SAC
+
+GST split (CGST/SGST/IGST amounts)
+
+Taxable value
+
+GST behavior (mixed-friendly)
+B2C
+Show Net Payable big
+
+Tax breakup available on hover, but not in face
+
+Invoice print: can show tax summary (optional)
+
+B2B
+Require:
+
+GSTIN
+
+Place of Supply
+
+Print includes:
+
+HSN-wise summary
+
+CGST/SGST/IGST breakup
+
+Taxable value
+
+Auto switch CGST/SGST vs IGST
+
+Based on company state vs customer state
+
+Fast POS keyboard flow (still works)
+F1 focus item search
+
+Enter add item → focus Qty
+
+Enter/Tab move across
+
+F2 Payment
+
+F4 Save
+
+F9 Print
+
+If B2B selected and GSTIN missing: Save shows inline red message + focuses GSTIN field
+
+Validations (minimal but correct)
+On Save
+If B2B:
+
+GSTIN format valid
+
+Place of supply not empty
+
+HSN required (if your compliance needs it)
+
+Always:
+
+Qty > 0
+
+Tax % present
+
+Rate present
+
+Footer summary (perfect for mixed)
+Show both, but keep it compact:
+
+Taxable | Tax | Round Off | Net
+
+Clicking “Tax” opens modal:
+
+CGST, SGST, IGST lines
+
+HSN summary (only B2B)
+
+Practical defaults
+Customer = Walk-in (B2C)
+
+If customer selected has GSTIN → auto set B2B
+
+If invoice value crosses your internal threshold → show a soft prompt: “Customer GSTIN available?” (optional)
+
+If you tell me one more thing, I’ll give you the exact final layout (POS + Accounts compliant):
+Do you want HSN/SAC mandatory only for B2B, or for both B2B and B2C?
+
+
+You said:
+for both B2B and B2C
+
+ChatGPT said:
+Great — HSN/SAC for both B2B + B2C. Then the cleanest approach is:
+
+✅ Keep HSN visible, but not “heavy”
+Grid columns (desktop, mixed invoices)
+| Item | HSN/SAC | Qty | Unit | Rate | Disc | GST % | Amount | ⋯ |
+
+HSN/SAC: short (6–8 chars) column, read-only from item master (editable only if allowed)
+
+⋯ (More) opens an inline popover/expand row for extra details (batch/serial, taxable, GST split)
+
+🔍 Item Search Row (fast + accurate)
+Item dropdown results should show:
+
+Item Name
+
+SKU/Barcode
+
+HSN
+
+GST %
+
+Stock
+
+Default rate
+
+So user doesn’t need to open the row.
+
+🧾 GST Split without clutter (still available)
+Hover on GST % or click a tiny “tax” icon in the row to show:
+
+Taxable value
+
+CGST / SGST (same-state) OR IGST (inter-state)
+
+Accounts team gets breakup, POS team stays fast.
+
+✅ Mandatory validation (both B2B & B2C)
+On Save, check:
+
+HSN/SAC present for every row (else highlight that row + focus HSN cell)
+
+GST % present
+
+Qty > 0
+
+Rate present
+
+Nice UX: show a red badge on row: Missing HSN
+
+🧩 Row layout for Inventory compatibility
+For Inventory screens, keep the same grid but change header fields:
+
+Warehouse (From/To)
+
+Document type (Sale / Purchase / Transfer / Adjust)
+HSN stays visible (since you want it always).
+
+⌨️ Keyboard flow tweak (HSN included)
+Default editing order:
+Item → Qty → Rate → Disc → next row
+HSN should be auto-filled, so keyboard flow doesn’t slow down.
+
+If HSN missing, on save:
+
+jump to first missing HSN row and open cell edit.
+
+Print / export consistency
+Because HSN is required for both:
+
+Invoice print shows HSN line-item wise always
+
+Summary modal can include:
+
+HSN-wise taxable + tax totals (for both B2C & B2B)
+
+What I recommend as final UI behavior
+HSN is always visible (small column)
+
+HSN comes from Item Master (not typed during billing)
+
+Only allow override if role = Admin/Accounts
+
+If you want, paste your current column list (or a screenshot of your DataTable), and I’ll rewrite it into an ideal PrimeReact DataTable column config + edit rules + keyboard shortcuts for POS/Accounts/Inventory.
+
+
+You said:
+ok
+
+ChatGPT said:
+👍 Perfect.
+
+Next time, when you’re ready, we can directly lock this into implementation.
+
+Here’s what we’ve finalized (so you have a clean mental model):
+
+✅ Final agreed setup (desktop)
+Mixed invoices: B2B + B2C
+
+GST enabled
+
+HSN/SAC mandatory for all
+
+Single common grid for:
+
+POS
+
+Accounts
+
+Inventory
+
+🧱 Grid (final columns)
+| Item | HSN | Qty | Unit | Rate | Disc | GST % | Amount | ❌ |
+
+HSN auto-filled from Item Master
+
+Inline edit for Qty / Rate / Disc
+
+GST split via hover / expand (no clutter)
+
+🧠 Smart behavior
+Walk-in → B2C
+
+GSTIN entered → auto B2B
+
+CGST/SGST vs IGST auto switch
+
+Save blocked if HSN missing (any invoice)
+
+⌨️ Speed preserved
+Keyboard-first flow
+
+No forced HSN typing during billing
+
+Errors highlight row + auto-focus
+
+Whenever you want, just say one of these and I’ll continue instantly:
+
+“Give PrimeReact DataTable code”
+
+“Give column config JSON”
+
+“Add keyboard shortcut logic”
+
+“Design item master for HSN + GST”
+
+You’re set. This design will scale cleanly without rewrites later 🚀
+
+
+You said:
+yes
+
+ChatGPT said:
+Awesome — here’s a PrimeReact (Ultima) desktop-ready implementation for your POS + Accounts + Inventory item entry grid with GST + mandatory HSN for both B2B/B2C, plus keyboard shortcuts and tax breakup hover.
+
+PrimeReact Item Grid (DataTable cell edit)
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { DataTable } from "primereact/datatable";
+import { Column } from "primereact/column";
+import { AutoComplete, AutoCompleteCompleteEvent } from "primereact/autocomplete";
+import { InputNumber, InputNumberValueChangeEvent } from "primereact/inputnumber";
+import { Button } from "primereact/button";
+import { OverlayPanel } from "primereact/overlaypanel";
+import { Toast } from "primereact/toast";
+
+type InvoiceMode = "B2C" | "B2B";
+
+type ItemMaster = {
+  id: string;
+  name: string;
+  sku?: string;
+  barcode?: string;
+  hsn: string;            // mandatory
+  gstRate: number;        // e.g. 0, 5, 12, 18, 28
+  unit: string;           // e.g. pcs, kg
+  rate: number;           // default selling rate
+  stock?: number;
+};
+
+type Line = {
+  key: string;
+  itemId?: string;
+  itemName?: string;
+  hsn?: string;
+  unit?: string;
+  qty: number;
+  rate: number;
+  disc: number;           // discount amount (simple)
+  gstRate: number;
+  amount: number;         // final line amount (incl/excl depending on setting)
+  taxable: number;
+  cgst: number;
+  sgst: number;
+  igst: number;
+  hasError?: boolean;
+  errorMsg?: string;
+};
+
+function uid() {
+  return Math.random().toString(16).slice(2) + Date.now().toString(16);
+}
+
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
+function calcLine(opts: {
+  qty: number;
+  rate: number;
+  disc: number;       // amount
+  gstRate: number;    // percent
+  isIntraState: boolean;
+  taxInclusiveRate: boolean;
+}) {
+  const { qty, rate, disc, gstRate, isIntraState, taxInclusiveRate } = opts;
+
+  const lineBase = Math.max(0, qty) * Math.max(0, rate);
+  const baseAfterDisc = Math.max(0, lineBase - Math.max(0, disc));
+
+  if (gstRate <= 0) {
+    return {
+      taxable: round2(baseAfterDisc),
+      cgst: 0, sgst: 0, igst: 0,
+      amount: round2(baseAfterDisc),
+    };
+  }
+
+  if (!taxInclusiveRate) {
+    const tax = (baseAfterDisc * gstRate) / 100;
+    const cgst = isIntraState ? tax / 2 : 0;
+    const sgst = isIntraState ? tax / 2 : 0;
+    const igst = isIntraState ? 0 : tax;
+
+    return {
+      taxable: round2(baseAfterDisc),
+      cgst: round2(cgst),
+      sgst: round2(sgst),
+      igst: round2(igst),
+      amount: round2(baseAfterDisc + tax),
+    };
+  } else {
+    // rate already includes tax => extract taxable
+    const taxable = baseAfterDisc / (1 + gstRate / 100);
+    const tax = baseAfterDisc - taxable;
+    const cgst = isIntraState ? tax / 2 : 0;
+    const sgst = isIntraState ? tax / 2 : 0;
+    const igst = isIntraState ? 0 : tax;
+
+    return {
+      taxable: round2(taxable),
+      cgst: round2(cgst),
+      sgst: round2(sgst),
+      igst: round2(igst),
+      amount: round2(baseAfterDisc),
+    };
+  }
+}
+
+export default function PosAccountsInventoryGrid() {
+  // --- HEADER SETTINGS (wire these to your screen) ---
+  const [invoiceMode, setInvoiceMode] = useState<InvoiceMode>("B2C");
+  const [isIntraState, setIsIntraState] = useState(true); // set based on company vs customer state
+  const [taxInclusiveRate, setTaxInclusiveRate] = useState(false); // item master / settings
+
+  // --- MASTER DATA (replace with API) ---
+  const allItems: ItemMaster[] = useMemo(
+    () => [
+      { id: "1", name: "Parle-G Biscuit", sku: "BIS-001", barcode: "8900001", hsn: "19053100", gstRate: 18, unit: "pcs", rate: 10, stock: 120 },
+      { id: "2", name: "Milk 1L", sku: "DAI-010", barcode: "8900002", hsn: "04012000", gstRate: 5, unit: "pcs", rate: 60, stock: 45 },
+      { id: "3", name: "Rice (Loose)", sku: "GRC-200", barcode: "8900003", hsn: "10063020", gstRate: 5, unit: "kg", rate: 55, stock: 320 },
+    ],
+    []
+  );
+
+  // --- AUTOCOMPLETE ---
+  const [query, setQuery] = useState("");
+  const [suggestions, setSuggestions] = useState<ItemMaster[]>([]);
+  const searchRef = useRef<AutoComplete>(null);
+
+  const onSearch = (e: AutoCompleteCompleteEvent) => {
+    const q = (e.query ?? "").toLowerCase();
+    const res = allItems.filter(x =>
+      [x.name, x.sku, x.barcode, x.hsn].filter(Boolean).some(v => v!.toLowerCase().includes(q))
+    );
+    setSuggestions(res.slice(0, 25));
+  };
+
+  // --- TABLE DATA ---
+  const [rows, setRows] = useState<Line[]>(() => [
+    { key: uid(), qty: 1, rate: 0, disc: 0, gstRate: 0, amount: 0, taxable: 0, cgst: 0, sgst: 0, igst: 0 },
+  ]);
+
+  const toast = useRef<Toast>(null);
+  const taxPanel = useRef<OverlayPanel>(null);
+  const [taxPanelData, setTaxPanelData] = useState<Line | null>(null);
+
+  const upsertBlankRowIfNeeded = (list: Line[]) => {
+    const last = list[list.length - 1];
+    const lastHasItem = !!last?.itemId;
+    if (lastHasItem) {
+      return [...list, { key: uid(), qty: 1, rate: 0, disc: 0, gstRate: 0, amount: 0, taxable: 0, cgst: 0, sgst: 0, igst: 0 }];
+    }
+    return list;
+  };
+
+  const applyCalc = (line: Line): Line => {
+    const c = calcLine({
+      qty: line.qty,
+      rate: line.rate,
+      disc: line.disc,
+      gstRate: line.gstRate,
+      isIntraState,
+      taxInclusiveRate,
+    });
+    return { ...line, ...c };
+  };
+
+  const addItemToGrid = (it: ItemMaster) => {
+    setRows(prev => {
+      // If item already exists, increment qty (POS-friendly)
+      const idx = prev.findIndex(r => r.itemId === it.id);
+      if (idx >= 0) {
+        const clone = [...prev];
+        const existing = clone[idx];
+        const updated = applyCalc({ ...existing, qty: existing.qty + 1 });
+        clone[idx] = updated;
+        return upsertBlankRowIfNeeded(clone);
+      }
+
+      const blankIdx = prev.findIndex(r => !r.itemId);
+      const targetIdx = blankIdx >= 0 ? blankIdx : prev.length;
+
+      const line: Line = applyCalc({
+        key: blankIdx >= 0 ? prev[blankIdx].key : uid(),
+        itemId: it.id,
+        itemName: it.name,
+        hsn: it.hsn,
+        unit: it.unit,
+        qty: 1,
+        rate: it.rate,
+        disc: 0,
+        gstRate: it.gstRate,
+        amount: 0, taxable: 0, cgst: 0, sgst: 0, igst: 0,
+      });
+
+      const clone = [...prev];
+      clone[targetIdx] = line;
+      return upsertBlankRowIfNeeded(clone);
+    });
+
+    setQuery("");
+    searchRef.current?.focus();
+  };
+
+  // --- EDITORS ---
+  const numberEditor = (field: keyof Line, min = 0) => (options: any) => (
+    <InputNumber
+      value={options.value ?? 0}
+      min={min}
+      onValueChange={(e: InputNumberValueChangeEvent) => {
+        const val = Number(e.value ?? 0);
+        options.editorCallback(val);
+      }}
+      useGrouping={false}
+    />
+  );
+
+  const removeRow = (key: string) => {
+    setRows(prev => {
+      const filtered = prev.filter(r => r.key !== key);
+      return filtered.length ? upsertBlankRowIfNeeded(filtered) : upsertBlankRowIfNeeded([]);
+    });
+  };
+
+  // --- CELL EDIT COMPLETE: recalc row ---
+  const onCellEditComplete = (e: any) => {
+    const { rowData, newValue, field } = e;
+    setRows(prev => {
+      const clone = prev.map(r => {
+        if (r.key !== rowData.key) return r;
+        const updated = applyCalc({ ...r, [field]: newValue });
+        return { ...updated, hasError: false, errorMsg: "" };
+      });
+      return clone;
+    });
+  };
+
+  // --- VALIDATION (HSN mandatory for both B2B/B2C) ---
+  const validateBeforeSave = () => {
+    let ok = true;
+    setRows(prev => prev.map(r => {
+      if (!r.itemId) return r; // ignore blank row
+      const missingHSN = !r.hsn || !r.hsn.trim();
+      const badQty = !r.qty || r.qty <= 0;
+      const badRate = r.rate < 0;
+      const badGst = r.gstRate == null;
+
+      if (missingHSN || badQty || badRate || badGst) {
+        ok = false;
+        const msgs = [
+          missingHSN ? "Missing HSN/SAC" : "",
+          badQty ? "Qty must be > 0" : "",
+          badRate ? "Rate invalid" : "",
+          badGst ? "GST% missing" : "",
+        ].filter(Boolean).join(" • ");
+        return { ...r, hasError: true, errorMsg: msgs };
+      }
+      return { ...r, hasError: false, errorMsg: "" };
+    }));
+
+    if (!ok) {
+      toast.current?.show({ severity: "error", summary: "Fix errors", detail: "Some rows are missing HSN/SAC or have invalid values.", life: 3500 });
+    }
+    return ok;
+  };
+
+  const totals = useMemo(() => {
+    const lines = rows.filter(r => r.itemId);
+    const taxable = round2(lines.reduce((s, r) => s + (r.taxable || 0), 0));
+    const cgst = round2(lines.reduce((s, r) => s + (r.cgst || 0), 0));
+    const sgst = round2(lines.reduce((s, r) => s + (r.sgst || 0), 0));
+    const igst = round2(lines.reduce((s, r) => s + (r.igst || 0), 0));
+    const net = round2(lines.reduce((s, r) => s + (r.amount || 0), 0));
+    return { taxable, cgst, sgst, igst, net };
+  }, [rows]);
+
+  // --- SHORTCUTS (F1 search, F4 save) ---
+  useEffect(() => {
+    const onKeyDown = (ev: KeyboardEvent) => {
+      if (ev.key === "F1") {
+        ev.preventDefault();
+        searchRef.current?.focus();
+      }
+      if (ev.key === "F4") {
+        ev.preventDefault();
+        if (validateBeforeSave()) {
+          toast.current?.show({ severity: "success", summary: "Saved", detail: "Invoice saved (demo).", life: 2500 });
+        }
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [rows]);
+
+  // --- UI helpers ---
+  const rowClassName = (data: Line) => (data.hasError ? "p-invalid" : "");
+
+  const amountBody = (r: Line) => (
+    <span>
+      {r.amount?.toFixed(2)}
+      {r.itemId && (
+        <Button
+          text
+          icon="pi pi-info-circle"
+          className="p-0 ml-2"
+          onClick={(e) => {
+            setTaxPanelData(r);
+            taxPanel.current?.toggle(e);
+          }}
+          tooltip="Tax breakup"
+          tooltipOptions={{ position: "top" }}
+        />
+      )}
+    </span>
+  );
+
+  const errorBody = (r: Line) =>
+    r.hasError ? <small style={{ color: "var(--red-500)" }}>{r.errorMsg}</small> : null;
+
+  return (
+    <div className="p-3">
+      <Toast ref={toast} />
+
+      {/* Header controls (wire to your screen) */}
+      <div className="flex flex-wrap gap-2 align-items-center mb-3">
+        <div className="flex align-items-center gap-2">
+          <span className="font-semibold">Invoice:</span>
+          <Button
+            label="B2C"
+            size="small"
+            outlined={invoiceMode !== "B2C"}
+            onClick={() => setInvoiceMode("B2C")}
+          />
+          <Button
+            label="B2B (GST)"
+            size="small"
+            outlined={invoiceMode !== "B2B"}
+            onClick={() => setInvoiceMode("B2B")}
+          />
+        </div>
+
+        <div className="flex align-items-center gap-2">
+          <span className="font-semibold">Tax:</span>
+          <Button
+            label={isIntraState ? "Intra-state (CGST/SGST)" : "Inter-state (IGST)"}
+            size="small"
+            outlined
+            onClick={() => setIsIntraState(v => !v)}
+          />
+          <Button
+            label={taxInclusiveRate ? "Rate: Inclusive" : "Rate: Exclusive"}
+            size="small"
+            outlined
+            onClick={() => setTaxInclusiveRate(v => !v)}
+          />
+        </div>
+
+        {/* Item Search */}
+        <div className="flex align-items-center gap-2 ml-auto" style={{ minWidth: 360 }}>
+          <span className="font-semibold">Item:</span>
+          <AutoComplete
+            ref={searchRef}
+            value={query}
+            suggestions={suggestions}
+            completeMethod={onSearch}
+            onChange={(e) => setQuery(e.value ?? "")}
+            placeholder="Scan barcode / search item (F1)"
+            field="name"
+            dropdown
+            onSelect={(e) => addItemToGrid(e.value as ItemMaster)}
+            itemTemplate={(it: ItemMaster) => (
+              <div className="flex justify-content-between gap-3">
+                <div>
+                  <div className="font-medium">{it.name}</div>
+                  <small className="text-600">
+                    SKU: {it.sku ?? "-"} • HSN: {it.hsn} • GST: {it.gstRate}% • Stock: {it.stock ?? "-"}
+                  </small>
+                </div>
+                <div className="text-right">
+                  <div className="font-semibold">₹{it.rate.toFixed(2)}</div>
+                </div>
+              </div>
+            )}
+          />
+        </div>
+      </div>
+
+      <DataTable
+        value={rows}
+        dataKey="key"
+        editMode="cell"
+        rowClassName={rowClassName}
+        showGridlines
+        size="small"
+        responsiveLayout="scroll"
+        className="p-datatable-sm"
+      >
+        <Column
+          header="#"
+          body={(_, opt) => <span>{opt.rowIndex + 1}</span>}
+          style={{ width: 56 }}
+        />
+
+        <Column
+          field="itemName"
+          header="Item"
+          body={(r: Line) => <span className={r.hasError && !r.itemId ? "" : ""}>{r.itemName ?? ""}</span>}
+          style={{ minWidth: 260 }}
+        />
+
+        <Column
+          field="hsn"
+          header="HSN/SAC"
+          body={(r: Line) => <span>{r.hsn ?? ""}</span>}
+          style={{ width: 140 }}
+        />
+
+        <Column
+          field="qty"
+          header="Qty"
+          editor={numberEditor("qty", 0)}
+          onCellEditComplete={onCellEditComplete}
+          style={{ width: 120 }}
+        />
+
+        <Column field="unit" header="Unit" body={(r: Line) => r.unit ?? ""} style={{ width: 110 }} />
+
+        <Column
+          field="rate"
+          header="Rate"
+          editor={numberEditor("rate", 0)}
+          onCellEditComplete={onCellEditComplete}
+          style={{ width: 130 }}
+        />
+
+        <Column
+          field="disc"
+          header="Disc"
+          editor={numberEditor("disc", 0)}
+          onCellEditComplete={onCellEditComplete}
+          style={{ width: 120 }}
+        />
+
+        <Column
+          field="gstRate"
+          header="GST %"
+          body={(r: Line) => (r.itemId ? `${r.gstRate}%` : "")}
+          style={{ width: 110 }}
+        />
+
+        <Column field="amount" header="Amount" body={amountBody} style={{ width: 160 }} />
+
+        <Column
+          header=""
+          body={(r: Line) =>
+            r.itemId ? (
+              <Button icon="pi pi-trash" text severity="danger" onClick={() => removeRow(r.key)} />
+            ) : null
+          }
+          style={{ width: 70 }}
+        />
+
+        <Column
+          header=""
+          body={errorBody}
+          style={{ minWidth: 260 }}
+        />
+      </DataTable>
+
+      {/* Sticky-ish footer summary */}
+      <div className="flex flex-wrap justify-content-between align-items-center mt-3 p-2 border-1 surface-border border-round">
+        <div className="flex flex-wrap gap-4">
+          <div><span className="text-600">Taxable:</span> <b>₹{totals.taxable.toFixed(2)}</b></div>
+          <div><span className="text-600">CGST:</span> <b>₹{totals.cgst.toFixed(2)}</b></div>
+          <div><span className="text-600">SGST:</span> <b>₹{totals.sgst.toFixed(2)}</b></div>
+          <div><span className="text-600">IGST:</span> <b>₹{totals.igst.toFixed(2)}</b></div>
+        </div>
+        <div className="flex align-items-center gap-2">
+          <div className="text-xl">NET: <b>₹{totals.net.toFixed(2)}</b></div>
+          <Button label="Save (F4)" icon="pi pi-save" onClick={() => validateBeforeSave() && toast.current?.show({ severity: "success", summary: "Saved", detail: "Invoice saved (demo).", life: 2500 })} />
+        </div>
+      </div>
+
+      {/* Tax breakup panel */}
+      <OverlayPanel ref={taxPanel}>
+        {taxPanelData && (
+          <div style={{ minWidth: 260 }}>
+            <div className="font-semibold mb-2">{taxPanelData.itemName}</div>
+            <div className="flex justify-content-between"><span className="text-600">Taxable</span><b>₹{taxPanelData.taxable.toFixed(2)}</b></div>
+            <div className="flex justify-content-between"><span className="text-600">CGST</span><b>₹{taxPanelData.cgst.toFixed(2)}</b></div>
+            <div className="flex justify-content-between"><span className="text-600">SGST</span><b>₹{taxPanelData.sgst.toFixed(2)}</b></div>
+            <div className="flex justify-content-between"><span className="text-600">IGST</span><b>₹{taxPanelData.igst.toFixed(2)}</b></div>
+            <hr />
+            <div className="flex justify-content-between"><span className="text-600">Line Total</span><b>₹{taxPanelData.amount.toFixed(2)}</b></div>
+          </div>
+        )}
+      </OverlayPanel>
+    </div>
+  );
+}
+What you get from this
+✅ Single grid for POS + Accounts + Inventory
+
+✅ HSN mandatory for B2C + B2B
+
+✅ GST split (CGST/SGST vs IGST) auto based on intra/inter state
+
+✅ Keyboard shortcuts (F1 search, F4 save)
+
+✅ POS-friendly behavior: adding same item increments qty
+
+✅ Totals footer with taxable + GST breakup
+
+If you want, I’ll adapt this to your real flow:
+
+Discount as % + ₹ toggle
+
+Batch/Expiry/Serial for inventory items
+
+Price list (retail/wholesale)
+
+HSN edit permission by role
+
+
+You said:
+Discount as % + ₹ toggle
+
+Batch/Expiry/Serial for inventory items
+
+Price list (retail/wholesale)
+
+ChatGPT said:
+Below is an upgrade of the same grid to support:
+
+✅ Discount toggle (% or ₹) per row
+
+✅ Batch / Expiry / Serial (shown only when item requires it)
+
+✅ Price list (Retail / Wholesale) affecting default rate
+
+I’m keeping it desktop + keyboard friendly.
+
+1) Data model changes
+Item Master (add flags + price lists)
+type ItemMaster = {
+  id: string;
+  name: string;
+  sku?: string;
+  barcode?: string;
+  hsn: string;
+  gstRate: number;
+  unit: string;
+  requiresBatch?: boolean;
+  requiresExpiry?: boolean;
+  requiresSerial?: boolean;
+
+  prices: {
+    retail: number;
+    wholesale: number;
+  };
+
+  stock?: number;
+};
+Line (discount mode + inventory fields)
+type DiscMode = "PERCENT" | "AMOUNT";
+
+type Line = {
+  key: string;
+  itemId?: string;
+  itemName?: string;
+
+  hsn?: string;
+  unit?: string;
+
+  qty: number;
+  rate: number;
+
+  discMode: DiscMode;
+  discValue: number;     // if % => 0..100, if ₹ => amount
+
+  gstRate: number;
+
+  batchNo?: string;
+  expiry?: string;       // "YYYY-MM" or "YYYY-MM-DD" based on your rule
+  serials?: string;      // store as comma/space separated OR array in real app
+  requiresBatch?: boolean;
+  requiresExpiry?: boolean;
+  requiresSerial?: boolean;
+
+  taxable: number;
+  cgst: number;
+  sgst: number;
+  igst: number;
+  amount: number;
+
+  hasError?: boolean;
+  errorMsg?: string;
+};
+2) Calculation changes (discount % or ₹)
+Replace discount logic with:
+
+function discAmount(lineBase: number, discMode: DiscMode, discValue: number) {
+  if (discMode === "PERCENT") {
+    const pct = Math.min(100, Math.max(0, discValue || 0));
+    return (lineBase * pct) / 100;
+  }
+  return Math.min(lineBase, Math.max(0, discValue || 0));
+}
+Inside your calcLine:
+
+const lineBase = Math.max(0, qty) * Math.max(0, rate);
+const discAmt = discAmount(lineBase, discMode, discValue);
+const baseAfterDisc = Math.max(0, lineBase - discAmt);
+3) Price list (Retail/Wholesale)
+Add global state:
+
+type PriceList = "retail" | "wholesale";
+const [priceList, setPriceList] = useState<PriceList>("retail");
+When adding item to grid:
+
+const defaultRate = it.prices[priceList];
+Also allow reprice all lines when price list changes (optional but useful):
+
+useEffect(() => {
+  setRows(prev => prev.map(r => {
+    if (!r.itemId) return r;
+    const it = allItems.find(x => x.id === r.itemId);
+    if (!it) return r;
+    const updated = { ...r, rate: it.prices[priceList] };
+    return applyCalc(updated);
+  }));
+}, [priceList]);
+4) Batch / Expiry / Serial UX (inventory items)
+Best UX (no clutter)
+Show columns: Batch, Expiry, Serial only if at least 1 row needs them
+
+Otherwise show them in row expand (recommended)
+
+Add row expansion for inventory details
+PrimeReact:
+
+rowExpansionTemplate
+
+an expander column
+
+Example fields:
+
+Batch No (InputText)
+
+Expiry (Calendar, month picker)
+
+Serials (Textarea / Chips input)
+
+Rule
+
+If item requires serial → allow qty to equal number of serials (validate)
+
+5) Practical PrimeReact column snippets
+Discount mode toggle editor
+import { SelectButton } from "primereact/selectbutton";
+
+const discModeEditor = (options:any) => (
+  <SelectButton
+    value={options.value}
+    options={[
+      { label: "%", value: "PERCENT" },
+      { label: "₹", value: "AMOUNT" }
+    ]}
+    onChange={(e) => options.editorCallback(e.value)}
+  />
+);
+Discount value editor
+const discValueEditor = (options:any) => (
+  <InputNumber
+    value={options.value ?? 0}
+    min={0}
+    max={options.rowData.discMode === "PERCENT" ? 100 : undefined}
+    onValueChange={(e) => options.editorCallback(Number(e.value ?? 0))}
+    useGrouping={false}
+  />
+);
+Columns to add
+<Column
+  field="discMode"
+  header="Disc"
+  editor={discModeEditor}
+  onCellEditComplete={onCellEditComplete}
+  style={{ width: 120 }}
+  body={(r:Line) => (r.itemId ? (r.discMode === "PERCENT" ? "%" : "₹") : "")}
+/>
+
+<Column
+  field="discValue"
+  header="Disc Val"
+  editor={discValueEditor}
+  onCellEditComplete={onCellEditComplete}
+  style={{ width: 130 }}
+  body={(r:Line) => (r.itemId ? String(r.discValue ?? 0) : "")}
+/>
+6) Inventory validation rules (Batch/Expiry/Serial)
+In validateBeforeSave() add:
+
+If requiresBatch and batchNo empty → error
+
+If requiresExpiry and expiry empty → error
+
+If requiresSerial:
+
+serials required
+
+count(serials) must equal qty (or qty auto = count)
+
+Example:
+
+const serialCount = (r.serials ?? "")
+  .split(/[\s,]+/)
+  .map(s => s.trim())
+  .filter(Boolean).length;
+
+if (r.requiresSerial && serialCount !== r.qty) {
+  ok = false;
+  msgs.push(`Serial count (${serialCount}) must match Qty (${r.qty})`);
+}
+7) Header UI (Price list toggle)
+<Button label="Retail" outlined={priceList!=="retail"} onClick={()=>setPriceList("retail")} />
+<Button label="Wholesale" outlined={priceList!=="wholesale"} onClick={()=>setPriceList("wholesale")} />
+If you want the full combined component
+Say: “merge into full code” and I’ll paste the complete single TSX file with:
+
+price list toggle
+
+discount %/₹ toggle
+
+row expansion for batch/expiry/serial
+
+validation + GST calc + keyboard shortcuts
+
+(And I’ll keep it compatible with your Ultima/PrimeReact setup.)
+
+
+You said:
+merge into full code
+
+ChatGPT said:
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { DataTable } from "primereact/datatable";
+import { Column } from "primereact/column";
+import { AutoComplete, AutoCompleteCompleteEvent } from "primereact/autocomplete";
+import { InputNumber, InputNumberValueChangeEvent } from "primereact/inputnumber";
+import { InputText } from "primereact/inputtext";
+import { Button } from "primereact/button";
+import { OverlayPanel } from "primereact/overlaypanel";
+import { Toast } from "primereact/toast";
+import { SelectButton } from "primereact/selectbutton";
+import { Calendar } from "primereact/calendar";
+import { InputTextarea } from "primereact/inputtextarea";
+
+type InvoiceMode = "B2C" | "B2B";
+type PriceList = "retail" | "wholesale";
+type DiscMode = "PERCENT" | "AMOUNT";
+
+type ItemMaster = {
+  id: string;
+  name: string;
+  sku?: string;
+  barcode?: string;
+  hsn: string;
+  gstRate: number; // %
+  unit: string;
+
+  requiresBatch?: boolean;
+  requiresExpiry?: boolean;
+  requiresSerial?: boolean;
+
+  prices: {
+    retail: number;
+    wholesale: number;
+  };
+
+  stock?: number;
+};
+
+type Line = {
+  key: string;
+
+  itemId?: string;
+  itemName?: string;
+
+  hsn?: string;
+  unit?: string;
+
+  qty: number;
+  rate: number;
+
+  discMode: DiscMode;
+  discValue: number; // % or ₹
+
+  gstRate: number;
+
+  // inventory fields
+  batchNo?: string;
+  expiry?: Date | null; // stored as Date
+  serials?: string; // comma/space separated; you can store as array later
+
+  requiresBatch?: boolean;
+  requiresExpiry?: boolean;
+  requiresSerial?: boolean;
+
+  taxable: number;
+  cgst: number;
+  sgst: number;
+  igst: number;
+  amount: number;
+
+  hasError?: boolean;
+  errorMsg?: string;
+};
+
+function uid() {
+  return Math.random().toString(16).slice(2) + Date.now().toString(16);
+}
+
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
+function parseSerials(text?: string) {
+  return (text ?? "")
+    .split(/[\s,]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+function discAmount(lineBase: number, discMode: DiscMode, discValue: number) {
+  if (discMode === "PERCENT") {
+    const pct = Math.min(100, Math.max(0, discValue || 0));
+    return (lineBase * pct) / 100;
+  }
+  return Math.min(lineBase, Math.max(0, discValue || 0));
+}
+
+function calcLine(opts: {
+  qty: number;
+  rate: number;
+  discMode: DiscMode;
+  discValue: number;
+  gstRate: number;
+  isIntraState: boolean;
+  taxInclusiveRate: boolean;
+}) {
+  const { qty, rate, discMode, discValue, gstRate, isIntraState, taxInclusiveRate } = opts;
+
+  const lineBase = Math.max(0, qty) * Math.max(0, rate);
+  const discAmt = discAmount(lineBase, discMode, discValue);
+  const baseAfterDisc = Math.max(0, lineBase - discAmt);
+
+  if (gstRate <= 0) {
+    return {
+      taxable: round2(baseAfterDisc),
+      cgst: 0,
+      sgst: 0,
+      igst: 0,
+      amount: round2(baseAfterDisc),
+    };
+  }
+
+  if (!taxInclusiveRate) {
+    const tax = (baseAfterDisc * gstRate) / 100;
+    const cgst = isIntraState ? tax / 2 : 0;
+    const sgst = isIntraState ? tax / 2 : 0;
+    const igst = isIntraState ? 0 : tax;
+    return {
+      taxable: round2(baseAfterDisc),
+      cgst: round2(cgst),
+      sgst: round2(sgst),
+      igst: round2(igst),
+      amount: round2(baseAfterDisc + tax),
+    };
+  } else {
+    // amount includes tax, extract taxable
+    const taxable = baseAfterDisc / (1 + gstRate / 100);
+    const tax = baseAfterDisc - taxable;
+    const cgst = isIntraState ? tax / 2 : 0;
+    const sgst = isIntraState ? tax / 2 : 0;
+    const igst = isIntraState ? 0 : tax;
+
+    return {
+      taxable: round2(taxable),
+      cgst: round2(cgst),
+      sgst: round2(sgst),
+      igst: round2(igst),
+      amount: round2(baseAfterDisc),
+    };
+  }
+}
+
+function makeBlankLine(): Line {
+  return {
+    key: uid(),
+    qty: 1,
+    rate: 0,
+    discMode: "PERCENT",
+    discValue: 0,
+    gstRate: 0,
+    taxable: 0,
+    cgst: 0,
+    sgst: 0,
+    igst: 0,
+    amount: 0,
+    expiry: null,
+  };
+}
+
+export default function PosAccountsInventoryGrid_Full() {
+  // --- HEADER SETTINGS (wire these to your screen) ---
+  const [invoiceMode, setInvoiceMode] = useState<InvoiceMode>("B2C");
+  const [priceList, setPriceList] = useState<PriceList>("retail");
+  const [isIntraState, setIsIntraState] = useState(true); // set based on company vs customer state
+  const [taxInclusiveRate, setTaxInclusiveRate] = useState(false); // item master / settings
+
+  // Toggle whether we’re on an inventory-style screen (controls validation strictness for batch/serial)
+  // You can remove this and always validate inventory fields if you prefer.
+  const [inventoryMode, setInventoryMode] = useState(false);
+
+  // --- MASTER DATA (replace with API) ---
+  const allItems: ItemMaster[] = useMemo(
+    () => [
+      {
+        id: "1",
+        name: "Parle-G Biscuit",
+        sku: "BIS-001",
+        barcode: "8900001",
+        hsn: "19053100",
+        gstRate: 18,
+        unit: "pcs",
+        prices: { retail: 10, wholesale: 9 },
+        stock: 120,
+      },
+      {
+        id: "2",
+        name: "Milk 1L (Batch+Expiry)",
+        sku: "DAI-010",
+        barcode: "8900002",
+        hsn: "04012000",
+        gstRate: 5,
+        unit: "pcs",
+        requiresBatch: true,
+        requiresExpiry: true,
+        prices: { retail: 60, wholesale: 57 },
+        stock: 45,
+      },
+      {
+        id: "3",
+        name: "Phone (Serial)",
+        sku: "ELC-555",
+        barcode: "8900009",
+        hsn: "85171290",
+        gstRate: 18,
+        unit: "pcs",
+        requiresSerial: true,
+        prices: { retail: 12999, wholesale: 12500 },
+        stock: 8,
+      },
+      {
+        id: "4",
+        name: "Rice (Loose)",
+        sku: "GRC-200",
+        barcode: "8900003",
+        hsn: "10063020",
+        gstRate: 5,
+        unit: "kg",
+        prices: { retail: 55, wholesale: 52 },
+        stock: 320,
+      },
+    ],
+    []
+  );
+
+  // --- AUTOCOMPLETE ---
+  const [query, setQuery] = useState("");
+  const [suggestions, setSuggestions] = useState<ItemMaster[]>([]);
+  const searchRef = useRef<AutoComplete>(null);
+
+  const onSearch = (e: AutoCompleteCompleteEvent) => {
+    const q = (e.query ?? "").toLowerCase();
+    const res = allItems.filter((x) =>
+      [x.name, x.sku, x.barcode, x.hsn].filter(Boolean).some((v) => v!.toLowerCase().includes(q))
+    );
+    setSuggestions(res.slice(0, 25));
+  };
+
+  // --- TABLE DATA ---
+  const [rows, setRows] = useState<Line[]>(() => [makeBlankLine()]);
+  const toast = useRef<Toast>(null);
+
+  const taxPanel = useRef<OverlayPanel>(null);
+  const [taxPanelData, setTaxPanelData] = useState<Line | null>(null);
+
+  const anyInventoryFieldsNeeded = useMemo(() => {
+    const lines = rows.filter((r) => r.itemId);
+    return {
+      batch: lines.some((r) => !!r.requiresBatch),
+      expiry: lines.some((r) => !!r.requiresExpiry),
+      serial: lines.some((r) => !!r.requiresSerial),
+    };
+  }, [rows]);
+
+  const upsertBlankRowIfNeeded = (list: Line[]) => {
+    if (!list.length) return [makeBlankLine()];
+    const last = list[list.length - 1];
+    const lastHasItem = !!last?.itemId;
+    if (lastHasItem) return [...list, makeBlankLine()];
+    return list;
+  };
+
+  const applyCalc = (line: Line): Line => {
+    const c = calcLine({
+      qty: line.qty,
+      rate: line.rate,
+      discMode: line.discMode,
+      discValue: line.discValue,
+      gstRate: line.gstRate,
+      isIntraState,
+      taxInclusiveRate,
+    });
+    return { ...line, ...c };
+  };
+
+  const addItemToGrid = (it: ItemMaster) => {
+    setRows((prev) => {
+      // POS-friendly: If item already exists and it does NOT require serial, increment qty
+      const idx = prev.findIndex((r) => r.itemId === it.id);
+      if (idx >= 0 && !it.requiresSerial) {
+        const clone = [...prev];
+        const existing = clone[idx];
+        const updated = applyCalc({ ...existing, qty: existing.qty + 1 });
+        clone[idx] = updated;
+        return upsertBlankRowIfNeeded(clone);
+      }
+
+      const blankIdx = prev.findIndex((r) => !r.itemId);
+      const targetIdx = blankIdx >= 0 ? blankIdx : prev.length;
+
+      const defaultRate = it.prices[priceList];
+
+      const line: Line = applyCalc({
+        key: blankIdx >= 0 ? prev[blankIdx].key : uid(),
+        itemId: it.id,
+        itemName: it.name,
+        hsn: it.hsn,
+        unit: it.unit,
+        qty: 1,
+        rate: defaultRate,
+        discMode: "PERCENT",
+        discValue: 0,
+        gstRate: it.gstRate,
+        batchNo: "",
+        expiry: null,
+        serials: "",
+        requiresBatch: !!it.requiresBatch,
+        requiresExpiry: !!it.requiresExpiry,
+        requiresSerial: !!it.requiresSerial,
+        taxable: 0,
+        cgst: 0,
+        sgst: 0,
+        igst: 0,
+        amount: 0,
+      });
+
+      const clone = [...prev];
+      clone[targetIdx] = line;
+      return upsertBlankRowIfNeeded(clone);
+    });
+
+    setQuery("");
+    searchRef.current?.focus();
+  };
+
+  const removeRow = (key: string) => {
+    setRows((prev) => upsertBlankRowIfNeeded(prev.filter((r) => r.key !== key)));
+  };
+
+  // --- PRICE LIST CHANGE: optionally reprice existing lines ---
+  useEffect(() => {
+    setRows((prev) => {
+      const updated = prev.map((r) => {
+        if (!r.itemId) return r;
+        const it = allItems.find((x) => x.id === r.itemId);
+        if (!it) return r;
+        const next = { ...r, rate: it.prices[priceList] };
+        return applyCalc(next);
+      });
+      return updated;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [priceList]);
+
+  // --- CELL EDIT COMPLETE: recalc row ---
+  const onCellEditComplete = (e: any) => {
+    const { rowData, newValue, field } = e;
+
+    setRows((prev) =>
+      prev.map((r) => {
+        if (r.key !== rowData.key) return r;
+
+        let updated: Line = { ...r, [field]: newValue };
+
+        // If switching to % discount, clamp to 0..100
+        if (field === "discMode") {
+          if (newValue === "PERCENT") updated.discValue = Math.min(100, Math.max(0, updated.discValue || 0));
+        }
+
+        // If serial-required item and qty changed, we’ll validate later (or you can auto-adjust)
+        updated = applyCalc(updated);
+        return { ...updated, hasError: false, errorMsg: "" };
+      })
+    );
+  };
+
+  // --- Editors ---
+  const numberEditor =
+    (field: keyof Line, min = 0, max?: number) =>
+    (options: any) => (
+      <InputNumber
+        value={options.value ?? 0}
+        min={min}
+        max={max}
+        onValueChange={(e: InputNumberValueChangeEvent) => options.editorCallback(Number(e.value ?? 0))}
+        useGrouping={false}
+      />
+    );
+
+  const discModeEditor = (options: any) => (
+    <SelectButton
+      value={options.value}
+      options={[
+        { label: "%", value: "PERCENT" },
+        { label: "₹", value: "AMOUNT" },
+      ]}
+      onChange={(e) => options.editorCallback(e.value)}
+    />
+  );
+
+  const discValueEditor = (options: any) => (
+    <InputNumber
+      value={options.value ?? 0}
+      min={0}
+      max={options.rowData.discMode === "PERCENT" ? 100 : undefined}
+      onValueChange={(e: InputNumberValueChangeEvent) => options.editorCallback(Number(e.value ?? 0))}
+      useGrouping={false}
+    />
+  );
+
+  // --- Row expansion (Batch / Expiry / Serial) ---
+  const updateRowField = (key: string, patch: Partial<Line>) => {
+    setRows((prev) =>
+      prev.map((r) => {
+        if (r.key !== key) return r;
+        const updated = applyCalc({ ...r, ...patch });
+        return { ...updated, hasError: false, errorMsg: "" };
+      })
+    );
+  };
+
+  const rowExpansionTemplate = (r: Line) => {
+    if (!r.itemId) return null;
+
+    const showBatch = !!r.requiresBatch;
+    const showExpiry = !!r.requiresExpiry;
+    const showSerial = !!r.requiresSerial;
+
+    if (!showBatch && !showExpiry && !showSerial) {
+      return <div className="p-2 text-600">No inventory tracking required for this item.</div>;
+    }
+
+    const serialList = parseSerials(r.serials);
+    const serialCount = serialList.length;
+
+    return (
+      <div className="p-3 border-1 surface-border border-round">
+        <div className="grid">
+          {showBatch && (
+            <div className="col-12 md:col-4">
+              <label className="block mb-1 font-medium">Batch No</label>
+              <InputText
+                value={r.batchNo ?? ""}
+                onChange={(e) => updateRowField(r.key, { batchNo: e.target.value })}
+                placeholder="Enter batch number"
+                className="w-full"
+              />
+            </div>
+          )}
+
+          {showExpiry && (
+            <div className="col-12 md:col-4">
+              <label className="block mb-1 font-medium">Expiry</label>
+              <Calendar
+                value={r.expiry ?? null}
+                onChange={(e) => updateRowField(r.key, { expiry: (e.value as Date) ?? null })}
+                view="month"
+                dateFormat="mm/yy"
+                placeholder="MM/YY"
+                className="w-full"
+                showIcon
+              />
+            </div>
+          )}
+
+          {showSerial && (
+            <div className="col-12">
+              <label className="block mb-1 font-medium">Serials (comma / space separated)</label>
+              <InputTextarea
+                value={r.serials ?? ""}
+                onChange={(e) => updateRowField(r.key, { serials: e.target.value })}
+                rows={3}
+                autoResize
+                className="w-full"
+                placeholder="SN001, SN002, SN003..."
+              />
+              <small className={serialCount === r.qty ? "text-600" : "text-orange-500"}>
+                Serial count: <b>{serialCount}</b> • Qty: <b>{r.qty}</b>{" "}
+                {serialCount === r.qty ? "" : "• Must match to save"}
+              </small>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  // --- Validation ---
+  const validateBeforeSave = () => {
+    let ok = true;
+
+    setRows((prev) =>
+      prev.map((r) => {
+        if (!r.itemId) return r; // ignore blank row
+
+        const msgs: string[] = [];
+
+        // Always required (your requirement)
+        const missingHSN = !r.hsn || !r.hsn.trim();
+        if (missingHSN) msgs.push("Missing HSN/SAC");
+
+        if (!r.qty || r.qty <= 0) msgs.push("Qty must be > 0");
+        if (r.rate == null || r.rate < 0) msgs.push("Rate invalid");
+        if (r.gstRate == null) msgs.push("GST% missing");
+
+        // Discount sanity
+        if (r.discMode === "PERCENT" && (r.discValue < 0 || r.discValue > 100)) msgs.push("Discount % must be 0..100");
+
+        // Inventory validation (strict when inventoryMode ON; still validates if item requires it)
+        const shouldValidateInventory = inventoryMode || r.requiresBatch || r.requiresExpiry || r.requiresSerial;
+
+        if (shouldValidateInventory) {
+          if (r.requiresBatch && !(r.batchNo ?? "").trim()) msgs.push("Batch No required");
+          if (r.requiresExpiry && !r.expiry) msgs.push("Expiry required");
+
+          if (r.requiresSerial) {
+            const count = parseSerials(r.serials).length;
+            if (count === 0) msgs.push("Serials required");
+            if (count !== r.qty) msgs.push(`Serial count (${count}) must match Qty (${r.qty})`);
+          }
+        }
+
+        if (msgs.length) {
+          ok = false;
+          return { ...r, hasError: true, errorMsg: msgs.join(" • ") };
+        }
+        return { ...r, hasError: false, errorMsg: "" };
+      })
+    );
+
+    if (!ok) {
+      toast.current?.show({
+        severity: "error",
+        summary: "Fix errors",
+        detail: "Some rows are missing HSN/SAC or have invalid inventory/tax values.",
+        life: 3500,
+      });
+      return false;
+    }
+
+    toast.current?.show({
+      severity: "success",
+      summary: "Saved (demo)",
+      detail: `${invoiceMode} invoice saved with ${priceList.toUpperCase()} pricing.`,
+      life: 2500,
+    });
+    return true;
+  };
+
+  // --- Totals ---
+  const totals = useMemo(() => {
+    const lines = rows.filter((r) => r.itemId);
+    const taxable = round2(lines.reduce((s, r) => s + (r.taxable || 0), 0));
+    const cgst = round2(lines.reduce((s, r) => s + (r.cgst || 0), 0));
+    const sgst = round2(lines.reduce((s, r) => s + (r.sgst || 0), 0));
+    const igst = round2(lines.reduce((s, r) => s + (r.igst || 0), 0));
+    const net = round2(lines.reduce((s, r) => s + (r.amount || 0), 0));
+    return { taxable, cgst, sgst, igst, net };
+  }, [rows]);
+
+  // --- Shortcuts ---
+  useEffect(() => {
+    const onKeyDown = (ev: KeyboardEvent) => {
+      if (ev.key === "F1") {
+        ev.preventDefault();
+        searchRef.current?.focus();
+      }
+      if (ev.key === "F4") {
+        ev.preventDefault();
+        validateBeforeSave();
+      }
+      // Optional: toggle inventory mode quickly
+      if (ev.key === "F8") {
+        ev.preventDefault();
+        setInventoryMode((v) => !v);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, invoiceMode, priceList, inventoryMode]);
+
+  // --- Row styling ---
+  const rowClassName = (data: Line) => (data.hasError ? "p-invalid" : "");
+
+  // --- Tax panel body ---
+  const amountBody = (r: Line) => (
+    <span>
+      {r.amount?.toFixed(2)}
+      {r.itemId && (
+        <Button
+          text
+          icon="pi pi-info-circle"
+          className="p-0 ml-2"
+          onClick={(e) => {
+            setTaxPanelData(r);
+            taxPanel.current?.toggle(e);
+          }}
+          tooltip="Tax breakup"
+          tooltipOptions={{ position: "top" }}
+        />
+      )}
+    </span>
+  );
+
+  const errorBody = (r: Line) => (r.hasError ? <small style={{ color: "var(--red-500)" }}>{r.errorMsg}</small> : null);
+
+  // --- Visible inventory columns? (if any row needs them, show expander column; keep grid clean) ---
+  const showExpander = anyInventoryFieldsNeeded.batch || anyInventoryFieldsNeeded.expiry || anyInventoryFieldsNeeded.serial;
+
+  return (
+    <div className="p-3">
+      <Toast ref={toast} />
+
+      {/* Header controls */}
+      <div className="flex flex-wrap gap-2 align-items-center mb-3">
+        <div className="flex align-items-center gap-2">
+          <span className="font-semibold">Invoice:</span>
+          <Button label="B2C" size="small" outlined={invoiceMode !== "B2C"} onClick={() => setInvoiceMode("B2C")} />
+          <Button label="B2B (GST)" size="small" outlined={invoiceMode !== "B2B"} onClick={() => setInvoiceMode("B2B")} />
+        </div>
+
+        <div className="flex align-items-center gap-2">
+          <span className="font-semibold">Price List:</span>
+          <Button label="Retail" size="small" outlined={priceList !== "retail"} onClick={() => setPriceList("retail")} />
+          <Button
+            label="Wholesale"
+            size="small"
+            outlined={priceList !== "wholesale"}
+            onClick={() => setPriceList("wholesale")}
+          />
+        </div>
+
+        <div className="flex align-items-center gap-2">
+          <span className="font-semibold">Tax:</span>
+          <Button
+            label={isIntraState ? "Intra-state (CGST/SGST)" : "Inter-state (IGST)"}
+            size="small"
+            outlined
+            onClick={() => setIsIntraState((v) => !v)}
+          />
+          <Button
+            label={taxInclusiveRate ? "Rate: Inclusive" : "Rate: Exclusive"}
+            size="small"
+            outlined
+            onClick={() => setTaxInclusiveRate((v) => !v)}
+          />
+        </div>
+
+        <div className="flex align-items-center gap-2">
+          <span className="font-semibold">Mode:</span>
+          <Button
+            label={inventoryMode ? "Inventory Validation: ON (F8)" : "Inventory Validation: OFF (F8)"}
+            size="small"
+            outlined
+            onClick={() => setInventoryMode((v) => !v)}
+          />
+        </div>
+
+        {/* Item Search */}
+        <div className="flex align-items-center gap-2 ml-auto" style={{ minWidth: 420 }}>
+          <span className="font-semibold">Item:</span>
+          <AutoComplete
+            ref={searchRef}
+            value={query}
+            suggestions={suggestions}
+            completeMethod={onSearch}
+            onChange={(e) => setQuery(e.value ?? "")}
+            placeholder="Scan barcode / search item (F1)"
+            field="name"
+            dropdown
+            onSelect={(e) => addItemToGrid(e.value as ItemMaster)}
+            itemTemplate={(it: ItemMaster) => (
+              <div className="flex justify-content-between gap-3">
+                <div>
+                  <div className="font-medium">{it.name}</div>
+                  <small className="text-600">
+                    SKU: {it.sku ?? "-"} • HSN: {it.hsn} • GST: {it.gstRate}% • Stock: {it.stock ?? "-"} •{" "}
+                    {priceList === "retail" ? "Retail" : "Wholesale"}: ₹{it.prices[priceList].toFixed(2)}
+                    {(it.requiresBatch || it.requiresExpiry || it.requiresSerial) && " • Track: "}
+                    {it.requiresBatch ? "Batch " : ""}
+                    {it.requiresExpiry ? "Expiry " : ""}
+                    {it.requiresSerial ? "Serial" : ""}
+                  </small>
+                </div>
+                <div className="text-right">
+                  <div className="font-semibold">₹{it.prices[priceList].toFixed(2)}</div>
+                </div>
+              </div>
+            )}
+          />
+        </div>
+      </div>
+
+      <DataTable
+        value={rows}
+        dataKey="key"
+        editMode="cell"
+        rowClassName={rowClassName}
+        showGridlines
+        size="small"
+        responsiveLayout="scroll"
+        className="p-datatable-sm"
+        expandedRows={undefined}
+        rowExpansionTemplate={rowExpansionTemplate}
+      >
+        {showExpander && <Column expander style={{ width: "3rem" }} />}
+
+        <Column header="#" body={(_, opt) => <span>{opt.rowIndex + 1}</span>} style={{ width: 56 }} />
+
+        <Column field="itemName" header="Item" body={(r: Line) => <span>{r.itemName ?? ""}</span>} style={{ minWidth: 260 }} />
+
+        <Column field="hsn" header="HSN/SAC" body={(r: Line) => <span>{r.hsn ?? ""}</span>} style={{ width: 140 }} />
+
+        <Column
+          field="qty"
+          header="Qty"
+          editor={numberEditor("qty", 0)}
+          onCellEditComplete={onCellEditComplete}
+          style={{ width: 120 }}
+        />
+
+        <Column field="unit" header="Unit" body={(r: Line) => r.unit ?? ""} style={{ width: 110 }} />
+
+        <Column
+          field="rate"
+          header="Rate"
+          editor={numberEditor("rate", 0)}
+          onCellEditComplete={onCellEditComplete}
+          style={{ width: 130 }}
+        />
+
+        {/* Discount toggle + value */}
+        <Column
+          field="discMode"
+          header="Disc"
+          editor={discModeEditor}
+          onCellEditComplete={onCellEditComplete}
+          style={{ width: 140 }}
+          body={(r: Line) => (r.itemId ? (r.discMode === "PERCENT" ? "%" : "₹") : "")}
+        />
+
+        <Column
+          field="discValue"
+          header="Disc Val"
+          editor={discValueEditor}
+          onCellEditComplete={onCellEditComplete}
+          style={{ width: 130 }}
+          body={(r: Line) => (r.itemId ? String(r.discValue ?? 0) : "")}
+        />
+
+        <Column field="gstRate" header="GST %" body={(r: Line) => (r.itemId ? `${r.gstRate}%` : "")} style={{ width: 110 }} />
+
+        <Column field="amount" header="Amount" body={amountBody} style={{ width: 170 }} />
+
+        <Column
+          header=""
+          body={(r: Line) =>
+            r.itemId ? <Button icon="pi pi-trash" text severity="danger" onClick={() => removeRow(r.key)} /> : null
+          }
+          style={{ width: 70 }}
+        />
+
+        <Column header="" body={errorBody} style={{ minWidth: 260 }} />
+      </DataTable>
+
+      {/* Footer summary */}
+      <div className="flex flex-wrap justify-content-between align-items-center mt-3 p-2 border-1 surface-border border-round">
+        <div className="flex flex-wrap gap-4">
+          <div>
+            <span className="text-600">Taxable:</span> <b>₹{totals.taxable.toFixed(2)}</b>
+          </div>
+          <div>
+            <span className="text-600">CGST:</span> <b>₹{totals.cgst.toFixed(2)}</b>
+          </div>
+          <div>
+            <span className="text-600">SGST:</span> <b>₹{totals.sgst.toFixed(2)}</b>
+          </div>
+          <div>
+            <span className="text-600">IGST:</span> <b>₹{totals.igst.toFixed(2)}</b>
+          </div>
+        </div>
+
+        <div className="flex align-items-center gap-2">
+          <div className="text-xl">
+            NET: <b>₹{totals.net.toFixed(2)}</b>
+          </div>
+          <Button label="Save (F4)" icon="pi pi-save" onClick={validateBeforeSave} />
+        </div>
+      </div>
+
+      {/* Tax breakup panel */}
+      <OverlayPanel ref={taxPanel}>
+        {taxPanelData && (
+          <div style={{ minWidth: 280 }}>
+            <div className="font-semibold mb-2">{taxPanelData.itemName}</div>
+            <div className="flex justify-content-between">
+              <span className="text-600">Taxable</span>
+              <b>₹{taxPanelData.taxable.toFixed(2)}</b>
+            </div>
+            <div className="flex justify-content-between">
+              <span className="text-600">CGST</span>
+              <b>₹{taxPanelData.cgst.toFixed(2)}</b>
+            </div>
+            <div className="flex justify-content-between">
+              <span className="text-600">SGST</span>
+              <b>₹{taxPanelData.sgst.toFixed(2)}</b>
+            </div>
+            <div className="flex justify-content-between">
+              <span className="text-600">IGST</span>
+              <b>₹{taxPanelData.igst.toFixed(2)}</b>
+            </div>
+            <hr />
+            <div className="flex justify-content-between">
+              <span className="text-600">Line Total</span>
+              <b>₹{taxPanelData.amount.toFixed(2)}</b>
+            </div>
+          </div>
+        )}
+      </OverlayPanel>
+    </div>
+  );
+}
+Notes (important)
+Discount: Disc column toggles % / ₹, and Disc Val changes meaning accordingly.
+
+Batch/Expiry/Serial: appear in row expansion only for items that require them (keeps grid clean).
+
+Price list: switching Retail/Wholesale automatically reprices existing lines (remove that useEffect if you don’t want repricing).
+
+If you want next, I can add:
+
+Ctrl+D duplicate row, Del remove row, Enter-to-next-cell navigation
+
+Serial entry UI as Chips (each serial as a chip)
+
+Batch/Expiry dropdown from available stock lots (for proper inventory)
+
+
+You said:
+Ctrl+D duplicate row, Del remove row, Enter-to-next-cell navigation
+
+Serial entry UI as Chips (each serial as a chip)
+
+Batch/Expiry dropdown from available stock lots (for proper inventory)
+
+ChatGPT said:
+
+Thought for 13s
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { DataTable, DataTableCellEditCompleteEvent } from "primereact/datatable";
+import { Column, ColumnEditorOptions } from "primereact/column";
+import { AutoComplete, AutoCompleteCompleteEvent } from "primereact/autocomplete";
+import { InputNumber, InputNumberValueChangeEvent } from "primereact/inputnumber";
+import { InputText } from "primereact/inputtext";
+import { Button } from "primereact/button";
+import { OverlayPanel } from "primereact/overlaypanel";
+import { Toast } from "primereact/toast";
+import { SelectButton } from "primereact/selectbutton";
+import { Calendar } from "primereact/calendar";
+import { Dropdown, DropdownChangeEvent } from "primereact/dropdown";
+import { Chips } from "primereact/chips";
+
+type InvoiceMode = "B2C" | "B2B";
+type PriceList = "retail" | "wholesale";
+type DiscMode = "PERCENT" | "AMOUNT";
+
+type ItemMaster = {
+  id: string;
+  name: string;
+  sku?: string;
+  barcode?: string;
+  hsn: string;
+  gstRate: number; // %
+  unit: string;
+
+  requiresBatch?: boolean;
+  requiresExpiry?: boolean;
+  requiresSerial?: boolean;
+
+  prices: { retail: number; wholesale: number };
+  stock?: number;
+};
+
+type StockLot = {
+  itemId: string;
+  batchNo: string;
+  expiry: Date; // month-level still ok
+  availableQty: number;
+};
+
+type Line = {
+  key: string;
+
+  itemId?: string;
+  itemName?: string;
+
+  hsn?: string;
+  unit?: string;
+
+  qty: number;
+  rate: number;
+
+  discMode: DiscMode;
+  discValue: number; // % or ₹
+
+  gstRate: number;
+
+  // inventory fields
+  batchNo?: string;
+  expiry?: Date | null;
+  serials?: string[]; // CHIPS
+
+  requiresBatch?: boolean;
+  requiresExpiry?: boolean;
+  requiresSerial?: boolean;
+
+  taxable: number;
+  cgst: number;
+  sgst: number;
+  igst: number;
+  amount: number;
+
+  hasError?: boolean;
+  errorMsg?: string;
+};
+
+function uid() {
+  return Math.random().toString(16).slice(2) + Date.now().toString(16);
+}
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
+function discAmount(lineBase: number, discMode: DiscMode, discValue: number) {
+  if (discMode === "PERCENT") {
+    const pct = Math.min(100, Math.max(0, discValue || 0));
+    return (lineBase * pct) / 100;
+  }
+  return Math.min(lineBase, Math.max(0, discValue || 0));
+}
+
+function calcLine(opts: {
+  qty: number;
+  rate: number;
+  discMode: DiscMode;
+  discValue: number;
+  gstRate: number;
+  isIntraState: boolean;
+  taxInclusiveRate: boolean;
+}) {
+  const { qty, rate, discMode, discValue, gstRate, isIntraState, taxInclusiveRate } = opts;
+
+  const lineBase = Math.max(0, qty) * Math.max(0, rate);
+  const discAmt = discAmount(lineBase, discMode, discValue);
+  const baseAfterDisc = Math.max(0, lineBase - discAmt);
+
+  if (gstRate <= 0) {
+    return { taxable: round2(baseAfterDisc), cgst: 0, sgst: 0, igst: 0, amount: round2(baseAfterDisc) };
+  }
+
+  if (!taxInclusiveRate) {
+    const tax = (baseAfterDisc * gstRate) / 100;
+    const cgst = isIntraState ? tax / 2 : 0;
+    const sgst = isIntraState ? tax / 2 : 0;
+    const igst = isIntraState ? 0 : tax;
+    return {
+      taxable: round2(baseAfterDisc),
+      cgst: round2(cgst),
+      sgst: round2(sgst),
+      igst: round2(igst),
+      amount: round2(baseAfterDisc + tax),
+    };
+  } else {
+    const taxable = baseAfterDisc / (1 + gstRate / 100);
+    const tax = baseAfterDisc - taxable;
+    const cgst = isIntraState ? tax / 2 : 0;
+    const sgst = isIntraState ? tax / 2 : 0;
+    const igst = isIntraState ? 0 : tax;
+    return {
+      taxable: round2(taxable),
+      cgst: round2(cgst),
+      sgst: round2(sgst),
+      igst: round2(igst),
+      amount: round2(baseAfterDisc),
+    };
+  }
+}
+
+function makeBlankLine(): Line {
+  return {
+    key: uid(),
+    qty: 1,
+    rate: 0,
+    discMode: "PERCENT",
+    discValue: 0,
+    gstRate: 0,
+    taxable: 0,
+    cgst: 0,
+    sgst: 0,
+    igst: 0,
+    amount: 0,
+    expiry: null,
+    serials: [],
+  };
+}
+
+// --- Keyboard navigation helpers ---
+function focusNextEditableCell(fromEl: HTMLElement) {
+  // PrimeReact cell editor lives inside TD; we move to the next editable cell in the same row, otherwise next row.
+  const td = fromEl.closest("td");
+  const tr = fromEl.closest("tr");
+  if (!td || !tr) return;
+
+  const rowTds = Array.from(tr.querySelectorAll("td"));
+  const startIdx = rowTds.indexOf(td);
+
+  // candidate editable cells: td with p-editable-column class (PrimeReact adds this)
+  for (let i = startIdx + 1; i < rowTds.length; i++) {
+    const candidate = rowTds[i] as HTMLTableCellElement;
+    if (candidate.classList.contains("p-editable-column")) {
+      const clickable = candidate.querySelector<HTMLElement>("[tabindex],input,button,textarea,.p-inputtext,.p-inputnumber-input");
+      candidate.click(); // triggers edit
+      // focus after click
+      setTimeout(() => clickable?.focus?.(), 0);
+      return;
+    }
+  }
+
+  // move to first editable cell of next row
+  const nextRow = tr.nextElementSibling as HTMLTableRowElement | null;
+  if (!nextRow) return;
+
+  const nextTds = Array.from(nextRow.querySelectorAll("td"));
+  const firstEditable = nextTds.find((c) => (c as HTMLElement).classList.contains("p-editable-column")) as HTMLElement | undefined;
+  if (firstEditable) {
+    const clickable = firstEditable.querySelector<HTMLElement>("[tabindex],input,button,textarea,.p-inputtext,.p-inputnumber-input");
+    firstEditable.click();
+    setTimeout(() => clickable?.focus?.(), 0);
+  }
+}
+
+function isEnter(e: React.KeyboardEvent) {
+  return e.key === "Enter" && !e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey;
+}
+
+export default function PosAccountsInventoryGrid_Full() {
+  // Header controls
+  const [invoiceMode, setInvoiceMode] = useState<InvoiceMode>("B2C");
+  const [priceList, setPriceList] = useState<PriceList>("retail");
+  const [isIntraState, setIsIntraState] = useState(true);
+  const [taxInclusiveRate, setTaxInclusiveRate] = useState(false);
+
+  // Optional: strict inventory validation mode
+  const [inventoryMode, setInventoryMode] = useState(false);
+
+  // Selection for Del / Ctrl+D
+  const [selected, setSelected] = useState<Line | null>(null);
+
+  const toast = useRef<Toast>(null);
+  const taxPanel = useRef<OverlayPanel>(null);
+  const [taxPanelData, setTaxPanelData] = useState<Line | null>(null);
+
+  const dtRef = useRef<DataTable<Line[]>>(null);
+  const searchRef = useRef<AutoComplete>(null);
+
+  // Mock item master (replace via API)
+  const allItems: ItemMaster[] = useMemo(
+    () => [
+      { id: "1", name: "Parle-G Biscuit", sku: "BIS-001", barcode: "8900001", hsn: "19053100", gstRate: 18, unit: "pcs", prices: { retail: 10, wholesale: 9 }, stock: 120 },
+      { id: "2", name: "Milk 1L (Batch+Expiry)", sku: "DAI-010", barcode: "8900002", hsn: "04012000", gstRate: 5, unit: "pcs", requiresBatch: true, requiresExpiry: true, prices: { retail: 60, wholesale: 57 }, stock: 45 },
+      { id: "3", name: "Phone (Serial)", sku: "ELC-555", barcode: "8900009", hsn: "85171290", gstRate: 18, unit: "pcs", requiresSerial: true, prices: { retail: 12999, wholesale: 12500 }, stock: 8 },
+      { id: "4", name: "Rice (Loose)", sku: "GRC-200", barcode: "8900003", hsn: "10063020", gstRate: 5, unit: "kg", prices: { retail: 55, wholesale: 52 }, stock: 320 },
+    ],
+    []
+  );
+
+  // Mock stock lots (replace via API, ideally filtered by warehouse)
+  const stockLots: StockLot[] = useMemo(
+    () => [
+      { itemId: "2", batchNo: "MILK-A01", expiry: new Date(2026, 4, 1), availableQty: 20 },
+      { itemId: "2", batchNo: "MILK-A02", expiry: new Date(2026, 5, 1), availableQty: 25 },
+      { itemId: "2", batchNo: "MILK-A03", expiry: new Date(2026, 3, 1), availableQty: 5 },
+    ],
+    []
+  );
+
+  const lotsByItemId = useMemo(() => {
+    const m = new Map<string, StockLot[]>();
+    for (const lot of stockLots) {
+      const arr = m.get(lot.itemId) ?? [];
+      arr.push(lot);
+      m.set(lot.itemId, arr);
+    }
+    // sort FEFO (earliest expiry first)
+    for (const [k, v] of m.entries()) v.sort((a, b) => a.expiry.getTime() - b.expiry.getTime());
+    return m;
+  }, [stockLots]);
+
+  // AutoComplete
+  const [query, setQuery] = useState("");
+  const [suggestions, setSuggestions] = useState<ItemMaster[]>([]);
+  const onSearch = (e: AutoCompleteCompleteEvent) => {
+    const q = (e.query ?? "").toLowerCase();
+    const res = allItems.filter((x) => [x.name, x.sku, x.barcode, x.hsn].filter(Boolean).some((v) => v!.toLowerCase().includes(q)));
+    setSuggestions(res.slice(0, 25));
+  };
+
+  // Rows
+  const [rows, setRows] = useState<Line[]>(() => [makeBlankLine()]);
+
+  const anyInventoryFieldsNeeded = useMemo(() => {
+    const lines = rows.filter((r) => r.itemId);
+    return {
+      batch: lines.some((r) => !!r.requiresBatch),
+      expiry: lines.some((r) => !!r.requiresExpiry),
+      serial: lines.some((r) => !!r.requiresSerial),
+    };
+  }, [rows]);
+
+  const showExpander = anyInventoryFieldsNeeded.batch || anyInventoryFieldsNeeded.expiry || anyInventoryFieldsNeeded.serial;
+
+  const upsertBlankRowIfNeeded = (list: Line[]) => {
+    if (!list.length) return [makeBlankLine()];
+    const last = list[list.length - 1];
+    if (!!last.itemId) return [...list, makeBlankLine()];
+    return list;
+  };
+
+  const applyCalc = (line: Line): Line => {
+    const c = calcLine({
+      qty: line.qty,
+      rate: line.rate,
+      discMode: line.discMode,
+      discValue: line.discValue,
+      gstRate: line.gstRate,
+      isIntraState,
+      taxInclusiveRate,
+    });
+    return { ...line, ...c };
+  };
+
+  const addItemToGrid = (it: ItemMaster) => {
+    setRows((prev) => {
+      // If already exists and not serial-tracked, increment qty
+      const idx = prev.findIndex((r) => r.itemId === it.id);
+      if (idx >= 0 && !it.requiresSerial) {
+        const clone = [...prev];
+        const updated = applyCalc({ ...clone[idx], qty: clone[idx].qty + 1 });
+        clone[idx] = updated;
+        return upsertBlankRowIfNeeded(clone);
+      }
+
+      const blankIdx = prev.findIndex((r) => !r.itemId);
+      const targetIdx = blankIdx >= 0 ? blankIdx : prev.length;
+
+      const defaultRate = it.prices[priceList];
+      const lots = lotsByItemId.get(it.id) ?? [];
+      const bestLot = lots.length ? lots[0] : null; // FEFO default
+
+      const line: Line = applyCalc({
+        key: blankIdx >= 0 ? prev[blankIdx].key : uid(),
+        itemId: it.id,
+        itemName: it.name,
+        hsn: it.hsn,
+        unit: it.unit,
+        qty: 1,
+        rate: defaultRate,
+        discMode: "PERCENT",
+        discValue: 0,
+        gstRate: it.gstRate,
+        batchNo: bestLot?.batchNo ?? "",
+        expiry: bestLot?.expiry ?? null,
+        serials: [],
+        requiresBatch: !!it.requiresBatch,
+        requiresExpiry: !!it.requiresExpiry,
+        requiresSerial: !!it.requiresSerial,
+        taxable: 0,
+        cgst: 0,
+        sgst: 0,
+        igst: 0,
+        amount: 0,
+      });
+
+      const clone = [...prev];
+      clone[targetIdx] = line;
+      return upsertBlankRowIfNeeded(clone);
+    });
+
+    setQuery("");
+    searchRef.current?.focus();
+  };
+
+  // Price list change: reprice existing lines (optional)
+  useEffect(() => {
+    setRows((prev) =>
+      prev.map((r) => {
+        if (!r.itemId) return r;
+        const it = allItems.find((x) => x.id === r.itemId);
+        if (!it) return r;
+        return applyCalc({ ...r, rate: it.prices[priceList] });
+      })
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [priceList]);
+
+  const removeRow = (key: string) => {
+    setRows((prev) => upsertBlankRowIfNeeded(prev.filter((r) => r.key !== key)));
+    setSelected((cur) => (cur?.key === key ? null : cur));
+  };
+
+  const duplicateRow = (key: string) => {
+    setRows((prev) => {
+      const idx = prev.findIndex((r) => r.key === key);
+      if (idx < 0) return prev;
+      const src = prev[idx];
+      if (!src.itemId) return prev;
+
+      // duplicate (new key). keep inventory fields too.
+      const copy: Line = applyCalc({
+        ...src,
+        key: uid(),
+        // serials are usually unique per item; duplicate without serials (safer)
+        serials: src.requiresSerial ? [] : (src.serials ?? []),
+      });
+
+      const clone = [...prev];
+      // insert after current row
+      clone.splice(idx + 1, 0, copy);
+      return upsertBlankRowIfNeeded(clone);
+    });
+  };
+
+  const updateRowField = (key: string, patch: Partial<Line>) => {
+    setRows((prev) =>
+      prev.map((r) => {
+        if (r.key !== key) return r;
+        const updated = applyCalc({ ...r, ...patch });
+        return { ...updated, hasError: false, errorMsg: "" };
+      })
+    );
+  };
+
+  // Cell edit complete
+  const onCellEditComplete = (e: DataTableCellEditCompleteEvent) => {
+    const { rowData, newValue, field } = e;
+    setRows((prev) =>
+      prev.map((r) => {
+        if (r.key !== (rowData as Line).key) return r;
+
+        let updated: Line = { ...r, [field as keyof Line]: newValue } as Line;
+
+        // clamp % discount
+        if (field === "discMode") {
+          if (newValue === "PERCENT") updated.discValue = Math.min(100, Math.max(0, updated.discValue || 0));
+        }
+        if (field === "discValue" && updated.discMode === "PERCENT") {
+          updated.discValue = Math.min(100, Math.max(0, Number(updated.discValue ?? 0)));
+        }
+
+        // If serial-tracked and qty edited, keep it but validation will enforce match.
+        updated = applyCalc(updated);
+        return { ...updated, hasError: false, errorMsg: "" };
+      })
+    );
+  };
+
+  // Editors with Enter-to-next-cell navigation
+  const numberEditor =
+    (field: keyof Line, min = 0, max?: number) =>
+    (options: ColumnEditorOptions) => (
+      <InputNumber
+        value={(options.value as number) ?? 0}
+        min={min}
+        max={max}
+        useGrouping={false}
+        onValueChange={(e: InputNumberValueChangeEvent) => options.editorCallback(Number(e.value ?? 0))}
+        onKeyDown={(e) => {
+          if (isEnter(e)) {
+            e.preventDefault();
+            // commit current input value by blurring
+            (e.currentTarget as unknown as HTMLElement).blur?.();
+            focusNextEditableCell(e.currentTarget as unknown as HTMLElement);
+          }
+        }}
+      />
+    );
+
+  const discModeEditor = (options: ColumnEditorOptions) => (
+    <SelectButton
+      value={options.value as DiscMode}
+      options={[
+        { label: "%", value: "PERCENT" },
+        { label: "₹", value: "AMOUNT" },
+      ]}
+      onChange={(e) => options.editorCallback(e.value)}
+      onKeyDown={(e) => {
+        if (isEnter(e)) {
+          e.preventDefault();
+          focusNextEditableCell(e.currentTarget as unknown as HTMLElement);
+        }
+      }}
+    />
+  );
+
+  const discValueEditor = (options: ColumnEditorOptions) => (
+    <InputNumber
+      value={(options.value as number) ?? 0}
+      min={0}
+      max={(options.rowData as Line).discMode === "PERCENT" ? 100 : undefined}
+      useGrouping={false}
+      onValueChange={(e: InputNumberValueChangeEvent) => options.editorCallback(Number(e.value ?? 0))}
+      onKeyDown={(e) => {
+        if (isEnter(e)) {
+          e.preventDefault();
+          (e.currentTarget as unknown as HTMLElement).blur?.();
+          focusNextEditableCell(e.currentTarget as unknown as HTMLElement);
+        }
+      }}
+    />
+  );
+
+  // Row expansion: Batch/Expiry dropdown + Serials as Chips
+  const rowExpansionTemplate = (r: Line) => {
+    if (!r.itemId) return null;
+
+    const showBatch = !!r.requiresBatch;
+    const showExpiry = !!r.requiresExpiry;
+    const showSerial = !!r.requiresSerial;
+
+    if (!showBatch && !showExpiry && !showSerial) {
+      return <div className="p-2 text-600">No inventory tracking required for this item.</div>;
+    }
+
+    const lots = lotsByItemId.get(r.itemId) ?? [];
+    const lotOptions = lots.map((l) => ({
+      label: `${l.batchNo} • Exp: ${String(l.expiry.getMonth() + 1).padStart(2, "0")}/${String(l.expiry.getFullYear()).slice(-2)} • Avl: ${l.availableQty}`,
+      value: l.batchNo,
+      lot: l,
+    }));
+
+    const currentLot = lots.find((l) => l.batchNo === r.batchNo) ?? null;
+
+    const serialCount = (r.serials ?? []).length;
+
+    return (
+      <div className="p-3 border-1 surface-border border-round">
+        <div className="grid">
+          {(showBatch || showExpiry) && (
+            <div className="col-12 md:col-6">
+              <label className="block mb-1 font-medium">Stock Lot (Batch + Expiry)</label>
+              <Dropdown
+                value={r.batchNo ?? ""}
+                options={lotOptions}
+                placeholder="Select batch (FEFO suggested)"
+                className="w-full"
+                onChange={(e: DropdownChangeEvent) => {
+                  const batchNo = e.value as string;
+                  const lot = lots.find((l) => l.batchNo === batchNo) ?? null;
+                  updateRowField(r.key, {
+                    batchNo,
+                    expiry: lot?.expiry ?? r.expiry ?? null,
+                  });
+                }}
+                filter
+              />
+              {currentLot && (
+                <small className="text-600">
+                  Available in lot: <b>{currentLot.availableQty}</b>
+                </small>
+              )}
+            </div>
+          )}
+
+          {showExpiry && (
+            <div className="col-12 md:col-6">
+              <label className="block mb-1 font-medium">Expiry (auto from lot)</label>
+              <Calendar
+                value={r.expiry ?? null}
+                view="month"
+                dateFormat="mm/yy"
+                showIcon
+                disabled
+                className="w-full"
+              />
+              <small className="text-600">Expiry is driven by selected lot.</small>
+            </div>
+          )}
+
+          {showSerial && (
+            <div className="col-12">
+              <label className="block mb-1 font-medium">Serials (as chips)</label>
+              <Chips
+                value={r.serials ?? []}
+                onChange={(e) => {
+                  const next = (e.value as string[]).map((s) => s.trim()).filter(Boolean);
+                  // Friendly behavior: keep Qty synced to serial count for serial-tracked items
+                  updateRowField(r.key, { serials: next, qty: next.length || 1 });
+                }}
+                separator=","
+                className="w-full"
+                placeholder="Type serial and press Enter (or comma)"
+              />
+              <small className={serialCount === r.qty ? "text-600" : "text-orange-500"}>
+                Serial count: <b>{serialCount}</b> • Qty auto-sync enabled
+              </small>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  // Validation
+  const validateBeforeSave = () => {
+    let ok = true;
+
+    setRows((prev) =>
+      prev.map((r) => {
+        if (!r.itemId) return r;
+
+        const msgs: string[] = [];
+        if (!r.hsn || !r.hsn.trim()) msgs.push("Missing HSN/SAC");
+        if (!r.qty || r.qty <= 0) msgs.push("Qty must be > 0");
+        if (r.rate == null || r.rate < 0) msgs.push("Rate invalid");
+        if (r.gstRate == null) msgs.push("GST% missing");
+        if (r.discMode === "PERCENT" && (r.discValue < 0 || r.discValue > 100)) msgs.push("Discount % must be 0..100");
+
+        const shouldValidateInventory = inventoryMode || r.requiresBatch || r.requiresExpiry || r.requiresSerial;
+
+        if (shouldValidateInventory) {
+          if (r.requiresBatch && !(r.batchNo ?? "").trim()) msgs.push("Batch No required");
+          if (r.requiresExpiry && !r.expiry) msgs.push("Expiry required");
+          if (r.requiresSerial) {
+            const count = (r.serials ?? []).length;
+            if (count === 0) msgs.push("Serials required");
+            if (count !== r.qty) msgs.push(`Serial count (${count}) must match Qty (${r.qty})`);
+          }
+        }
+
+        if (msgs.length) {
+          ok = false;
+          return { ...r, hasError: true, errorMsg: msgs.join(" • ") };
+        }
+        return { ...r, hasError: false, errorMsg: "" };
+      })
+    );
+
+    if (!ok) {
+      toast.current?.show({ severity: "error", summary: "Fix errors", detail: "Some rows are invalid (HSN/GST/Inventory).", life: 3500 });
+      return false;
+    }
+
+    toast.current?.show({
+      severity: "success",
+      summary: "Saved (demo)",
+      detail: `${invoiceMode} invoice saved with ${priceList.toUpperCase()} pricing.`,
+      life: 2500,
+    });
+    return true;
+  };
+
+  // Totals
+  const totals = useMemo(() => {
+    const lines = rows.filter((r) => r.itemId);
+    const taxable = round2(lines.reduce((s, r) => s + (r.taxable || 0), 0));
+    const cgst = round2(lines.reduce((s, r) => s + (r.cgst || 0), 0));
+    const sgst = round2(lines.reduce((s, r) => s + (r.sgst || 0), 0));
+    const igst = round2(lines.reduce((s, r) => s + (r.igst || 0), 0));
+    const net = round2(lines.reduce((s, r) => s + (r.amount || 0), 0));
+    return { taxable, cgst, sgst, igst, net };
+  }, [rows]);
+
+  // Tax panel
+  const amountBody = (r: Line) => (
+    <span>
+      {r.amount?.toFixed(2)}
+      {r.itemId && (
+        <Button
+          text
+          icon="pi pi-info-circle"
+          className="p-0 ml-2"
+          onClick={(e) => {
+            setTaxPanelData(r);
+            taxPanel.current?.toggle(e);
+          }}
+          tooltip="Tax breakup"
+          tooltipOptions={{ position: "top" }}
+        />
+      )}
+    </span>
+  );
+  const errorBody = (r: Line) => (r.hasError ? <small style={{ color: "var(--red-500)" }}>{r.errorMsg}</small> : null);
+
+  // Global shortcuts: F1 search, F4 save, F8 inventory validation toggle, Del remove row, Ctrl+D duplicate row
+  useEffect(() => {
+    const onKeyDown = (ev: KeyboardEvent) => {
+      if (ev.key === "F1") {
+        ev.preventDefault();
+        searchRef.current?.focus();
+      }
+      if (ev.key === "F4") {
+        ev.preventDefault();
+        validateBeforeSave();
+      }
+      if (ev.key === "F8") {
+        ev.preventDefault();
+        setInventoryMode((v) => !v);
+      }
+      if (ev.key === "Delete") {
+        if (selected?.itemId) {
+          ev.preventDefault();
+          removeRow(selected.key);
+        }
+      }
+      if ((ev.ctrlKey || ev.metaKey) && (ev.key === "d" || ev.key === "D")) {
+        if (selected?.itemId) {
+          ev.preventDefault();
+          duplicateRow(selected.key);
+        }
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected, rows]);
+
+  const rowClassName = (data: Line) => (data.hasError ? "p-invalid" : "");
+
+  return (
+    <div className="p-3">
+      <Toast ref={toast} />
+
+      {/* Header */}
+      <div className="flex flex-wrap gap-2 align-items-center mb-3">
+        <div className="flex align-items-center gap-2">
+          <span className="font-semibold">Invoice:</span>
+          <Button label="B2C" size="small" outlined={invoiceMode !== "B2C"} onClick={() => setInvoiceMode("B2C")} />
+          <Button label="B2B (GST)" size="small" outlined={invoiceMode !== "B2B"} onClick={() => setInvoiceMode("B2B")} />
+        </div>
+
+        <div className="flex align-items-center gap-2">
+          <span className="font-semibold">Price List:</span>
+          <Button label="Retail" size="small" outlined={priceList !== "retail"} onClick={() => setPriceList("retail")} />
+          <Button label="Wholesale" size="small" outlined={priceList !== "wholesale"} onClick={() => setPriceList("wholesale")} />
+        </div>
+
+        <div className="flex align-items-center gap-2">
+          <span className="font-semibold">Tax:</span>
+          <Button
+            label={isIntraState ? "Intra-state (CGST/SGST)" : "Inter-state (IGST)"}
+            size="small"
+            outlined
+            onClick={() => setIsIntraState((v) => !v)}
+          />
+          <Button
+            label={taxInclusiveRate ? "Rate: Inclusive" : "Rate: Exclusive"}
+            size="small"
+            outlined
+            onClick={() => setTaxInclusiveRate((v) => !v)}
+          />
+        </div>
+
+        <div className="flex align-items-center gap-2">
+          <span className="font-semibold">Inventory:</span>
+          <Button
+            label={inventoryMode ? "Strict Validation: ON (F8)" : "Strict Validation: OFF (F8)"}
+            size="small"
+            outlined
+            onClick={() => setInventoryMode((v) => !v)}
+          />
+        </div>
+
+        {/* Item search */}
+        <div className="flex align-items-center gap-2 ml-auto" style={{ minWidth: 430 }}>
+          <span className="font-semibold">Item:</span>
+          <AutoComplete
+            ref={searchRef}
+            value={query}
+            suggestions={suggestions}
+            completeMethod={onSearch}
+            onChange={(e) => setQuery(e.value ?? "")}
+            placeholder="Scan barcode / search item (F1)"
+            field="name"
+            dropdown
+            onSelect={(e) => addItemToGrid(e.value as ItemMaster)}
+            itemTemplate={(it: ItemMaster) => (
+              <div className="flex justify-content-between gap-3">
+                <div>
+                  <div className="font-medium">{it.name}</div>
+                  <small className="text-600">
+                    SKU: {it.sku ?? "-"} • HSN: {it.hsn} • GST: {it.gstRate}% • Stock: {it.stock ?? "-"} •{" "}
+                    {priceList === "retail" ? "Retail" : "Wholesale"}: ₹{it.prices[priceList].toFixed(2)}
+                    {(it.requiresBatch || it.requiresExpiry || it.requiresSerial) && " • Track: "}
+                    {it.requiresBatch ? "Batch " : ""}
+                    {it.requiresExpiry ? "Expiry " : ""}
+                    {it.requiresSerial ? "Serial" : ""}
+                  </small>
+                </div>
+                <div className="text-right">
+                  <div className="font-semibold">₹{it.prices[priceList].toFixed(2)}</div>
+                </div>
+              </div>
+            )}
+          />
+        </div>
+      </div>
+
+      <DataTable
+        ref={dtRef}
+        value={rows}
+        dataKey="key"
+        editMode="cell"
+        showGridlines
+        size="small"
+        responsiveLayout="scroll"
+        className="p-datatable-sm"
+        rowClassName={rowClassName}
+        selectionMode="single"
+        selection={selected as any}
+        onSelectionChange={(e) => setSelected(e.value as Line)}
+        rowExpansionTemplate={rowExpansionTemplate}
+      >
+        {showExpander && <Column expander style={{ width: "3rem" }} />}
+
+        <Column header="#" body={(_, opt) => <span>{opt.rowIndex + 1}</span>} style={{ width: 56 }} />
+
+        <Column field="itemName" header="Item" body={(r: Line) => <span>{r.itemName ?? ""}</span>} style={{ minWidth: 260 }} />
+        <Column field="hsn" header="HSN/SAC" body={(r: Line) => <span>{r.hsn ?? ""}</span>} style={{ width: 140 }} />
+
+        <Column field="qty" header="Qty" editor={numberEditor("qty", 0)} onCellEditComplete={onCellEditComplete} style={{ width: 120 }} />
+        <Column field="unit" header="Unit" body={(r: Line) => r.unit ?? ""} style={{ width: 110 }} />
+
+        <Column field="rate" header="Rate" editor={numberEditor("rate", 0)} onCellEditComplete={onCellEditComplete} style={{ width: 130 }} />
+
+        <Column
+          field="discMode"
+          header="Disc"
+          editor={discModeEditor}
+          onCellEditComplete={onCellEditComplete}
+          style={{ width: 140 }}
+          body={(r: Line) => (r.itemId ? (r.discMode === "PERCENT" ? "%" : "₹") : "")}
+        />
+        <Column field="discValue" header="Disc Val" editor={discValueEditor} onCellEditComplete={onCellEditComplete} style={{ width: 130 }} />
+
+        <Column field="gstRate" header="GST %" body={(r: Line) => (r.itemId ? `${r.gstRate}%` : "")} style={{ width: 110 }} />
+        <Column field="amount" header="Amount" body={amountBody} style={{ width: 170 }} />
+
+        <Column
+          header=""
+          body={(r: Line) => (r.itemId ? <Button icon="pi pi-trash" text severity="danger" onClick={() => removeRow(r.key)} /> : null)}
+          style={{ width: 70 }}
+        />
+
+        <Column header="" body={errorBody} style={{ minWidth: 260 }} />
+      </DataTable>
+
+      {/* Footer */}
+      <div className="flex flex-wrap justify-content-between align-items-center mt-3 p-2 border-1 surface-border border-round">
+        <div className="flex flex-wrap gap-4">
+          <div><span className="text-600">Taxable:</span> <b>₹{totals.taxable.toFixed(2)}</b></div>
+          <div><span className="text-600">CGST:</span> <b>₹{totals.cgst.toFixed(2)}</b></div>
+          <div><span className="text-600">SGST:</span> <b>₹{totals.sgst.toFixed(2)}</b></div>
+          <div><span className="text-600">IGST:</span> <b>₹{totals.igst.toFixed(2)}</b></div>
+        </div>
+
+        <div className="flex align-items-center gap-2">
+          <div className="text-xl">NET: <b>₹{totals.net.toFixed(2)}</b></div>
+          <Button label="Save (F4)" icon="pi pi-save" onClick={validateBeforeSave} />
+        </div>
+      </div>
+
+      {/* Tax breakup */}
+      <OverlayPanel ref={taxPanel}>
+        {taxPanelData && (
+          <div style={{ minWidth: 280 }}>
+            <div className="font-semibold mb-2">{taxPanelData.itemName}</div>
+            <div className="flex justify-content-between"><span className="text-600">Taxable</span><b>₹{taxPanelData.taxable.toFixed(2)}</b></div>
+            <div className="flex justify-content-between"><span className="text-600">CGST</span><b>₹{taxPanelData.cgst.toFixed(2)}</b></div>
+            <div className="flex justify-content-between"><span className="text-600">SGST</span><b>₹{taxPanelData.sgst.toFixed(2)}</b></div>
+            <div className="flex justify-content-between"><span className="text-600">IGST</span><b>₹{taxPanelData.igst.toFixed(2)}</b></div>
+            <hr />
+            <div className="flex justify-content-between"><span className="text-600">Line Total</span><b>₹{taxPanelData.amount.toFixed(2)}</b></div>
+          </div>
+        )}
+      </OverlayPanel>
+
+      {/* Quick help */}
+      <div className="mt-2 text-600">
+        Shortcuts: <b>F1</b> item search • <b>F4</b> save • <b>F8</b> inventory strict • <b>Del</b> remove selected row • <b>Ctrl+D</b> duplicate selected row • <b>Enter</b> moves to next cell
+      </div>
+    </div>
+  );
+}
+What this adds (exactly what you asked)
+Ctrl+D duplicates the selected row (safe behavior: serial chips are cleared on duplicate).
+
+Delete removes the selected row.
+
+Enter-to-next-cell navigation is wired into cell editors (InputNumber, SelectButton).
+
+Serial entry as Chips (serials: string[]) and Qty auto-syncs to chips count for serial-tracked items.
+
+Batch/Expiry dropdown from stock lots (FEFO sorted, selects both batch+expiry together; expiry is shown disabled because it’s derived from the lot).
+
+If you want the “real inventory” version next:
+
+warehouse filter for lots
+
+lot-wise quantity check (block qty > available in selected lot)
+
+auto-split into multiple rows when qty exceeds one lot (advanced, but very nice UX)
+
+
+You said:
+warehouse filter for lots
+
+ChatGPT said:
+// ✅ Add this to your existing file (PosAccountsInventoryGrid_Full)
+// This adds: Warehouse selector + lots filtered by selected warehouse
+// (Works with the rowExpansionTemplate dropdown)
+
+type Warehouse = { id: string; name: string };
+
+type StockLot = {
+  itemId: string;
+  warehouseId: string;   // ✅ NEW
+  batchNo: string;
+  expiry: Date;
+  availableQty: number;
+};
+
+// 1) Warehouses (replace with API)
+const warehouses: Warehouse[] = useMemo(
+  () => [
+    { id: "WH1", name: "Main Store" },
+    { id: "WH2", name: "Godown / Warehouse" },
+  ],
+  []
+);
+
+// 2) Selected warehouse (header state)
+const [warehouseId, setWarehouseId] = useState<string>("WH1");
+
+// 3) Stock lots now include warehouseId (replace your mock lots)
+const stockLots: StockLot[] = useMemo(
+  () => [
+    { itemId: "2", warehouseId: "WH1", batchNo: "MILK-A01", expiry: new Date(2026, 4, 1), availableQty: 10 },
+    { itemId: "2", warehouseId: "WH1", batchNo: "MILK-A02", expiry: new Date(2026, 5, 1), availableQty: 8 },
+    { itemId: "2", warehouseId: "WH2", batchNo: "MILK-B10", expiry: new Date(2026, 4, 1), availableQty: 25 },
+    { itemId: "2", warehouseId: "WH2", batchNo: "MILK-B11", expiry: new Date(2026, 6, 1), availableQty: 15 },
+  ],
+  []
+);
+
+// 4) Build lotsByItemId filtered by selected warehouse ✅
+const lotsByItemId = useMemo(() => {
+  const m = new Map<string, StockLot[]>();
+  for (const lot of stockLots) {
+    if (lot.warehouseId !== warehouseId) continue; // ✅ FILTER HERE
+    const arr = m.get(lot.itemId) ?? [];
+    arr.push(lot);
+    m.set(lot.itemId, arr);
+  }
+  // FEFO sort
+  for (const [k, v] of m.entries()) v.sort((a, b) => a.expiry.getTime() - b.expiry.getTime());
+  return m;
+}, [stockLots, warehouseId]);
+
+// 5) Header UI: add warehouse dropdown (place near Price List)
+import { Dropdown } from "primereact/dropdown";
+
+// inside your header JSX:
+<div className="flex align-items-center gap-2">
+  <span className="font-semibold">Warehouse:</span>
+  <Dropdown
+    value={warehouseId}
+    options={warehouses.map(w => ({ label: w.name, value: w.id }))}
+    onChange={(e) => setWarehouseId(e.value)}
+    style={{ minWidth: 220 }}
+    placeholder="Select Warehouse"
+  />
+</div>
+
+// 6) When adding item, FEFO lot will now be from the selected warehouse automatically
+// (Your existing addItemToGrid uses lotsByItemId.get(it.id))
+
+// 7) Optional: On warehouse change, clear/adjust lot selections that no longer exist ✅
+useEffect(() => {
+  setRows(prev =>
+    prev.map(r => {
+      if (!r.itemId) return r;
+      if (!r.requiresBatch && !r.requiresExpiry) return r;
+
+      const lots = lotsByItemId.get(r.itemId) ?? [];
+      if (!lots.length) {
+        // no lots in this warehouse
+        return { ...r, batchNo: "", expiry: null };
+      }
+
+      // if selected batch not in this warehouse, switch to FEFO first lot
+      const stillValid = lots.some(l => l.batchNo === r.batchNo);
+      if (stillValid) return r;
+
+      const best = lots[0];
+      return { ...r, batchNo: best.batchNo, expiry: best.expiry };
+    })
+  );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [warehouseId, lotsByItemId]);
+
+/*
+✅ Result:
+- User selects warehouse in header
+- Lot dropdown shows only lots from that warehouse
+- FEFO auto-select for new items
+- Existing lines auto-adjust if their batch doesn't exist in new warehouse
+*/
+Where to plug this
+
+Add the types + warehouses, warehouseId, and updated stockLots/lotsByItemId near your existing master data section.
+
+Add the Warehouse dropdown inside the header.
+
+Keep your existing row expansion dropdown — it will automatically show filtered lots.
+
+If you want, I can also add:
+
+“Available Qty” blocking: prevent qty > selected lot available
+
+Auto-split: if qty > lot available, split into multiple rows across lots (FEFO)
+
+
+
+

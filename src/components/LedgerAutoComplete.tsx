@@ -452,7 +452,12 @@ const LedgerByPurposeAutoCompleteImpl = forwardRef<AutoComplete, LedgerByPurpose
     useEffect(() => {
         if (!query) {
             setSuggestions((prev) => (areOptionArraysEqual(prev, options) ? prev : options));
+            return;
         }
+        const filtered = options.filter((option) =>
+            option.label.toLowerCase().includes(query.trim().toLowerCase())
+        );
+        setSuggestions((prev) => (areOptionArraysEqual(prev, filtered) ? prev : filtered));
     }, [options, query]);
 
     useEffect(() => {
@@ -461,16 +466,9 @@ const LedgerByPurposeAutoCompleteImpl = forwardRef<AutoComplete, LedgerByPurpose
         setSelectedFallback(selectedOptionProp);
     }, [selectedOptionProp, value]);
 
-    const filterOptions = (input: string) => {
-        const needle = input.trim().toLowerCase();
-        if (!needle) return options;
-        return options.filter((option) => option.label.toLowerCase().includes(needle));
-    };
-
     const handleComplete = (event: AutoCompleteCompleteEvent) => {
         const nextQuery = event.query ?? '';
         setQuery(nextQuery);
-        setSuggestions(filterOptions(nextQuery));
     };
 
     const handleChange = (event: AutoCompleteChangeEvent) => {
@@ -536,26 +534,8 @@ const LedgerByPurposeAutoCompleteImpl = forwardRef<AutoComplete, LedgerByPurpose
         const overlay = autoCompleteRef.current?.getOverlay?.();
         const overlayVisible = Boolean(overlay && overlay.offsetParent !== null);
         if (overlayVisible) {
-            const highlighted = overlay?.querySelector('li[data-p-highlight="true"]') as HTMLElement | null;
-            if (highlighted) {
-                const indexAttr = highlighted.getAttribute('data-index') ?? highlighted.getAttribute('index');
-                const index = indexAttr ? Number(indexAttr) : NaN;
-                const highlightedOption = Number.isFinite(index) ? suggestions[index] : null;
-                if (highlightedOption) {
-                    if (!selectedOption) return;
-                    const highlightedValue = highlightedOption.value;
-                    const selectedValue = selectedOption.value;
-                    if (highlightedValue != null && selectedValue != null && Number(highlightedValue) !== Number(selectedValue)) {
-                        return;
-                    }
-                }
-            } else if (!selectedOption) {
-                event.preventDefault();
-                event.stopPropagation();
-                autoCompleteRef.current?.hide?.();
-                window.setTimeout(onSelectNext, 0);
-                return;
-            }
+            const hasTypedQuery = query.trim().length > 0;
+            if (!selectedOption || hasTypedQuery) return;
             event.preventDefault();
             event.stopPropagation();
             autoCompleteRef.current?.hide?.();
@@ -592,7 +572,7 @@ const LedgerByPurposeAutoCompleteImpl = forwardRef<AutoComplete, LedgerByPurpose
                 index = items.indexOf(highlighted);
             }
             const highlightedOption = Number.isFinite(index) ? suggestions[index] : null;
-            const optionToSelect = highlightedOption ?? null;
+            const optionToSelect = highlightedOption ?? (suggestions.length > 0 ? suggestions[0] : null);
             if (process.env.NODE_ENV !== 'production') {
                 console.debug('[LedgerAutoComplete] enter selection', {
                     overlayVisible,
@@ -610,6 +590,13 @@ const LedgerByPurposeAutoCompleteImpl = forwardRef<AutoComplete, LedgerByPurpose
                 autoCompleteRef.current?.hide?.();
                 return;
             }
+        } else if (query.trim() && suggestions.length > 0) {
+            event.preventDefault();
+            event.stopPropagation();
+            const optionToSelect = suggestions[0];
+            suppressStringChangeRef.current = true;
+            handleChange({ value: optionToSelect } as AutoCompleteChangeEvent);
+            autoCompleteRef.current?.hide?.();
         }
     };
 

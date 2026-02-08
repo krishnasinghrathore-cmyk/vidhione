@@ -4,12 +4,14 @@ import { InputMask } from 'primereact/inputmask';
 import { OverlayPanel } from 'primereact/overlaypanel';
 import { Button } from 'primereact/button';
 import { classNames } from 'primereact/utils';
+import { validateSingleDate } from '@/lib/reportDateValidation';
 
 type AppDateInputProps = Omit<CalendarProps, 'value' | 'onChange' | 'inline'> & {
     value: Date | null;
     onChange: (value: Date | null) => void;
     fiscalYearStart?: Date | null;
     fiscalYearEnd?: Date | null;
+    enforceFiscalRange?: boolean;
     onEnterNext?: () => void;
     onCommit?: (value: Date | null, raw: string) => void;
     focusSignal?: number;
@@ -74,11 +76,15 @@ const formatDateDisplay = (value: Date) => {
     return `${dd}/${mm}/${yyyy}`;
 };
 
+const isValidDate = (value: Date | null | undefined): value is Date =>
+    value instanceof Date && !Number.isNaN(value.getTime());
+
 const AppDateInput = ({
     value,
     onChange,
     fiscalYearStart = null,
     fiscalYearEnd = null,
+    enforceFiscalRange = false,
     onEnterNext,
     onCommit,
     placeholder,
@@ -101,7 +107,8 @@ const AppDateInput = ({
     const overlayRef = useRef<OverlayPanel | null>(null);
     const inputMaskRef = useRef<any>(null);
     const inputElementRef = useRef<HTMLInputElement | null>(null);
-    const [inputValue, setInputValue] = useState(() => (value ? formatDateDisplay(value) : ''));
+    const [inputValue, setInputValue] = useState(() => (isValidDate(value) ? formatDateDisplay(value) : ''));
+    const [inputError, setInputError] = useState<string | null>(null);
 
     const resolvedDisabled = Boolean(disabled || readOnlyInput);
 
@@ -116,11 +123,16 @@ const AppDateInput = ({
     }, [inputRef]);
 
     useEffect(() => {
-        if (value) {
+        if (isValidDate(value)) {
             setInputValue(formatDateDisplay(value));
+            setInputError(null);
             return;
         }
-        setInputValue((prev) => (/\d/.test(prev) ? prev : ''));
+        if (value == null) {
+            setInputValue((prev) => (/\d/.test(prev) ? prev : ''));
+            return;
+        }
+        setInputError('Enter date in DD/MM/YYYY format');
     }, [value]);
 
     useEffect(() => {
@@ -134,36 +146,66 @@ const AppDateInput = ({
         }
     }, [focusSignal, selectOnFocus]);
 
-    const derivedDate = useMemo(
-        () => value ?? buildDateFromInput(inputValue, fiscalYearStart, fiscalYearEnd),
-        [value, inputValue, fiscalYearStart, fiscalYearEnd]
-    );
+    const derivedDate = useMemo(() => {
+        if (isValidDate(value)) return value;
+        return buildDateFromInput(inputValue, fiscalYearStart, fiscalYearEnd);
+    }, [value, inputValue, fiscalYearStart, fiscalYearEnd]);
+
+    const resolveFiscalRangeError = (nextValue: Date | null) => {
+        if (!nextValue || !enforceFiscalRange) return null;
+        const validation = validateSingleDate(
+            { date: nextValue },
+            { start: fiscalYearStart ?? null, end: fiscalYearEnd ?? null }
+        );
+        return validation.ok ? null : (validation.errors.date ?? 'Date is outside the fiscal year');
+    };
 
     const commitDate = (nextValue: Date | null, rawInput?: string) => {
         if (nextValue) {
             const formatted = formatDateDisplay(nextValue);
             setInputValue(formatted);
+            setInputError(null);
             onChange(nextValue);
             onCommit?.(nextValue, rawInput ?? formatted);
             return;
         }
         setInputValue('');
+        setInputError(null);
         onChange(null);
         onCommit?.(null, rawInput ?? '');
+    };
+
+    const rejectDate = (raw: string, message: string) => {
+        setInputValue(raw);
+        setInputError(message);
+        onChange(null);
+        onCommit?.(null, raw);
+        return false;
+    };
+
+    const commitIfAllowed = (nextValue: Date | null, rawInput?: string) => {
+        if (!nextValue) {
+            commitDate(null, rawInput);
+            return true;
+        }
+        const fiscalError = resolveFiscalRangeError(nextValue);
+        if (fiscalError) {
+            return rejectDate(rawInput ?? formatDateDisplay(nextValue), fiscalError);
+        }
+        commitDate(nextValue, rawInput);
+        return true;
     };
 
     const commitFromInput = (raw: string) => {
         if (!/\d/.test(raw)) {
             commitDate(null, raw);
-            return false;
+            return true;
         }
         const nextValue = buildDateFromInput(raw, fiscalYearStart, fiscalYearEnd);
         if (nextValue) {
-            commitDate(nextValue, raw);
-            return true;
+            return commitIfAllowed(nextValue, raw);
         }
-        onCommit?.(null, raw);
-        return false;
+        return rejectDate(raw, 'Enter date in DD/MM/YYYY format');
     };
 
     const focusNextControl = (current: HTMLElement | null) => {
@@ -192,9 +234,19 @@ const AppDateInput = ({
     };
 
     const handleInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+        if (event.key === 'Tab') {
+            const isCommitted = commitFromInput(event.currentTarget.value);
+            if (!isCommitted) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            return;
+        }
+
         if (event.key === 'Enter') {
             event.preventDefault();
-            commitFromInput(event.currentTarget.value);
+            const isCommitted = commitFromInput(event.currentTarget.value);
+            if (!isCommitted) return;
             if (onEnterNext) {
                 window.setTimeout(onEnterNext, 0);
             } else {
@@ -209,7 +261,7 @@ const AppDateInput = ({
             const base = derivedDate ?? buildDateFromInput(event.currentTarget.value, fiscalYearStart, fiscalYearEnd);
             if (!base) return;
             const next = new Date(base.getFullYear() + delta, base.getMonth(), base.getDate());
-            commitDate(next);
+            commitIfAllowed(next);
         }
     };
 
@@ -219,7 +271,8 @@ const AppDateInput = ({
     };
 
     const handleCalendarChange = (nextValue: Date | null) => {
-        commitDate(nextValue);
+        const committed = commitIfAllowed(nextValue);
+        if (!committed) return;
         overlayRef.current?.hide();
     };
 
@@ -236,16 +289,18 @@ const AppDateInput = ({
                 placeholder={placeholder}
                 disabled={disabled}
                 readOnly={readOnlyInput}
-                className={classNames('app-date-input-field', inputClassName)}
                 style={{ width: '100%', ...(inputStyle ?? {}) }}
                 onChange={(event) => {
                     const nextValue = (event as { value?: string }).value ?? '';
                     setInputValue(nextValue);
+                    if (inputError) setInputError(null);
                 }}
                 onComplete={(event) => {
                     const nextValue = (event as { value?: string }).value ?? '';
                     commitFromInput(nextValue);
                 }}
+                aria-invalid={inputError ? true : undefined}
+                title={inputError ?? undefined}
                 onKeyDown={handleInputKeyDown}
                 onFocus={(event) => {
                     if (!selectOnFocus || resolvedDisabled) return;
@@ -260,8 +315,21 @@ const AppDateInput = ({
                     target.select();
                 }}
                 onBlur={(event) => {
-                    commitFromInput(event.currentTarget.value);
+                    const isCommitted = commitFromInput(event.currentTarget.value);
+                    if (!isCommitted && enforceFiscalRange) {
+                        const target = event.currentTarget;
+                        if (typeof window !== 'undefined') {
+                            window.setTimeout(() => {
+                                target.focus();
+                                if (selectOnFocus) target.select();
+                            }, 0);
+                        } else {
+                            target.focus();
+                            if (selectOnFocus) target.select();
+                        }
+                    }
                 }}
+                className={classNames('app-date-input-field', inputClassName, inputError && 'p-invalid')}
             />
             <Button
                 type="button"
@@ -275,7 +343,7 @@ const AppDateInput = ({
                 <Calendar
                     {...calendarProps}
                     inline
-                    value={derivedDate ?? null}
+                    value={isValidDate(derivedDate) ? derivedDate : null}
                     onChange={(event) => handleCalendarChange((event.value as Date | null) ?? null)}
                     dateFormat={dateFormat ?? 'dd/mm/yy'}
                     disabled={resolvedDisabled}

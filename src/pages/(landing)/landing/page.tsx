@@ -61,7 +61,7 @@ const LandingPage: Page = () => {
             ...prevState,
             menuTheme: 'dark'
         }));
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+         
     }, []);
 
     return (

@@ -722,6 +722,7 @@ export default function AccountsBankCashDepositPage() {
                             }}
                             fiscalYearStart={fiscalRange?.start ?? null}
                             fiscalYearEnd={fiscalRange?.end ?? null}
+                            enforceFiscalRange
                             style={{ width: '100%' }}
                         />
                         {voucherDateError && <small className="text-red-500">{voucherDateError}</small>}
@@ -736,6 +737,7 @@ export default function AccountsBankCashDepositPage() {
                             }}
                             fiscalYearStart={fiscalRange?.start ?? null}
                             fiscalYearEnd={fiscalRange?.end ?? null}
+                            enforceFiscalRange
                             style={{ width: '100%' }}
                         />
                         {postingDateError && <small className="text-red-500">{postingDateError}</small>}

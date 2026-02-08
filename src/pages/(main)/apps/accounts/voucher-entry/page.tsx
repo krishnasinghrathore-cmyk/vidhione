@@ -451,6 +451,7 @@ export default function AccountsVoucherEntryPage() {
                         }}
                         fiscalYearStart={fiscalRange?.start ?? null}
                         fiscalYearEnd={fiscalRange?.end ?? null}
+                        enforceFiscalRange
                         style={{ width: '100%' }}
                     />
                     {voucherDateError && <small className="text-red-500">{voucherDateError}</small>}

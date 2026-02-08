@@ -134,7 +134,7 @@ export const model: MenuModel[] = [
                     {
                         label: 'Payment Voucher',
                         icon: 'pi pi-wallet',
-                        to: '/apps/accounts/payment-voucher'
+                        to: '/apps/accounts/payment-vouchers'
                     },
                     { label: 'Bank Cheque Issue', icon: 'pi pi-credit-card', to: '/apps/accounts/bank-cheque-issue' },
                     { label: 'Money Receipt (Cash)', icon: 'pi pi-wallet', to: '/apps/billing/money-receipt-cash' },

@@ -16,6 +16,9 @@ import { z } from 'zod';
 import { apolloClient } from '@/lib/apolloClient';
 import { Checkbox } from 'primereact/checkbox';
 import { InputNumber } from 'primereact/inputnumber';
+import { useAuth } from '@/lib/auth/context';
+import { resolveFiscalRange } from '@/lib/fiscalRange';
+import { validateSingleDate } from '@/lib/reportDateValidation';
 
 interface CompanyRow {
     companyId: number;
@@ -468,6 +471,20 @@ const parseJsonValue = (value?: string | null) => {
 const normalizeExtraFields = (value?: Record<string, any> | null) =>
     value && typeof value === 'object' ? value : {};
 
+const parseExtraDateValue = (value: unknown): Date | null => {
+    if (value instanceof Date) {
+        return Number.isNaN(value.getTime()) ? null : value;
+    }
+    if (typeof value === 'string') {
+        const trimmed = value.trim();
+        if (!trimmed) return null;
+        const normalized = /^\d{4}-\d{2}-\d{2}$/.test(trimmed) ? `${trimmed}T00:00:00` : trimmed;
+        const parsed = new Date(normalized);
+        return Number.isNaN(parsed.getTime()) ? null : parsed;
+    }
+    return null;
+};
+
 const isEmptyExtraValue = (value: any) => {
     if (value == null) return true;
     if (typeof value === 'string') return value.trim().length === 0;
@@ -478,6 +495,7 @@ const isEmptyExtraValue = (value: any) => {
 export default function AccountsCompaniesPage() {
     const toastRef = useRef<Toast>(null);
     const dtRef = useRef<any>(null);
+    const { companyContext } = useAuth();
 
     const [search, setSearch] = useState('');
     const [limit, setLimit] = useState(2000);
@@ -487,6 +505,10 @@ export default function AccountsCompaniesPage() {
     const [form, setForm] = useState<FormState>(DEFAULT_FORM);
     const [formErrors, setFormErrors] = useState<Record<string, string>>({});
     const [geoImportVisible, setGeoImportVisible] = useState(false);
+    const fiscalRange = useMemo(
+        () => resolveFiscalRange(companyContext?.fiscalYearStart ?? null, companyContext?.fiscalYearEnd ?? null),
+        [companyContext?.fiscalYearEnd, companyContext?.fiscalYearStart]
+    );
 
     const { data, loading, error, refetch } = useQuery(COMPANIES, {
         client: apolloClient,
@@ -668,6 +690,21 @@ export default function AccountsCompaniesPage() {
             if (!def.required) return;
             if (isEmptyExtraValue(extraFields[def.key])) {
                 dynamicErrors[`extraFields.${def.key}`] = `${def.label} is required`;
+            }
+        });
+        fieldDefinitions.forEach((def) => {
+            if (def.fieldType !== 'date') return;
+            const rawValue = extraFields[def.key];
+            if (isEmptyExtraValue(rawValue)) return;
+            const parsedDate = parseExtraDateValue(rawValue);
+            if (!parsedDate) {
+                dynamicErrors[`extraFields.${def.key}`] = `${def.label} must be a valid date`;
+                return;
+            }
+            const validation = validateSingleDate({ date: parsedDate }, fiscalRange);
+            if (!validation.ok) {
+                dynamicErrors[`extraFields.${def.key}`] =
+                    validation.errors.date ?? `${def.label} must be within the financial year`;
             }
         });
         if (Object.keys(dynamicErrors).length > 0) {
@@ -852,6 +889,9 @@ export default function AccountsCompaniesPage() {
                             value={parsedDate && !Number.isNaN(parsedDate.getTime()) ? parsedDate : null}
                             onChange={(next) => updateExtraField(def.key, next ? next.toISOString().slice(0, 10) : null)}
                             placeholder="DD/MM/YYYY"
+                            fiscalYearStart={fiscalRange?.start ?? null}
+                            fiscalYearEnd={fiscalRange?.end ?? null}
+                            enforceFiscalRange
                         />
                         {formErrors[errorKey] && <small className="p-error">{formErrors[errorKey]}</small>}
                     </div>
