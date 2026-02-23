@@ -49,6 +49,7 @@ export type PaymentVoucherDisplayRow = VoucherRow & {
     ledgerDrDisplay: string;
     ledgerDrTitle: string;
     ledgerDrLinesDisplay: VoucherLedgerLineDisplay[];
+    debitLedgerGroupLinesDisplay: string[];
     showLedgerDrAmounts: boolean;
     netAmtDisplay: string;
 };
@@ -58,8 +59,20 @@ export type SelectOption = {
     value: number;
 };
 
+export type ChequeBookOption = SelectOption & {
+    chequeStartNumber: number | null;
+    chequeEndNumber: number | null;
+};
+
 export type PaymentMode = 'cash' | 'bank';
 export type PaymentVoucherRouteView = 'register' | 'new' | 'edit';
+
+export type RecentlySavedVoucher = {
+    voucherId: number;
+    voucherNo: string;
+    savedAt: string;
+    mode: PaymentMode;
+};
 
 export type PaymentViaOption = {
     label: string;

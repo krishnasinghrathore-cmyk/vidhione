@@ -1,12 +1,13 @@
 import type React from 'react';
-import type { AutoCompleteChangeEvent, AutoCompleteCompleteEvent } from 'primereact/autocomplete';
+import type { AutoComplete } from 'primereact/autocomplete';
 import type { Dropdown } from 'primereact/dropdown';
-import AppAutoComplete from '@/components/AppAutoComplete';
 import AppDateInput from '@/components/AppDateInput';
 import AppDropdown from '@/components/AppDropdown';
+import VoucherTypeAutoComplete from '@/components/VoucherTypeAutoComplete';
+import type { VoucherTypeOption } from '@/lib/accounts/voucherTypes';
 import type { DateRangeErrors } from '@/lib/reportDateValidation';
 
-import type { EntryType, SelectOption } from '../types';
+import type { EntryType } from '../types';
 import {
     BALANCE_STATUS_DROPDOWN_OPTIONS,
     ENTRY_TYPE_DROPDOWN_OPTIONS,
@@ -23,16 +24,15 @@ type TrialBalanceReportFiltersProps = {
     fiscalYearEnd: Date | null;
     fromDateInputRef: React.RefObject<HTMLInputElement>;
     toDateInputRef: React.RefObject<HTMLInputElement>;
-    voucherTypeInputRef: React.RefObject<HTMLInputElement>;
+    voucherTypeInputRef: React.RefObject<AutoComplete>;
     onFromDateEnterNext: () => void;
     onToDateEnterNext: () => void;
     dateErrors: DateRangeErrors;
-    voucherTypeValue: SelectOption | string | null;
-    voucherTypeSuggestions: SelectOption[];
-    onVoucherTypeComplete: (event: AutoCompleteCompleteEvent) => void;
-    onVoucherTypeDropdownClick: () => void;
-    onVoucherTypeChange: (event: AutoCompleteChangeEvent) => void;
-    onVoucherTypeKeyDown: React.KeyboardEventHandler<HTMLElement>;
+    voucherTypeId: number | null;
+    voucherTypeOptions: VoucherTypeOption[];
+    voucherTypesLoading: boolean;
+    onVoucherTypeChange: (value: number | null) => void;
+    onVoucherTypeSelectNext: () => void;
     balanceStatus: number;
     onBalanceStatusChange: (value: number) => void;
     onBalanceStatusKeyDown: React.KeyboardEventHandler<HTMLElement>;
@@ -64,12 +64,11 @@ export function TrialBalanceReportFilters({
     onFromDateEnterNext,
     onToDateEnterNext,
     dateErrors,
-    voucherTypeValue,
-    voucherTypeSuggestions,
-    onVoucherTypeComplete,
-    onVoucherTypeDropdownClick,
+    voucherTypeId,
+    voucherTypeOptions,
+    voucherTypesLoading,
     onVoucherTypeChange,
-    onVoucherTypeKeyDown,
+    onVoucherTypeSelectNext,
     balanceStatus,
     onBalanceStatusChange,
     onBalanceStatusKeyDown,
@@ -119,17 +118,16 @@ export function TrialBalanceReportFilters({
                 <small className="text-red-500">{dateErrors.fromDate || dateErrors.toDate}</small>
             )}
             <div className="flex flex-wrap align-items-center gap-2">
-                <AppAutoComplete
-                    value={voucherTypeValue}
-                    suggestions={voucherTypeSuggestions}
-                    completeMethod={onVoucherTypeComplete}
-                    onDropdownClick={onVoucherTypeDropdownClick}
-                    onChange={onVoucherTypeChange}
-                    field="label"
+                <VoucherTypeAutoComplete
+                    value={voucherTypeId}
+                    options={voucherTypeOptions}
+                    loading={voucherTypesLoading}
+                    onChange={(nextValue) => onVoucherTypeChange(nextValue)}
                     placeholder="Voucher type"
+                    loadingPlaceholder="Loading voucher types..."
+                    onSelectNext={onVoucherTypeSelectNext}
                     inputId="trial-balance-voucher-type"
-                    inputRef={voucherTypeInputRef}
-                    onKeyDown={onVoucherTypeKeyDown}
+                    ref={voucherTypeInputRef}
                     style={{ minWidth: '200px' }}
                 />
             </div>

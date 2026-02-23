@@ -8,10 +8,13 @@ import { ReportPrintHeader } from '@/components/ReportPrintHeader';
 import { ReportPrintFooter } from '@/components/ReportPrintFooter';
 import { ReportDataTable } from '@/components/ReportDataTable';
 import { buildSkeletonRows } from '@/components/reportSkeleton';
+import { ReportHeader } from '@/components/ReportHeader';
+import { ReportRegisterSearch } from '@/components/ReportRegisterSearch';
 import AppDateInput from '@/components/AppDateInput';
 import LedgerMetaPanel from '@/components/LedgerMetaPanel';
 import AppReportActions from '@/components/AppReportActions';
 import AppMultiSelect from '@/components/AppMultiSelect';
+import { ACCOUNT_MASTER_LAZY_QUERY_OPTIONS } from '@/lib/accounts/masterLookupCache';
 import { useAuth } from '@/lib/auth/context';
 import { formatReportTimestamp, useReportPrint } from '@/lib/reportPrint';
 import { useReportCompanyInfo } from '@/lib/reportCompany';
@@ -49,6 +52,9 @@ export function InvoiceRolloverContainer() {
     const [ledgerIds, setLedgerIds] = useState<number[]>([]);
     const [appliedFilters, setAppliedFilters] = useState<InvoiceRolloverFilters | null>(null);
     const [columnFilters, setColumnFilters] = useState<DataTableFilterMeta>(() => buildDefaultColumnFilters());
+    const [globalSearchText, setGlobalSearchText] = useState('');
+    const [globalSearchMatchCase, setGlobalSearchMatchCase] = useState(false);
+    const [globalSearchWholeWord, setGlobalSearchWholeWord] = useState(false);
 
     useEffect(() => {
         setPageTitle('Invoice Rollover');
@@ -85,8 +91,8 @@ export function InvoiceRolloverContainer() {
     const ledgerFilterValueRef = useRef('');
     const ledgerFilterTimerRef = useRef<number | null>(null);
 
-    const [loadAreas] = useLazyQuery(AREAS, { fetchPolicy: 'network-only' });
-    const [loadLedgerLookup] = useLazyQuery(LEDGER_LOOKUP, { fetchPolicy: 'network-only' });
+    const [loadAreas] = useLazyQuery(AREAS, { ...ACCOUNT_MASTER_LAZY_QUERY_OPTIONS });
+    const [loadLedgerLookup] = useLazyQuery(LEDGER_LOOKUP, { ...ACCOUNT_MASTER_LAZY_QUERY_OPTIONS });
 
     const areaOptions = useMemo<AreaOption[]>(() => {
         const options = new Map<number, AreaOption>();
@@ -199,15 +205,32 @@ export function InvoiceRolloverContainer() {
     }, []);
 
     const focusAreaInput = () => {
+        if (typeof document === 'undefined') return;
         const control = areaInputRef.current;
         if (!control) return;
+        const element = control.getElement?.();
+        const isFocusedWithinElement = () => {
+            const active = document.activeElement;
+            return Boolean(active && element instanceof HTMLElement && (active === element || element.contains(active)));
+        };
+
         if (typeof control.focus === 'function') {
             control.focus();
-            return;
+            if (isFocusedWithinElement()) return;
         }
-        const element = control.getElement?.();
-        if (element instanceof HTMLElement) {
-            element.focus();
+
+        if (!(element instanceof HTMLElement)) return;
+        const focusTargets = [
+            element.querySelector<HTMLElement>(
+                '.p-hidden-accessible input[role="combobox"], .p-hidden-accessible input[aria-haspopup="listbox"]'
+            ),
+            element,
+            element.querySelector<HTMLElement>('[tabindex]:not([tabindex="-1"]), input, button, select, textarea')
+        ].filter((target): target is HTMLElement => Boolean(target));
+
+        for (const target of focusTargets) {
+            target.focus();
+            if (document.activeElement === target || isFocusedWithinElement()) return;
         }
     };
 
@@ -372,7 +395,9 @@ export function InvoiceRolloverContainer() {
     );
 
     const [loadReport, { data, loading, error }] = useLazyQuery(INVOICE_ROLLOVER, {
-        fetchPolicy: 'network-only'
+        fetchPolicy: 'cache-and-network',
+        nextFetchPolicy: 'cache-first',
+        notifyOnNetworkStatusChange: true
     });
 
     const hasApplied = appliedFilters != null;
@@ -382,6 +407,7 @@ export function InvoiceRolloverContainer() {
         () => (hasApplied ? data?.invoiceRollover?.items ?? [] : []),
         [data, hasApplied]
     );
+    const showSkeletonRows = reportLoading && rows.length === 0;
 
     const totals = useMemo(
         () => ({
@@ -423,7 +449,7 @@ export function InvoiceRolloverContainer() {
         []
     );
 
-    const displayRows = reportLoading ? skeletonRows : rows;
+    const displayRows = showSkeletonRows ? skeletonRows : rows;
     const rowsPerPage = 10;
     const { isPrinting, printRows, triggerPrint } = useReportPrint<InvoiceRolloverRow>({ rows });
     const tableRows = isPrinting && printRows ? printRows : displayRows;
@@ -431,7 +457,7 @@ export function InvoiceRolloverContainer() {
 
     const columns = useInvoiceRolloverColumns({
         rows,
-        reportLoading,
+        reportLoading: showSkeletonRows,
         totals
     });
 
@@ -589,17 +615,22 @@ export function InvoiceRolloverContainer() {
                 subtitle={filterSummary ?? undefined}
             />
             <ReportPrintFooter left={printFooterLeft} />
-            <div className="flex flex-column gap-2 mb-3 report-screen-header">
-                <div className="flex flex-column md:flex-row md:align-items-start md:justify-content-between gap-3">
-                    <div>
-                        <h2 className="m-0">Invoice Rollover</h2>
-                        <p className="mt-2 mb-0 text-600">
-                            Invoice vs applied receipts summary (ported from legacy Agency Manager workflow).
-                        </p>
-                    </div>
-                </div>
-                {error && <p className="text-red-500 m-0">Error loading invoice rollover: {error.message}</p>}
-            </div>
+            <ReportHeader
+                title="Invoice Rollover"
+                subtitle="Invoice vs applied receipts summary (ported from legacy Agency Manager workflow)."
+                rightSlot={
+                    <ReportRegisterSearch
+                        value={globalSearchText}
+                        onValueChange={setGlobalSearchText}
+                        matchCase={globalSearchMatchCase}
+                        onMatchCaseChange={setGlobalSearchMatchCase}
+                        wholeWord={globalSearchWholeWord}
+                        onWholeWordChange={setGlobalSearchWholeWord}
+                    />
+                }
+                className="mb-3"
+            />
+            {error && <p className="text-red-500 m-0 mb-3">Error loading invoice rollover: {error.message}</p>}
 
             <ReportDataTable
                 value={tableRows}
@@ -614,6 +645,13 @@ export function InvoiceRolloverContainer() {
                 onFilter={handleColumnFilter}
                 filterDisplay="menu"
                 filterDelay={400}
+                globalSearchRenderInTableHeader={false}
+                globalSearchValue={globalSearchText}
+                onGlobalSearchValueChange={setGlobalSearchText}
+                globalSearchMatchCase={globalSearchMatchCase}
+                onGlobalSearchMatchCaseChange={setGlobalSearchMatchCase}
+                globalSearchWholeWord={globalSearchWholeWord}
+                onGlobalSearchWholeWordChange={setGlobalSearchWholeWord}
                 className="summary-table invoice-rollover-table"
                 emptyMessage={reportLoading || !hasApplied ? '' : 'No results found'}
                 headerLeft={
@@ -717,6 +755,7 @@ export function InvoiceRolloverContainer() {
                             onExportCsv={handleExportCsv}
                             onExportExcel={handleExportExcel}
                             onExportPdf={handleExportPdf}
+                            loadingState={reportLoading}
                             refreshDisabled={!canQuery}
                             exportDisabled={!hasApplied || rows.length === 0}
                         />

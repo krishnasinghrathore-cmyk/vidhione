@@ -12,7 +12,8 @@ import type {
     DrCrOption,
     DrCrValue,
     FilterOption,
-    PaymentMode
+    PaymentMode,
+    RecentlySavedVoucher
 } from './types';
 
 export const CASH_LEDGER_GROUP_TYPES = [6];
@@ -20,6 +21,9 @@ export const BANK_LEDGER_GROUP_TYPES = [1, 2, 3, 29];
 export const CASH_IN_HAND_GROUP_TYPE = 6;
 export const BANK_ACCOUNT_GROUP_TYPE = 1;
 export const PAYMENT_VOUCHER_MODE_STORAGE_KEY = 'accounts.paymentVoucher.mode';
+export const PAYMENT_VOUCHER_RECENT_SAVED_STORAGE_KEY = 'accounts.paymentVoucher.recentSaved';
+export const PAYMENT_VOUCHER_RECENT_SAVED_LIMIT = 3;
+export const PAYMENT_VOUCHER_RECENT_SAVED_STORAGE_LIMIT = PAYMENT_VOUCHER_RECENT_SAVED_LIMIT * 4;
 
 export const normalizePaymentMode = (value: string | null | undefined): PaymentMode | null => {
     if (value === 'cash' || value === 'bank') return value;
@@ -34,6 +38,46 @@ export const getStoredPaymentMode = (): PaymentMode | null => {
 export const persistPaymentMode = (mode: PaymentMode) => {
     if (typeof window === 'undefined') return;
     window.localStorage.setItem(PAYMENT_VOUCHER_MODE_STORAGE_KEY, mode);
+};
+
+const isRecentlySavedVoucher = (value: unknown): value is RecentlySavedVoucher => {
+    if (!value || typeof value !== 'object') return false;
+    const candidate = value as Partial<RecentlySavedVoucher>;
+    const voucherId = Number(candidate.voucherId);
+    if (!Number.isFinite(voucherId) || voucherId <= 0) return false;
+    if (typeof candidate.voucherNo !== 'string') return false;
+    if (!normalizePaymentMode(candidate.mode ?? null)) return false;
+    if (typeof candidate.savedAt !== 'string') return false;
+    return Number.isFinite(new Date(candidate.savedAt).getTime());
+};
+
+export const getStoredRecentSavedVouchers = (): RecentlySavedVoucher[] => {
+    if (typeof window === 'undefined') return [];
+    try {
+        const raw = window.localStorage.getItem(PAYMENT_VOUCHER_RECENT_SAVED_STORAGE_KEY);
+        if (!raw) return [];
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed)) return [];
+        return parsed
+            .filter(isRecentlySavedVoucher)
+            .slice(0, PAYMENT_VOUCHER_RECENT_SAVED_STORAGE_LIMIT)
+            .map((item) => ({
+                ...item,
+                voucherId: Number(item.voucherId),
+                voucherNo: String(item.voucherNo || item.voucherId),
+                mode: normalizePaymentMode(item.mode) ?? 'cash'
+            }));
+    } catch {
+        return [];
+    }
+};
+
+export const persistRecentSavedVouchers = (items: RecentlySavedVoucher[]) => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(
+        PAYMENT_VOUCHER_RECENT_SAVED_STORAGE_KEY,
+        JSON.stringify(items.slice(0, PAYMENT_VOUCHER_RECENT_SAVED_STORAGE_LIMIT))
+    );
 };
 
 export const DR_CR_OPTIONS: DrCrOption[] = [
@@ -84,20 +128,42 @@ export const parseDateText = (value: string | null) => {
     if (!value) return null;
     const trimmed = value.trim();
     if (!trimmed) return null;
-    const dmy = trimmed.match(/^(\d{2})[\/\-](\d{2})[\/\-](\d{4})$/);
+
+    const toValidDate = (yyyy: string, mm: string, dd: string) => {
+        const year = Number(yyyy);
+        const month = Number(mm);
+        const day = Number(dd);
+        if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) return null;
+        if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+        const candidate = new Date(year, month - 1, day);
+        if (Number.isNaN(candidate.getTime())) return null;
+        if (candidate.getFullYear() !== year || candidate.getMonth() !== month - 1 || candidate.getDate() !== day) {
+            return null;
+        }
+        return candidate;
+    };
+
+    const dmy = trimmed.match(/^(\d{2})[\/\-](\d{2})[\/\-](\d{4})(?:\D.*)?$/);
     if (dmy) {
         const [_, dd, mm, yyyy] = dmy;
-        return new Date(`${yyyy}-${mm}-${dd}T00:00:00`);
+        return toValidDate(yyyy, mm, dd);
     }
-    const ymd = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    const ymd = trimmed.match(/^(\d{4})[\/\-](\d{2})[\/\-](\d{2})(?:\D.*)?$/);
     if (ymd) {
         const [_, yyyy, mm, dd] = ymd;
-        return new Date(`${yyyy}-${mm}-${dd}T00:00:00`);
+        return toValidDate(yyyy, mm, dd);
     }
-    const yyyymmdd = trimmed.match(/^(\d{4})(\d{2})(\d{2})$/);
-    if (yyyymmdd) {
-        const [_, yyyy, mm, dd] = yyyymmdd;
-        return new Date(`${yyyy}-${mm}-${dd}T00:00:00`);
+    const compact = trimmed.match(/^(\d{8})(?:\D.*)?$/);
+    if (compact) {
+        const digits = compact[1];
+        const yearFirst = Number(digits.slice(0, 4));
+        const yearLast = Number(digits.slice(4, 8));
+        if (yearFirst >= 1900 && yearFirst <= 2200) {
+            return toValidDate(digits.slice(0, 4), digits.slice(4, 6), digits.slice(6, 8));
+        }
+        if (yearLast >= 1900 && yearLast <= 2200) {
+            return toValidDate(digits.slice(4, 8), digits.slice(2, 4), digits.slice(0, 2));
+        }
     }
     const parsed = new Date(trimmed);
     if (!Number.isNaN(parsed.getTime())) return parsed;
@@ -294,7 +360,9 @@ export const resolveReportRange = (fiscalStart: Date | null, fiscalEnd: Date | n
     if (range.start && maxDate < range.start) {
         maxDate = range.start;
     }
-    return { start: range.start, end: maxDate };
+    const monthStart = new Date(maxDate.getFullYear(), maxDate.getMonth(), 1);
+    const minDate = range.start && monthStart < range.start ? range.start : monthStart;
+    return { start: minDate, end: maxDate };
 };
 
 export const buildVoucherFormSchema = (range?: FiscalRange | null, refDateLabel?: string) =>
@@ -305,10 +373,8 @@ export const buildVoucherFormSchema = (range?: FiscalRange | null, refDateLabel?
             postingDate: z.any(),
             refDate: z.any(),
             voucherTypeId: z.number().positive('Payment voucher type not found.'),
-            cashLedgerId: z.number().positive('Select cash/bank ledger.'),
-            cashLedgerAmount: z
-                .number({ invalid_type_error: 'Enter cash/bank amount.' })
-                .positive('Enter cash/bank amount.'),
+            cashLedgerId: z.number(),
+            cashLedgerAmount: z.number({ invalid_type_error: 'Enter amount.' }),
             debitLines: z
                 .array(
                     z.object({
@@ -322,6 +388,7 @@ export const buildVoucherFormSchema = (range?: FiscalRange | null, refDateLabel?
             lineTotal: z.number()
         })
         .superRefine((data, ctx) => {
+            const amountModeLabel = data.isCashMode ? 'Cash' : 'Bank';
             const voucherDateValidation = validateSingleDate({ date: data.voucherDate ?? null }, range);
             if (!voucherDateValidation.ok) {
                 ctx.addIssue({
@@ -359,11 +426,29 @@ export const buildVoucherFormSchema = (range?: FiscalRange | null, refDateLabel?
                 });
             }
 
-            if (Math.abs(Number(data.cashLedgerAmount || 0) - Number(data.lineTotal || 0)) > 0.01) {
+            const cashBankLedgerId = Number(data.cashLedgerId || 0);
+            if (!(cashBankLedgerId > 0)) {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    path: ['cashLedgerId'],
+                    message: `Select ${amountModeLabel} ledger.`
+                });
+            }
+
+            const headerAmount = Number(data.cashLedgerAmount || 0);
+            if (!(headerAmount > 0)) {
                 ctx.addIssue({
                     code: z.ZodIssueCode.custom,
                     path: ['cashLedgerAmount'],
-                    message: 'Cash/Bank amount should match total debit lines.'
+                    message: `Enter ${amountModeLabel} amount.`
+                });
+            }
+
+            if (headerAmount > 0 && data.lineTotal > 0 && Math.abs(headerAmount - Number(data.lineTotal || 0)) > 0.01) {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    path: ['cashLedgerAmount'],
+                    message: `${amountModeLabel} amount should match total debit lines.`
                 });
             }
 

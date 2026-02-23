@@ -8,8 +8,18 @@ import { Toast } from 'primereact/toast';
 import { Button } from 'primereact/button';
 import { gql, useMutation, useQuery } from '@apollo/client';
 import AppDataTable from '@/components/AppDataTable';
+import AppDropdown from '@/components/AppDropdown';
 import { z } from 'zod';
 import { inventoryApolloClient } from '@/lib/inventoryApolloClient';
+import { getDeleteConfirmMessage, getDeleteFailureMessage } from '@/lib/deleteGuardrails';
+import { fetchInventoryMasterDeleteImpact, getDeleteBlockedMessage } from '@/lib/masterDeleteImpact';
+import {
+    getMasterActionDeniedDetail,
+    isMasterActionAllowed,
+    type MasterAction,
+    useMasterActionPermissions
+} from '@/lib/masterActionPermissions';
+import { ensureDryEditCheck } from '@/lib/masterDryRun';
 
 interface SchemeBatchRow {
     schemeBatchId: number;
@@ -17,8 +27,8 @@ interface SchemeBatchRow {
 }
 
 const SCHEME_BATCHES = gql`
-    query SchemeBatches {
-        schemeBatches {
+    query SchemeBatches($search: String, $limit: Int) {
+        schemeBatches(search: $search, limit: $limit) {
             schemeBatchId
             name
         }
@@ -58,37 +68,52 @@ const formSchema = z.object({
 const DEFAULT_FORM: FormState = {
     name: ''
 };
+const limitOptions = [100, 250, 500, 1000, 2000].map((value) => ({
+    label: String(value),
+    value
+}));
 
 export default function InventorySchemeBatchesPage() {
     const toastRef = useRef<Toast>(null);
     const dtRef = useRef<any>(null);
 
     const [search, setSearch] = useState('');
+    const [limit, setLimit] = useState(2000);
     const [dialogVisible, setDialogVisible] = useState(false);
     const [saving, setSaving] = useState(false);
     const [editing, setEditing] = useState<SchemeBatchRow | null>(null);
+    const [detailVisible, setDetailVisible] = useState(false);
+    const [detailRow, setDetailRow] = useState<SchemeBatchRow | null>(null);
     const [form, setForm] = useState<FormState>(DEFAULT_FORM);
     const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
-    const { data, loading, error, refetch } = useQuery(SCHEME_BATCHES, { client: inventoryApolloClient });
+    const [dryEditDigest, setDryEditDigest] = useState('');
+
+    const { data, loading, error, refetch } = useQuery(SCHEME_BATCHES, {
+        client: inventoryApolloClient,
+        variables: { search: search.trim() || null, limit }
+    });
     const [createSchemeBatch] = useMutation(CREATE_SCHEME_BATCH, { client: inventoryApolloClient });
     const [updateSchemeBatch] = useMutation(UPDATE_SCHEME_BATCH, { client: inventoryApolloClient });
     const [deleteSchemeBatch] = useMutation(DELETE_SCHEME_BATCH, { client: inventoryApolloClient });
 
+    const { permissions: masterPermissions } = useMasterActionPermissions(inventoryApolloClient);
+
     const rows: SchemeBatchRow[] = useMemo(() => data?.schemeBatches ?? [], [data]);
 
-    const filteredRows = useMemo(() => {
-        const term = search.trim().toLowerCase();
-        if (!term) return rows;
-        return rows.filter((row) =>
-            [row.schemeBatchId, row.name]
-                .map((value) => String(value ?? '').toLowerCase())
-                .join(' ')
-                .includes(term)
-        );
-    }, [rows, search]);
+    const assertActionAllowed = (action: MasterAction) => {
+        if (isMasterActionAllowed(masterPermissions, action)) return true;
+        toastRef.current?.show({
+            severity: 'warn',
+            summary: 'Permission Denied',
+            detail: getMasterActionDeniedDetail(action)
+        });
+        return false;
+    };
 
     const openNew = () => {
+        setDryEditDigest('');
+        if (!assertActionAllowed('add')) return;
         setEditing(null);
         setForm(DEFAULT_FORM);
         setFormErrors({});
@@ -96,10 +121,18 @@ export default function InventorySchemeBatchesPage() {
     };
 
     const openEdit = (row: SchemeBatchRow) => {
+        setDryEditDigest('');
+        if (!assertActionAllowed('edit')) return;
         setEditing(row);
         setForm({ name: row.name ?? '' });
         setFormErrors({});
         setDialogVisible(true);
+    };
+
+    const openView = (row: SchemeBatchRow) => {
+        if (!assertActionAllowed('view')) return;
+        setDetailRow(row);
+        setDetailVisible(true);
     };
 
     const save = async () => {
@@ -113,6 +146,15 @@ export default function InventorySchemeBatchesPage() {
             toastRef.current?.show({ severity: 'warn', summary: 'Please fix validation errors' });
             return;
         }
+
+        if (!ensureDryEditCheck({
+            isEditing: Boolean(editing),
+            lastDigest: dryEditDigest,
+            currentDigest: JSON.stringify(form),
+            setLastDigest: setDryEditDigest,
+            toastRef,
+            entityLabel: 'record'
+        })) return;
 
         setSaving(true);
         try {
@@ -162,15 +204,27 @@ export default function InventorySchemeBatchesPage() {
             toastRef.current?.show({
                 severity: 'error',
                 summary: 'Error',
-                detail: e?.message ?? 'Delete failed.'
+                detail: getDeleteFailureMessage(e, 'scheme batch')
             });
         }
     };
 
-    const confirmDelete = (event: React.MouseEvent<HTMLButtonElement>, row: SchemeBatchRow) => {
+    const confirmDelete = async () => {
+        if (!assertActionAllowed('delete')) return;
+        const impact = await fetchInventoryMasterDeleteImpact('SCHEME_BATCH', row.schemeBatchId);
+        if (!impact.canDelete) {
+            toastRef.current?.show({
+                severity: 'warn',
+                summary: 'Cannot Delete',
+                detail: getDeleteBlockedMessage('scheme batch', impact),
+                life: 7000
+            });
+            return;
+        }
+
         confirmPopup({
             target: event.currentTarget,
-            message: 'Delete this scheme batch?',
+            message: `Dry Delete Check passed. ${getDeleteConfirmMessage('scheme batch')}`,
             icon: 'pi pi-exclamation-triangle',
             acceptClassName: 'p-button-danger',
             acceptLabel: 'Delete',
@@ -183,8 +237,9 @@ export default function InventorySchemeBatchesPage() {
 
     const actionsBody = (row: SchemeBatchRow) => (
         <div className="flex gap-2">
-            <Button icon="pi pi-pencil" className="p-button-text" onClick={() => openEdit(row)} />
-            <Button icon="pi pi-trash" className="p-button-text" severity="danger" onClick={(e) => confirmDelete(e, row)} />
+            <Button icon="pi pi-eye" className="p-button-text" onClick={() => openView(row)} disabled={!masterPermissions.canView} />
+            <Button icon="pi pi-pencil" className="p-button-text" onClick={() => openEdit(row)} disabled={!masterPermissions.canEdit} />
+            <Button icon="pi pi-trash" className="p-button-text" severity="danger" onClick={(e) => { void confirmDelete(e, row); }} disabled={!masterPermissions.canDelete} />
         </div>
     );
 
@@ -202,7 +257,7 @@ export default function InventorySchemeBatchesPage() {
                         </p>
                     </div>
                     <div className="flex gap-2 flex-wrap">
-                        <Button label="New Batch" icon="pi pi-plus" onClick={openNew} />
+                        <Button label="New Batch" icon="pi pi-plus" onClick={openNew} disabled={!masterPermissions.canAdd} />
                     </div>
                 </div>
                 {error && <p className="text-red-500 m-0">Error loading scheme batches: {error.message}</p>}
@@ -210,7 +265,7 @@ export default function InventorySchemeBatchesPage() {
 
             <AppDataTable
                 ref={dtRef}
-                value={filteredRows}
+                value={rows}
                 paginator
                 rows={12}
                 rowsPerPageOptions={[12, 24, 50, 100]}
@@ -218,7 +273,7 @@ export default function InventorySchemeBatchesPage() {
                 stripedRows
                 size="small"
                 loading={loading}
-                onRowDoubleClick={(e) => openEdit(e.data as SchemeBatchRow)}
+                onRowDoubleClick={(e) => (masterPermissions.canEdit ? openEdit(e.data as SchemeBatchRow) : openView(e.data as SchemeBatchRow))}
                 headerLeft={
                     <span className="p-input-icon-left" style={{ minWidth: '320px' }}>
                         <i className="pi pi-search" />
@@ -237,7 +292,7 @@ export default function InventorySchemeBatchesPage() {
                             icon="pi pi-download"
                             className="p-button-info"
                             onClick={() => dtRef.current?.exportCSV()}
-                            disabled={filteredRows.length === 0}
+                            disabled={rows.length === 0}
                         />
                         <Button
                             label="Print"
@@ -251,15 +306,24 @@ export default function InventorySchemeBatchesPage() {
                             className="p-button-text"
                             onClick={() => refetch()}
                         />
+                        <span className="flex align-items-center gap-2">
+                            <span className="text-600 text-sm">Limit</span>
+                            <AppDropdown
+                                value={limit}
+                                options={limitOptions}
+                                onChange={(e) => setLimit(e.value ?? 2000)}
+                                className="w-6rem"
+                            />
+                        </span>
                         <span className="text-600 text-sm">
-                            Showing {filteredRows.length} batch{filteredRows.length === 1 ? '' : 'es'}
+                            Showing {rows.length} batch{rows.length === 1 ? '' : 'es'}
                         </span>
                     </>
                 }
-                recordSummary={`${filteredRows.length} batch${filteredRows.length === 1 ? '' : 'es'}`}
+                recordSummary={`${rows.length} batch${rows.length === 1 ? '' : 'es'}`}
             >
                 <Column field="name" header="Name" sortable />
-                <Column header="Actions" body={actionsBody} style={{ width: '8rem' }} />
+                <Column header="Actions" body={actionsBody} style={{ width: '11rem' }} />
             </AppDataTable>
 
             <Dialog
@@ -291,6 +355,24 @@ export default function InventorySchemeBatchesPage() {
                         {formErrors.name && <small className="p-error">{formErrors.name}</small>}
                     </div>
                 </div>
+            </Dialog>
+
+            <Dialog
+                header="Scheme Batch Details"
+                visible={detailVisible}
+                style={{ width: 'min(520px, 96vw)' }}
+                onHide={() => setDetailVisible(false)}
+                footer={
+                    <div className="flex justify-content-end w-full">
+                        <Button label="Close" className="p-button-text" onClick={() => setDetailVisible(false)} />
+                    </div>
+                }
+            >
+                {detailRow && (
+                    <div className="flex flex-column gap-2">
+                        <div><strong>Name:</strong> {detailRow.name ?? '-'}</div>
+                    </div>
+                )}
             </Dialog>
         </div>
     );

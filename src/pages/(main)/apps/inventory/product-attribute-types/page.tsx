@@ -9,8 +9,18 @@ import { Toast } from 'primereact/toast';
 import { Button } from 'primereact/button';
 import { gql, useLazyQuery, useMutation, useQuery } from '@apollo/client';
 import AppDataTable from '@/components/AppDataTable';
+import AppDropdown from '@/components/AppDropdown';
 import { z } from 'zod';
 import { inventoryApolloClient } from '@/lib/inventoryApolloClient';
+import { getDeleteConfirmMessage, getDeleteFailureMessage } from '@/lib/deleteGuardrails';
+import { fetchInventoryMasterDeleteImpact, getDeleteBlockedMessage } from '@/lib/masterDeleteImpact';
+import {
+    getMasterActionDeniedDetail,
+    isMasterActionAllowed,
+    type MasterAction,
+    useMasterActionPermissions
+} from '@/lib/masterActionPermissions';
+import { ensureDryEditCheck } from '@/lib/masterDryRun';
 
 interface ProductAttributeTypeRow {
     productAttributeTypeId: number;
@@ -29,8 +39,8 @@ type DetailDraft = {
 };
 
 const PRODUCT_ATTRIBUTE_TYPES = gql`
-    query ProductAttributeTypes {
-        productAttributeTypes {
+    query ProductAttributeTypes($search: String, $limit: Int) {
+        productAttributeTypes(search: $search, limit: $limit) {
             productAttributeTypeId
             name
         }
@@ -85,6 +95,10 @@ const DEFAULT_FORM: FormState = {
     name: '',
     details: []
 };
+const limitOptions = [100, 250, 500, 1000, 2000].map((value) => ({
+    label: String(value),
+    value
+}));
 
 export default function InventoryProductAttributeTypesPage() {
     const toastRef = useRef<Toast>(null);
@@ -93,32 +107,41 @@ export default function InventoryProductAttributeTypesPage() {
     const newDetailInputRef = useRef<HTMLInputElement>(null);
 
     const [search, setSearch] = useState('');
+    const [limit, setLimit] = useState(2000);
     const [dialogVisible, setDialogVisible] = useState(false);
     const [saving, setSaving] = useState(false);
     const [editing, setEditing] = useState<ProductAttributeTypeRow | null>(null);
+    const [detailVisible, setDetailVisible] = useState(false);
+    const [detailRow, setDetailRow] = useState<ProductAttributeTypeRow | null>(null);
     const [form, setForm] = useState<FormState>(DEFAULT_FORM);
     const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
+    const [dryEditDigest, setDryEditDigest] = useState('');
     const [newDetail, setNewDetail] = useState('');
 
-    const { data, loading, error, refetch } = useQuery(PRODUCT_ATTRIBUTE_TYPES, { client: inventoryApolloClient });
+    const { data, loading, error, refetch } = useQuery(PRODUCT_ATTRIBUTE_TYPES, {
+        client: inventoryApolloClient,
+        variables: { search: search.trim() || null, limit }
+    });
     const [loadProductAttributeType, { data: productAttributeTypeData, loading: detailsLoading, error: detailsError }] =
         useLazyQuery(PRODUCT_ATTRIBUTE_TYPE_BY_ID, { client: inventoryApolloClient, fetchPolicy: 'network-only' });
     const [createProductAttributeType] = useMutation(CREATE_PRODUCT_ATTRIBUTE_TYPE, { client: inventoryApolloClient });
     const [updateProductAttributeType] = useMutation(UPDATE_PRODUCT_ATTRIBUTE_TYPE, { client: inventoryApolloClient });
     const [deleteProductAttributeType] = useMutation(DELETE_PRODUCT_ATTRIBUTE_TYPE, { client: inventoryApolloClient });
 
+    const { permissions: masterPermissions } = useMasterActionPermissions(inventoryApolloClient);
+
     const rows: ProductAttributeTypeRow[] = useMemo(() => data?.productAttributeTypes ?? [], [data]);
 
-    const filteredRows = useMemo(() => {
-        const term = search.trim().toLowerCase();
-        if (!term) return rows;
-        return rows.filter((row) =>
-            [row.productAttributeTypeId, row.name]
-                .map((value) => String(value ?? '').toLowerCase())
-                .join(' ')
-                .includes(term)
-        );
-    }, [rows, search]);
+    const assertActionAllowed = (action: MasterAction) => {
+        if (isMasterActionAllowed(masterPermissions, action)) return true;
+        toastRef.current?.show({
+            severity: 'warn',
+            summary: 'Permission Denied',
+            detail: getMasterActionDeniedDetail(action)
+        });
+        return false;
+    };
 
     const createDetail = useCallback((detail = '', productAttributeId: number | null = null): DetailDraft => {
         const key = detailKeyRef.current;
@@ -136,6 +159,8 @@ export default function InventoryProductAttributeTypesPage() {
     }, []);
 
     const openNew = () => {
+        setDryEditDigest('');
+        if (!assertActionAllowed('add')) return;
         setEditing(null);
         setForm(DEFAULT_FORM);
         setFormErrors({});
@@ -144,6 +169,8 @@ export default function InventoryProductAttributeTypesPage() {
     };
 
     const openEdit = (row: ProductAttributeTypeRow) => {
+        setDryEditDigest('');
+        if (!assertActionAllowed('edit')) return;
         setEditing(row);
         setForm({
             name: row.name ?? '',
@@ -152,6 +179,13 @@ export default function InventoryProductAttributeTypesPage() {
         setFormErrors({});
         setNewDetail('');
         setDialogVisible(true);
+        loadProductAttributeType({ variables: { productAttributeTypeId: row.productAttributeTypeId } });
+    };
+
+    const openView = (row: ProductAttributeTypeRow) => {
+        if (!assertActionAllowed('view')) return;
+        setDetailRow(row);
+        setDetailVisible(true);
         loadProductAttributeType({ variables: { productAttributeTypeId: row.productAttributeTypeId } });
     };
 
@@ -209,6 +243,13 @@ export default function InventoryProductAttributeTypesPage() {
         />
     );
 
+    const viewDetails = useMemo(() => {
+        if (!detailRow) return [];
+        const detailType = productAttributeTypeData?.productAttributeTypeById;
+        if (!detailType || detailType.productAttributeTypeId !== detailRow.productAttributeTypeId) return [];
+        return (detailType.productAttributes ?? []) as ProductAttributeRow[];
+    }, [detailRow, productAttributeTypeData]);
+
     const save = async () => {
         const parsed = formSchema.safeParse(form);
         if (!parsed.success) {
@@ -220,6 +261,15 @@ export default function InventoryProductAttributeTypesPage() {
             toastRef.current?.show({ severity: 'warn', summary: 'Please fix validation errors' });
             return;
         }
+
+        if (!ensureDryEditCheck({
+            isEditing: Boolean(editing),
+            lastDigest: dryEditDigest,
+            currentDigest: JSON.stringify(form),
+            setLastDigest: setDryEditDigest,
+            toastRef,
+            entityLabel: 'record'
+        })) return;
 
         setSaving(true);
         try {
@@ -276,15 +326,27 @@ export default function InventoryProductAttributeTypesPage() {
             toastRef.current?.show({
                 severity: 'error',
                 summary: 'Error',
-                detail: e?.message ?? 'Delete failed.'
+                detail: getDeleteFailureMessage(e, 'product attribute type')
             });
         }
     };
 
-    const confirmDelete = (event: React.MouseEvent<HTMLButtonElement>, row: ProductAttributeTypeRow) => {
+    const confirmDelete = async () => {
+        if (!assertActionAllowed('delete')) return;
+        const impact = await fetchInventoryMasterDeleteImpact('PRODUCT_ATTRIBUTE_TYPE', row.productAttributeTypeId);
+        if (!impact.canDelete) {
+            toastRef.current?.show({
+                severity: 'warn',
+                summary: 'Cannot Delete',
+                detail: getDeleteBlockedMessage('product attribute type', impact),
+                life: 7000
+            });
+            return;
+        }
+
         confirmPopup({
             target: event.currentTarget,
-            message: 'Delete this product attribute type?',
+            message: `Dry Delete Check passed. ${getDeleteConfirmMessage('product attribute type')}`,
             icon: 'pi pi-exclamation-triangle',
             acceptClassName: 'p-button-danger',
             acceptLabel: 'Delete',
@@ -297,8 +359,9 @@ export default function InventoryProductAttributeTypesPage() {
 
     const actionsBody = (row: ProductAttributeTypeRow) => (
         <div className="flex gap-2">
-            <Button icon="pi pi-pencil" className="p-button-text" onClick={() => openEdit(row)} />
-            <Button icon="pi pi-trash" className="p-button-text" severity="danger" onClick={(e) => confirmDelete(e, row)} />
+            <Button icon="pi pi-eye" className="p-button-text" onClick={() => openView(row)} disabled={!masterPermissions.canView} />
+            <Button icon="pi pi-pencil" className="p-button-text" onClick={() => openEdit(row)} disabled={!masterPermissions.canEdit} />
+            <Button icon="pi pi-trash" className="p-button-text" severity="danger" onClick={(e) => { void confirmDelete(e, row); }} disabled={!masterPermissions.canDelete} />
         </div>
     );
 
@@ -316,7 +379,7 @@ export default function InventoryProductAttributeTypesPage() {
                         </p>
                     </div>
                     <div className="flex gap-2 flex-wrap">
-                        <Button label="New Type" icon="pi pi-plus" onClick={openNew} />
+                        <Button label="New Type" icon="pi pi-plus" onClick={openNew} disabled={!masterPermissions.canAdd} />
                     </div>
                 </div>
                 {error && <p className="text-red-500 m-0">Error loading product attribute types: {error.message}</p>}
@@ -324,7 +387,7 @@ export default function InventoryProductAttributeTypesPage() {
 
             <AppDataTable
                 ref={dtRef}
-                value={filteredRows}
+                value={rows}
                 paginator
                 rows={12}
                 rowsPerPageOptions={[12, 24, 50, 100]}
@@ -332,7 +395,7 @@ export default function InventoryProductAttributeTypesPage() {
                 stripedRows
                 size="small"
                 loading={loading}
-                onRowDoubleClick={(e) => openEdit(e.data as ProductAttributeTypeRow)}
+                onRowDoubleClick={(e) => (masterPermissions.canEdit ? openEdit(e.data as ProductAttributeTypeRow) : openView(e.data as ProductAttributeTypeRow))}
                 headerLeft={
                     <span className="p-input-icon-left" style={{ minWidth: '320px' }}>
                         <i className="pi pi-search" />
@@ -351,7 +414,7 @@ export default function InventoryProductAttributeTypesPage() {
                             icon="pi pi-download"
                             className="p-button-info"
                             onClick={() => dtRef.current?.exportCSV()}
-                            disabled={filteredRows.length === 0}
+                            disabled={rows.length === 0}
                         />
                         <Button
                             label="Print"
@@ -365,15 +428,24 @@ export default function InventoryProductAttributeTypesPage() {
                             className="p-button-text"
                             onClick={() => refetch()}
                         />
+                        <span className="flex align-items-center gap-2">
+                            <span className="text-600 text-sm">Limit</span>
+                            <AppDropdown
+                                value={limit}
+                                options={limitOptions}
+                                onChange={(e) => setLimit(e.value ?? 2000)}
+                                className="w-6rem"
+                            />
+                        </span>
                         <span className="text-600 text-sm">
-                            Showing {filteredRows.length} type{filteredRows.length === 1 ? '' : 's'}
+                            Showing {rows.length} type{rows.length === 1 ? '' : 's'}
                         </span>
                     </>
                 }
-                recordSummary={`${filteredRows.length} type${filteredRows.length === 1 ? '' : 's'}`}
+                recordSummary={`${rows.length} type${rows.length === 1 ? '' : 's'}`}
             >
                 <Column field="name" header="Name" sortable />
-                <Column header="Actions" body={actionsBody} style={{ width: '8rem' }} />
+                <Column header="Actions" body={actionsBody} style={{ width: '11rem' }} />
             </AppDataTable>
 
             <Dialog
@@ -472,6 +544,34 @@ export default function InventoryProductAttributeTypesPage() {
                         </DataTable>
                     </div>
                 </div>
+            </Dialog>
+
+            <Dialog
+                header="Product Attribute Type Details"
+                visible={detailVisible}
+                style={{ width: 'min(680px, 96vw)' }}
+                onHide={() => setDetailVisible(false)}
+                footer={
+                    <div className="flex justify-content-end w-full">
+                        <Button label="Close" className="p-button-text" onClick={() => setDetailVisible(false)} />
+                    </div>
+                }
+            >
+                {detailRow && (
+                    <div className="flex flex-column gap-2">
+                        <div><strong>Name:</strong> {detailRow.name ?? '-'}</div>
+                        {detailsLoading ? (
+                            <small className="text-500">Loading type details...</small>
+                        ) : (
+                            <div>
+                                <strong>Type Details:</strong>{' '}
+                                {viewDetails.length
+                                    ? viewDetails.map((item) => item.detail || '-').join(', ')
+                                    : '-'}
+                            </div>
+                        )}
+                    </div>
+                )}
             </Dialog>
         </div>
     );

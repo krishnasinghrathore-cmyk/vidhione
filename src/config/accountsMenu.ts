@@ -52,8 +52,7 @@ export const ACCOUNTS_MENU_GROUPS: AccountsMenuGroup[] = [
         label: 'Settings',
         icon: 'pi pi-cog',
         items: [
-            { slug: 'options', label: 'Options', icon: 'pi pi-sliders-h' },
-            { slug: 'voucher-options', label: 'Voucher Options', icon: 'pi pi-sliders-h' },
+            { slug: 'voucher-options', label: 'Voucher Options', icon: 'pi pi-tags' },
             { slug: 'log-details', label: 'Log Details', icon: 'pi pi-history' },
             { slug: 'report-settings', label: 'Report Settings', icon: 'pi pi-cog' },
             { slug: 'create-new-year', label: 'Create New Year', icon: 'pi pi-calendar' },

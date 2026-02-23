@@ -2,7 +2,6 @@
 import React from 'react';
 import { Button } from 'primereact/button';
 import { Column } from 'primereact/column';
-import { Toast } from 'primereact/toast';
 import AppDataTable from '@/components/AppDataTable';
 import { AppRegisterSearch } from '@/components/AppRegisterSearch';
 import { ReportHeader } from '@/components/ReportHeader';
@@ -13,7 +12,6 @@ import type { ColumnFilterMeta, PaymentVoucherDisplayRow, VoucherRow } from './t
 import {
     AMOUNT_CURRENCY_ICON,
     MULTISELECT_COLUMN_PROPS,
-    formatAmountWithCurrency,
     isEmptyFilterValue,
     resolveFilterValue
 } from './utils';
@@ -21,7 +19,6 @@ import type { PaymentVoucherViewProps } from './usePaymentVoucherState';
 
 const PaymentVoucherTableComponent = (props: PaymentVoucherViewProps) => {
     const {
-        toastRef,
         filteredRows,
         rowsPerPage,
         setRowsPerPage,
@@ -44,7 +41,7 @@ const PaymentVoucherTableComponent = (props: PaymentVoucherViewProps) => {
         setSelectedRow,
         columnFilters,
         setColumnFilters,
-        totals,
+        registerQueryLoading,
         voucherTypeNoFilterElement,
         voucherPostingDateFilterElement,
         refFilterElement,
@@ -54,14 +51,20 @@ const PaymentVoucherTableComponent = (props: PaymentVoucherViewProps) => {
         paidByFilterElement,
         ledgerGroupFilterElement,
         cashLedgerLabel,
+        isBankMode,
         openEditForRow,
-        openAdd,
-        saving
+        voucherActions
     } = props;
     const summaryCount = totalRecordsForTable;
     const textHeaderClassName = 'payment-voucher-text-header';
     const hasTableRows = totalRecordsForTable > 0;
-    const registerSubtitle = `${summaryCount} voucher${summaryCount === 1 ? '' : 's'} • Total ${formatAmountWithCurrency(totals)}`;
+    const registerRecordSummary = hasApplied
+        ? registerQueryLoading
+            ? 'Loading vouchers...'
+            : `${summaryCount} voucher${summaryCount === 1 ? '' : 's'}`
+        : 'Press Refresh to load vouchers';
+    const refNoHeaderLabel = isBankMode ? 'Cheque No.' : 'Ref. No.';
+    const refDateHeaderLabel = isBankMode ? 'Cheque Date' : 'Ref. Date';
 
     const renderStackedHeader = (top: string, bottom: string, topIcon: string, bottomIcon: string) => (
         <div className="flex flex-column">
@@ -82,7 +85,7 @@ const PaymentVoucherTableComponent = (props: PaymentVoucherViewProps) => {
     const renderLedgerHeader = () => (
         <div className="flex flex-column gap-1">
             <LabelWithIcon icon="pi-wallet" className="text-primary font-semibold">
-                Ledger (Cr)
+                {isBankMode ? 'Bank A/c (Cr)' : 'Ledger (Cr)'}
             </LabelWithIcon>
             <LabelWithIcon icon="pi-wallet">
                 Ledger (Dr)
@@ -93,10 +96,9 @@ const PaymentVoucherTableComponent = (props: PaymentVoucherViewProps) => {
     return (
         <div className="cash-exp-split__list">
             <div className="card app-gradient-card">
-                <Toast ref={toastRef} />
                 <ReportHeader
                     title="Voucher Register"
-                    subtitle={registerSubtitle}
+                    subtitle="Voucher records for the selected date range and filters."
                     rightSlot={
                         <AppRegisterSearch
                             value={globalSearchText}
@@ -170,18 +172,12 @@ const PaymentVoucherTableComponent = (props: PaymentVoucherViewProps) => {
                                 <i className="pi pi-inbox app-report-empty-state__icon" aria-hidden="true" />
                                 <div className="app-report-empty-state__title">No vouchers found</div>
                                 <div className="app-report-empty-state__hint">
-                                    Try changing date range or create a new voucher.
+                                    Try changing date range or use the New Voucher button at top-right.
                                 </div>
-                                <Button
-                                    label="New Voucher"
-                                    icon="pi pi-plus"
-                                    className="app-action-compact p-button-outlined"
-                                    onClick={openAdd}
-                                    disabled={saving}
-                                />
                             </div>
                         )
                     }
+                    recordSummary={registerRecordSummary}
                 >
                     <Column
                         header={renderStackedHeader('Voucher Type', 'Voucher No.', 'pi-file', 'pi-hashtag')}
@@ -202,7 +198,7 @@ const PaymentVoucherTableComponent = (props: PaymentVoucherViewProps) => {
                         style={{ width: '9rem' }}
                     />
                     <Column
-                        header={renderStackedHeader('Ref. No.', 'Ref. Date', 'pi-file-edit', 'pi-calendar')}
+                        header={renderStackedHeader(refNoHeaderLabel, refDateHeaderLabel, 'pi-file-edit', 'pi-calendar')}
                         body={(r: PaymentVoucherDisplayRow) => renderStackedValue(r.refNo ?? '', r.refDateDisplay)}
                         filterField="refDisplay"
                         filterElement={refFilterElement}
@@ -276,6 +272,18 @@ const PaymentVoucherTableComponent = (props: PaymentVoucherViewProps) => {
                     <Column
                         field="debitLedgerGroupName"
                         header={<LabelWithIcon icon="pi-sitemap">Ledger Group (Dr)</LabelWithIcon>}
+                        body={(r: PaymentVoucherDisplayRow) => {
+                            if (r.debitLedgerGroupLinesDisplay.length <= 1) {
+                                return r.debitLedgerGroupLinesDisplay[0] ?? '';
+                            }
+                            return (
+                                <div style={{ display: 'grid', gap: '0.1rem' }}>
+                                    {r.debitLedgerGroupLinesDisplay.map((groupName, index) => (
+                                        <span key={`${groupName}-${index}`}>{groupName}</span>
+                                    ))}
+                                </div>
+                            );
+                        }}
                         filterElement={ledgerGroupFilterElement}
                         headerClassName={textHeaderClassName}
                         {...MULTISELECT_COLUMN_PROPS}
@@ -283,16 +291,18 @@ const PaymentVoucherTableComponent = (props: PaymentVoucherViewProps) => {
                     />
                     <Column
                         header={<LabelWithIcon icon="pi-cog">Actions</LabelWithIcon>}
-                        body={(r: VoucherRow) => (
-                            <Button
-                                icon="pi pi-pencil"
-                                className="p-button-text p-button-sm"
-                                onClick={() => openEditForRow(r)}
-                                disabled={saving}
-                                tooltip="Edit"
-                                tooltipOptions={{ position: 'top' }}
-                            />
-                        )}
+                        body={(r: VoucherRow) =>
+                            voucherActions.rowEdit.visible ? (
+                                <Button
+                                    icon="pi pi-pencil"
+                                    className="p-button-text p-button-sm"
+                                    onClick={() => openEditForRow(r)}
+                                    disabled={voucherActions.rowEdit.disabled}
+                                    tooltip="Edit"
+                                    tooltipOptions={{ position: 'top' }}
+                                />
+                            ) : null
+                        }
                         style={{ width: '6rem' }}
                     />
                 </AppDataTable>
@@ -302,7 +312,6 @@ const PaymentVoucherTableComponent = (props: PaymentVoucherViewProps) => {
 };
 
 const arePaymentVoucherTablePropsEqual = (prev: PaymentVoucherViewProps, next: PaymentVoucherViewProps) =>
-    prev.toastRef === next.toastRef &&
     prev.filteredRows === next.filteredRows &&
     prev.rowsPerPage === next.rowsPerPage &&
     prev.setRowsPerPage === next.setRowsPerPage &&
@@ -335,8 +344,9 @@ const arePaymentVoucherTablePropsEqual = (prev: PaymentVoucherViewProps, next: P
     prev.paidByFilterElement === next.paidByFilterElement &&
     prev.ledgerGroupFilterElement === next.ledgerGroupFilterElement &&
     prev.cashLedgerLabel === next.cashLedgerLabel &&
+    prev.isBankMode === next.isBankMode &&
     prev.openEditForRow === next.openEditForRow &&
-    prev.saving === next.saving &&
+    prev.voucherActions === next.voucherActions &&
     prev.hasTouchedDatesRef === next.hasTouchedDatesRef &&
     prev.dateRange === next.dateRange &&
     prev.setDateRange === next.setDateRange &&

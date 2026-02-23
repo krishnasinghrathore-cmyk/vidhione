@@ -3,14 +3,24 @@ import React, { useMemo, useRef, useState } from 'react';
 import { Column } from 'primereact/column';
 import { ConfirmPopup, confirmPopup } from 'primereact/confirmpopup';
 import { Dialog } from 'primereact/dialog';
-import { InputNumber } from 'primereact/inputnumber';
 import { InputText } from 'primereact/inputtext';
 import { Toast } from 'primereact/toast';
 import { Button } from 'primereact/button';
 import { gql, useMutation, useQuery } from '@apollo/client';
 import AppDataTable from '@/components/AppDataTable';
+import AppDropdown from '@/components/AppDropdown';
 import { z } from 'zod';
 import { inventoryApolloClient } from '@/lib/inventoryApolloClient';
+import { useGeoCityOptions } from '@/lib/accounts/cities';
+import { getDeleteConfirmMessage, getDeleteFailureMessage } from '@/lib/deleteGuardrails';
+import { fetchInventoryMasterDeleteImpact, getDeleteBlockedMessage } from '@/lib/masterDeleteImpact';
+import {
+    getMasterActionDeniedDetail,
+    isMasterActionAllowed,
+    type MasterAction,
+    useMasterActionPermissions
+} from '@/lib/masterActionPermissions';
+import { ensureDryEditCheck } from '@/lib/masterDryRun';
 
 interface TransporterRow {
     transporterId: number;
@@ -29,8 +39,8 @@ interface TransporterRow {
 }
 
 const TRANSPORTERS = gql`
-    query Transporters {
-        transporters {
+    query Transporters($search: String, $limit: Int) {
+        transporters(search: $search, limit: $limit) {
             transporterId
             name
             alias
@@ -169,6 +179,8 @@ const DEFAULT_FORM: FormState = {
     mobileNumber: ''
 };
 
+const limitOptions = [100, 250, 500, 1000, 2000].map((value) => ({ label: String(value), value }));
+
 const toOptionalText = (value: string) => {
     const trimmed = value.trim();
     return trimmed ? trimmed : null;
@@ -179,45 +191,54 @@ export default function InventoryTransportersPage() {
     const dtRef = useRef<any>(null);
 
     const [search, setSearch] = useState('');
+    const [limit, setLimit] = useState(2000);
     const [dialogVisible, setDialogVisible] = useState(false);
     const [saving, setSaving] = useState(false);
     const [editing, setEditing] = useState<TransporterRow | null>(null);
+    const [detailVisible, setDetailVisible] = useState(false);
+    const [detailRow, setDetailRow] = useState<TransporterRow | null>(null);
     const [form, setForm] = useState<FormState>(DEFAULT_FORM);
     const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
-    const { data, loading, error, refetch } = useQuery(TRANSPORTERS, { client: inventoryApolloClient });
+    const [dryEditDigest, setDryEditDigest] = useState('');
+
+    const { data, loading, error, refetch } = useQuery(TRANSPORTERS, {
+        client: inventoryApolloClient,
+        variables: { search: search.trim() || null, limit }
+    });
     const [createTransporter] = useMutation(CREATE_TRANSPORTER, { client: inventoryApolloClient });
     const [updateTransporter] = useMutation(UPDATE_TRANSPORTER, { client: inventoryApolloClient });
     const [deleteTransporter] = useMutation(DELETE_TRANSPORTER, { client: inventoryApolloClient });
 
+    const { permissions: masterPermissions } = useMasterActionPermissions(inventoryApolloClient);
+    const { options: cityOptions, error: cityError, refetch: refetchCities } = useGeoCityOptions({ limit: 2000 });
+
     const rows: TransporterRow[] = useMemo(() => data?.transporters ?? [], [data]);
 
-    const filteredRows = useMemo(() => {
-        const term = search.trim().toLowerCase();
-        if (!term) return rows;
-        return rows.filter((row) =>
-            [
-                row.transporterId,
-                row.name,
-                row.alias,
-                row.addressLine1,
-                row.addressLine2,
-                row.addressLine3,
-                row.cityId,
-                row.postalCode,
-                row.email,
-                row.website,
-                row.officePhone,
-                row.residencePhone,
-                row.mobileNumber
-            ]
-                .map((value) => String(value ?? '').toLowerCase())
-                .join(' ')
-                .includes(term)
-        );
-    }, [rows, search]);
+    const assertActionAllowed = (action: MasterAction) => {
+        if (isMasterActionAllowed(masterPermissions, action)) return true;
+        toastRef.current?.show({
+            severity: 'warn',
+            summary: 'Permission Denied',
+            detail: getMasterActionDeniedDetail(action)
+        });
+        return false;
+    };
+    const cityMap = useMemo(() => {
+        const map = new Map<number, string>();
+        cityOptions.forEach((city) => {
+            map.set(city.cityId, city.label);
+        });
+        return map;
+    }, [cityOptions]);
+    const cityDropdownOptions = useMemo(
+        () => cityOptions.map((city) => ({ label: city.label, value: city.cityId })),
+        [cityOptions]
+    );
 
     const openNew = () => {
+        setDryEditDigest('');
+        if (!assertActionAllowed('add')) return;
         setEditing(null);
         setForm(DEFAULT_FORM);
         setFormErrors({});
@@ -225,6 +246,8 @@ export default function InventoryTransportersPage() {
     };
 
     const openEdit = (row: TransporterRow) => {
+        setDryEditDigest('');
+        if (!assertActionAllowed('edit')) return;
         setEditing(row);
         setForm({
             name: row.name ?? '',
@@ -244,6 +267,12 @@ export default function InventoryTransportersPage() {
         setDialogVisible(true);
     };
 
+    const openView = (row: TransporterRow) => {
+        if (!assertActionAllowed('view')) return;
+        setDetailRow(row);
+        setDetailVisible(true);
+    };
+
     const save = async () => {
         const parsed = formSchema.safeParse(form);
         if (!parsed.success) {
@@ -255,6 +284,15 @@ export default function InventoryTransportersPage() {
             toastRef.current?.show({ severity: 'warn', summary: 'Please fix validation errors' });
             return;
         }
+
+        if (!ensureDryEditCheck({
+            isEditing: Boolean(editing),
+            lastDigest: dryEditDigest,
+            currentDigest: JSON.stringify(form),
+            setLastDigest: setDryEditDigest,
+            toastRef,
+            entityLabel: 'record'
+        })) return;
 
         setSaving(true);
         try {
@@ -315,15 +353,27 @@ export default function InventoryTransportersPage() {
             toastRef.current?.show({
                 severity: 'error',
                 summary: 'Error',
-                detail: e?.message ?? 'Delete failed.'
+                detail: getDeleteFailureMessage(e, 'transporter')
             });
         }
     };
 
-    const confirmDelete = (event: React.MouseEvent<HTMLButtonElement>, row: TransporterRow) => {
+    const confirmDelete = async () => {
+        if (!assertActionAllowed('delete')) return;
+        const impact = await fetchInventoryMasterDeleteImpact('TRANSPORTER', row.transporterId);
+        if (!impact.canDelete) {
+            toastRef.current?.show({
+                severity: 'warn',
+                summary: 'Cannot Delete',
+                detail: getDeleteBlockedMessage('transporter', impact),
+                life: 7000
+            });
+            return;
+        }
+
         confirmPopup({
             target: event.currentTarget,
-            message: 'Delete this transporter?',
+            message: `Dry Delete Check passed. ${getDeleteConfirmMessage('transporter')}`,
             icon: 'pi pi-exclamation-triangle',
             acceptClassName: 'p-button-danger',
             acceptLabel: 'Delete',
@@ -334,10 +384,16 @@ export default function InventoryTransportersPage() {
         });
     };
 
+    const cityBody = (row: TransporterRow) => {
+        if (!row.cityId) return <span className="text-500">-</span>;
+        return cityMap.get(row.cityId) ?? row.cityId;
+    };
+
     const actionsBody = (row: TransporterRow) => (
         <div className="flex gap-2">
-            <Button icon="pi pi-pencil" className="p-button-text" onClick={() => openEdit(row)} />
-            <Button icon="pi pi-trash" className="p-button-text" severity="danger" onClick={(e) => confirmDelete(e, row)} />
+            <Button icon="pi pi-eye" className="p-button-text" onClick={() => openView(row)} disabled={!masterPermissions.canView} />
+            <Button icon="pi pi-pencil" className="p-button-text" onClick={() => openEdit(row)} disabled={!masterPermissions.canEdit} />
+            <Button icon="pi pi-trash" className="p-button-text" severity="danger" onClick={(e) => { void confirmDelete(e, row); }} disabled={!masterPermissions.canDelete} />
         </div>
     );
 
@@ -355,15 +411,16 @@ export default function InventoryTransportersPage() {
                         </p>
                     </div>
                     <div className="flex gap-2 flex-wrap">
-                        <Button label="New Transporter" icon="pi pi-plus" onClick={openNew} />
+                        <Button label="New Transporter" icon="pi pi-plus" onClick={openNew} disabled={!masterPermissions.canAdd} />
                     </div>
                 </div>
                 {error && <p className="text-red-500 m-0">Error loading transporters: {error.message}</p>}
+                {cityError && <p className="text-red-500 m-0">Error loading cities: {cityError.message}</p>}
             </div>
 
             <AppDataTable
                 ref={dtRef}
-                value={filteredRows}
+                value={rows}
                 paginator
                 rows={12}
                 rowsPerPageOptions={[12, 24, 50, 100]}
@@ -371,7 +428,7 @@ export default function InventoryTransportersPage() {
                 stripedRows
                 size="small"
                 loading={loading}
-                onRowDoubleClick={(e) => openEdit(e.data as TransporterRow)}
+                onRowDoubleClick={(e) => (masterPermissions.canEdit ? openEdit(e.data as TransporterRow) : openView(e.data as TransporterRow))}
                 headerLeft={
                     <span className="p-input-icon-left" style={{ minWidth: '320px' }}>
                         <i className="pi pi-search" />
@@ -390,7 +447,7 @@ export default function InventoryTransportersPage() {
                             icon="pi pi-download"
                             className="p-button-info"
                             onClick={() => dtRef.current?.exportCSV()}
-                            disabled={filteredRows.length === 0}
+                            disabled={rows.length === 0}
                         />
                         <Button
                             label="Print"
@@ -402,20 +459,32 @@ export default function InventoryTransportersPage() {
                             label="Refresh"
                             icon="pi pi-refresh"
                             className="p-button-text"
-                            onClick={() => refetch()}
+                            onClick={() => {
+                                refetch();
+                                refetchCities();
+                            }}
                         />
+                        <span className="flex align-items-center gap-2">
+                            <span className="text-600 text-sm">Limit</span>
+                            <AppDropdown
+                                value={limit}
+                                options={limitOptions}
+                                onChange={(e) => setLimit(e.value ?? 2000)}
+                                className="w-6rem"
+                            />
+                        </span>
                         <span className="text-600 text-sm">
-                            Showing {filteredRows.length} transporter{filteredRows.length === 1 ? '' : 's'}
+                            Showing {rows.length} transporter{rows.length === 1 ? '' : 's'}
                         </span>
                     </>
                 }
-                recordSummary={`${filteredRows.length} transporter${filteredRows.length === 1 ? '' : 's'}`}
+                recordSummary={`${rows.length} transporter${rows.length === 1 ? '' : 's'}`}
             >
                 <Column field="name" header="Name" sortable />
                 <Column field="alias" header="Alias" sortable />
-                <Column field="cityId" header="City ID" sortable />
+                <Column header="City" body={cityBody} />
                 <Column field="mobileNumber" header="Mobile" />
-                <Column header="Actions" body={actionsBody} style={{ width: '8rem' }} />
+                <Column header="Actions" body={actionsBody} style={{ width: '11rem' }} />
             </AppDataTable>
 
             <Dialog
@@ -479,16 +548,14 @@ export default function InventoryTransportersPage() {
                         />
                     </div>
                     <div className="col-12 md:col-4">
-                        <label className="block text-600 mb-1">City ID</label>
-                        <InputNumber
+                        <label className="block text-600 mb-1">City</label>
+                        <AppDropdown
                             value={form.cityId}
-                            onValueChange={(e) =>
-                                setForm((s) => ({
-                                    ...s,
-                                    cityId: typeof e.value === 'number' ? e.value : null
-                                }))
-                            }
-                            useGrouping={false}
+                            options={cityDropdownOptions}
+                            onChange={(e) => setForm((s) => ({ ...s, cityId: e.value ?? null }))}
+                            placeholder="Select city"
+                            filter
+                            showClear
                             style={{ width: '100%' }}
                         />
                     </div>
@@ -541,6 +608,33 @@ export default function InventoryTransportersPage() {
                         />
                     </div>
                 </div>
+            </Dialog>
+
+            <Dialog
+                header="Transporter Details"
+                visible={detailVisible}
+                style={{ width: 'min(760px, 96vw)' }}
+                onHide={() => setDetailVisible(false)}
+                footer={
+                    <div className="flex justify-content-end w-full">
+                        <Button label="Close" className="p-button-text" onClick={() => setDetailVisible(false)} />
+                    </div>
+                }
+            >
+                {detailRow && (
+                    <div className="flex flex-column gap-2">
+                        <div><strong>Name:</strong> {detailRow.name ?? '-'}</div>
+                        <div><strong>Alias:</strong> {detailRow.alias || '-'}</div>
+                        <div><strong>Address:</strong> {[detailRow.addressLine1, detailRow.addressLine2, detailRow.addressLine3].filter(Boolean).join(', ') || '-'}</div>
+                        <div><strong>City:</strong> {detailRow.cityId ? cityMap.get(detailRow.cityId) ?? detailRow.cityId : '-'}</div>
+                        <div><strong>Postal Code:</strong> {detailRow.postalCode || '-'}</div>
+                        <div><strong>Mobile:</strong> {detailRow.mobileNumber || '-'}</div>
+                        <div><strong>Office Phone:</strong> {detailRow.officePhone || '-'}</div>
+                        <div><strong>Residence Phone:</strong> {detailRow.residencePhone || '-'}</div>
+                        <div><strong>Email:</strong> {detailRow.email || '-'}</div>
+                        <div><strong>Website:</strong> {detailRow.website || '-'}</div>
+                    </div>
+                )}
             </Dialog>
         </div>
     );

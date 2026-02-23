@@ -149,6 +149,39 @@
     }
 }
 
+.app-data-table-actions .app-report-table-search {
+    width: clamp(16rem, 26vw, 22rem);
+    min-width: 16rem;
+    max-width: 100%;
+}
+
+.app-data-table-actions:has(.app-report-table-actions-stack) {
+    align-self: flex-start;
+}
+
+.app-data-table-actions .app-report-table-actions-stack {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.4rem;
+    width: 100%;
+}
+
+.app-data-table-actions .app-report-table-search-row {
+    display: flex;
+    justify-content: flex-end;
+    width: 100%;
+}
+
+.app-data-table-actions .app-report-table-actions-row {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    width: 100%;
+}
+
 .app-data-table--skeleton .p-datatable-loading-overlay {
     inset: 0;
     width: 100%;
@@ -183,6 +216,20 @@
     .app-data-table-actions {
         margin-left: 0;
         align-self: flex-start;
+        justify-content: flex-start;
+    }
+
+    .app-data-table-actions .app-report-table-search {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .app-data-table-actions .app-report-table-actions-stack {
+        align-items: stretch;
+    }
+
+    .app-data-table-actions .app-report-table-search-row,
+    .app-data-table-actions .app-report-table-actions-row {
         justify-content: flex-start;
     }
 }

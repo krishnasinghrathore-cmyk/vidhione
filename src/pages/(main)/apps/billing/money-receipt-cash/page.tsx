@@ -6,12 +6,11 @@ import { Button } from 'primereact/button';
 import { Checkbox } from 'primereact/checkbox';
 import { Column } from 'primereact/column';
 import { Dialog } from 'primereact/dialog';
-import { InputNumber } from 'primereact/inputnumber';
-import { InputText } from 'primereact/inputtext';
 import { Tag } from 'primereact/tag';
 import { Toast } from 'primereact/toast';
 import AppDataTable from '@/components/AppDataTable';
 import AppDateInput from '@/components/AppDateInput';
+import AppInput from '@/components/AppInput';
 import AppDropdown from '@/components/AppDropdown';
 import { useAuth } from '@/lib/auth/context';
 import { resolveFiscalRange } from '@/lib/fiscalRange';
@@ -567,7 +566,7 @@ export default function BillingMoneyReceiptCashPage() {
                     </div>
                     <div className="col-12 md:col-4">
                         <label className="font-medium">Voucher No</label>
-                        <InputText
+                        <AppInput
                             value={form.voucherNumber}
                             onChange={(e) => setForm((prev) => ({ ...prev, voucherNumber: e.target.value }))}
                             className="w-full"
@@ -654,7 +653,7 @@ export default function BillingMoneyReceiptCashPage() {
                     </div>
                     <div className="col-12 md:col-4">
                         <label className="font-medium">Discount</label>
-                        <InputNumber
+                        <AppInput inputType="number"
                             value={form.discountAmount}
                             onValueChange={(e) => setForm((prev) => ({ ...prev, discountAmount: e.value ?? 0 }))}
                             mode="decimal"
@@ -665,7 +664,7 @@ export default function BillingMoneyReceiptCashPage() {
                     </div>
                     <div className="col-12 md:col-4">
                         <label className="font-medium">Cheque Cancel Charges</label>
-                        <InputNumber
+                        <AppInput inputType="number"
                             value={form.chequeCancelCharges}
                             onValueChange={(e) => setForm((prev) => ({ ...prev, chequeCancelCharges: e.value ?? 0 }))}
                             mode="decimal"
@@ -686,7 +685,7 @@ export default function BillingMoneyReceiptCashPage() {
                     </div>
                     <div className="col-12">
                         <label className="font-medium">Remarks</label>
-                        <InputText
+                        <AppInput
                             value={form.remarks}
                             onChange={(e) => setForm((prev) => ({ ...prev, remarks: e.target.value }))}
                             className="w-full"
@@ -703,7 +702,7 @@ export default function BillingMoneyReceiptCashPage() {
                     {form.lines.map((line, idx) => (
                         <div className="grid align-items-center" key={`line-${idx}`}>
                             <div className="col-12 md:col-3">
-                                <InputNumber
+                                <AppInput inputType="number"
                                     value={line.saleInvoiceId}
                                     onValueChange={(e) => updateLine(idx, { saleInvoiceId: e.value ?? null })}
                                     placeholder="Invoice Id"
@@ -711,7 +710,7 @@ export default function BillingMoneyReceiptCashPage() {
                                 />
                             </div>
                             <div className="col-12 md:col-3">
-                                <InputNumber
+                                <AppInput inputType="number"
                                     value={line.lineAmount}
                                     onValueChange={(e) => updateLine(idx, { lineAmount: e.value ?? null })}
                                     placeholder="Amount"
@@ -722,7 +721,7 @@ export default function BillingMoneyReceiptCashPage() {
                                 />
                             </div>
                             <div className="col-12 md:col-5">
-                                <InputText
+                                <AppInput
                                     value={line.remarkText ?? ''}
                                     onChange={(e) => updateLine(idx, { remarkText: e.target.value })}
                                     placeholder="Remark"
@@ -743,15 +742,15 @@ export default function BillingMoneyReceiptCashPage() {
                 <div className="mt-4 grid">
                     <div className="col-12 md:col-4">
                         <label className="font-medium">Total Amount</label>
-                        <InputText value={formatAmount(totalAmount)} disabled className="w-full" />
+                        <AppInput value={formatAmount(totalAmount)} disabled className="w-full" />
                     </div>
                     <div className="col-12 md:col-4">
                         <label className="font-medium">Net Amount</label>
-                        <InputText value={formatAmount(netAmount)} disabled className="w-full" />
+                        <AppInput value={formatAmount(netAmount)} disabled className="w-full" />
                     </div>
                     <div className="col-12 md:col-4">
                         <label className="font-medium">Difference</label>
-                        <InputText value={formatAmount(totalDiff)} disabled className="w-full" />
+                        <AppInput value={formatAmount(totalDiff)} disabled className="w-full" />
                     </div>
                 </div>
 

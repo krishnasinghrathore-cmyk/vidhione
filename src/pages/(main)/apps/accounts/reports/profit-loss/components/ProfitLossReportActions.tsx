@@ -22,6 +22,7 @@ type ProfitLossReportActionsProps = {
     printDisabled: boolean;
     exportDisabled: boolean;
     refreshButtonId: string;
+    loadingState: boolean;
 };
 
 export function ProfitLossReportActions({
@@ -39,7 +40,8 @@ export function ProfitLossReportActions({
     refreshDisabled,
     printDisabled,
     exportDisabled,
-    refreshButtonId
+    refreshButtonId,
+    loadingState
 }: ProfitLossReportActionsProps) {
     return (
         <>
@@ -70,6 +72,7 @@ export function ProfitLossReportActions({
                 onExportCsv={onExportCsv}
                 onExportExcel={onExportExcel}
                 onExportPdf={onExportPdf}
+                loadingState={loadingState}
                 refreshDisabled={refreshDisabled}
                 printDisabled={printDisabled}
                 exportDisabled={exportDisabled}

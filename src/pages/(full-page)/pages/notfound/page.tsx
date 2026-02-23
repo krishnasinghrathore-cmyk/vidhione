@@ -2,6 +2,7 @@
 import { useNavigate } from 'react-router-dom';
 import { Button } from 'primereact/button';
 import React from 'react';
+import RouteTitleSync from '../../../../layout/RouteTitleSync';
 
 function NotFound() {
     const navigate = useNavigate();
@@ -12,6 +13,7 @@ function NotFound() {
 
     return (
         <React.Fragment>
+            <RouteTitleSync />
             <div className="h-screen flex flex-column bg-cover" style={{ background: 'url(/layout/images/pages/404-bg.jpg)' }}>
                 <div className="shadow-3 z-3 bg-indigo-600 p-3 flex justify-content-between flex-row align-items-center">
                     <div className="ml-3 flex" onClick={navigateToDashboard}>

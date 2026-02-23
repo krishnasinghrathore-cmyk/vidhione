@@ -6,9 +6,9 @@ export default function GstAppPage() {
         <div className="card">
             <h2 className="mb-2">GST &amp; E-Invoice</h2>
             <p className="text-600">
-                Common GST, e-Invoice, and e-Way bill reports and utilities shared across all apps and industries.
+                Standardized GST reporting workspace. GSTR-1, GSTR-2, and GSTR-3B now follow a unified filter, table,
+                and export flow.
             </p>
         </div>
     );
 }
-

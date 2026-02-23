@@ -47,20 +47,28 @@ const AuthContext = createContext<AuthContextValue>({} as AuthContextValue);
 
 export const useAuth = () => useContext(AuthContext);
 
-export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-    const [loading, setLoading] = useState(true);
-    const [user, setUser] = useState<AuthUser | null>(null);
-    const [tenantId, setTenantId] = useState<string | null>(null);
-    const [tenantSettings, setTenantSettings] = useState<TenantSettings>(null);
-    const [layoutConfig, setLayoutConfig] = useState<UserLayoutConfig>(null);
-    const [accessToken, setAccessTokenState] = useState<string | null>(() => getAccessToken());
-    const [adminToken, setAdminTokenState] = useState<string | null>(() => getAdminToken());
-    const [enabledApps, setEnabledApps] = useState<string[] | null>(null);
-    const [tenantIndustryKey, setTenantIndustryKey] = useState<string | null>(null);
-    const [companyContext, setCompanyContext] = useState<CompanyContext | null>(null);
-    const [agencyOptions, setAgencyOptions] = useState<AgencyOptions | null>(null);
-    const [sessionFiscalYear, setSessionFiscalYearState] = useState<SessionFiscalYear | null>(() => getSessionFiscalYear());
-    const companyContextRawRef = useRef<CompanyContext | null>(null);
+export type AuthProviderProps = {
+    children: React.ReactNode;
+    initialState?: Partial<AuthState> | null;
+    skipInitialRefresh?: boolean;
+};
+
+export const AuthProvider = ({ children, initialState = null, skipInitialRefresh = false }: AuthProviderProps) => {
+    const [loading, setLoading] = useState<boolean>(() => initialState?.loading ?? (skipInitialRefresh ? false : true));
+    const [user, setUser] = useState<AuthUser | null>(initialState?.user ?? null);
+    const [tenantId, setTenantId] = useState<string | null>(initialState?.tenantId ?? null);
+    const [tenantSettings, setTenantSettings] = useState<TenantSettings>(initialState?.tenantSettings ?? null);
+    const [layoutConfig, setLayoutConfig] = useState<UserLayoutConfig>(initialState?.layoutConfig ?? null);
+    const [accessToken, setAccessTokenState] = useState<string | null>(() => initialState?.accessToken ?? getAccessToken());
+    const [adminToken, setAdminTokenState] = useState<string | null>(() => initialState?.adminToken ?? getAdminToken());
+    const [enabledApps, setEnabledApps] = useState<string[] | null>(initialState?.enabledApps ?? null);
+    const [tenantIndustryKey, setTenantIndustryKey] = useState<string | null>(initialState?.tenantIndustryKey ?? null);
+    const [companyContext, setCompanyContext] = useState<CompanyContext | null>(initialState?.companyContext ?? null);
+    const [agencyOptions, setAgencyOptions] = useState<AgencyOptions | null>(initialState?.agencyOptions ?? null);
+    const [sessionFiscalYear, setSessionFiscalYearState] = useState<SessionFiscalYear | null>(
+        () => initialState?.sessionFiscalYear ?? getSessionFiscalYear()
+    );
+    const companyContextRawRef = useRef<CompanyContext | null>(initialState?.companyContext ?? null);
     const sessionFiscalYearRef = useRef<SessionFiscalYear | null>(sessionFiscalYear);
 
     const applySessionOverride = useCallback(
@@ -209,10 +217,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }, []);
 
     useEffect(() => {
+        if (!initialState) return;
+        if (initialState.accessToken) setAccessToken(initialState.accessToken);
+        if (initialState.adminToken) setAdminToken(initialState.adminToken);
+        if (initialState.sessionFiscalYear) setSessionFiscalYearStorage(initialState.sessionFiscalYear);
+    }, [initialState]);
+
+    useEffect(() => {
+        if (skipInitialRefresh) {
+            setLoading(false);
+            return;
+        }
         refresh().catch(() => {
             setLoading(false);
         });
-    }, [refresh]);
+    }, [refresh, skipInitialRefresh]);
 
     const login = useCallback(async (email: string, password: string) => {
         setLoading(true);

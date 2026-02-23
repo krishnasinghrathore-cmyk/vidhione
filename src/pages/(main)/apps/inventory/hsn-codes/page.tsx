@@ -8,8 +8,18 @@ import { Toast } from 'primereact/toast';
 import { Button } from 'primereact/button';
 import { gql, useMutation, useQuery } from '@apollo/client';
 import AppDataTable from '@/components/AppDataTable';
+import AppDropdown from '@/components/AppDropdown';
 import { z } from 'zod';
 import { inventoryApolloClient } from '@/lib/inventoryApolloClient';
+import { getDeleteConfirmMessage, getDeleteFailureMessage } from '@/lib/deleteGuardrails';
+import { fetchInventoryMasterDeleteImpact, getDeleteBlockedMessage } from '@/lib/masterDeleteImpact';
+import {
+    getMasterActionDeniedDetail,
+    isMasterActionAllowed,
+    type MasterAction,
+    useMasterActionPermissions
+} from '@/lib/masterActionPermissions';
+import { ensureDryEditCheck } from '@/lib/masterDryRun';
 
 interface HsnCodeRow {
     hsnCodeId: number;
@@ -18,8 +28,8 @@ interface HsnCodeRow {
 }
 
 const HSN_CODES = gql`
-    query HsnCodes {
-        hsnCodes {
+    query HsnCodes($search: String, $limit: Int) {
+        hsnCodes(search: $search, limit: $limit) {
             hsnCodeId
             name
             code
@@ -63,37 +73,52 @@ const DEFAULT_FORM: FormState = {
     name: '',
     code: ''
 };
+const limitOptions = [100, 250, 500, 1000, 2000].map((value) => ({
+    label: String(value),
+    value
+}));
 
 export default function InventoryHsnCodesPage() {
     const toastRef = useRef<Toast>(null);
     const dtRef = useRef<any>(null);
 
     const [search, setSearch] = useState('');
+    const [limit, setLimit] = useState(2000);
     const [dialogVisible, setDialogVisible] = useState(false);
     const [saving, setSaving] = useState(false);
     const [editing, setEditing] = useState<HsnCodeRow | null>(null);
+    const [detailVisible, setDetailVisible] = useState(false);
+    const [detailRow, setDetailRow] = useState<HsnCodeRow | null>(null);
     const [form, setForm] = useState<FormState>(DEFAULT_FORM);
     const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
-    const { data, loading, error, refetch } = useQuery(HSN_CODES, { client: inventoryApolloClient });
+    const [dryEditDigest, setDryEditDigest] = useState('');
+
+    const { data, loading, error, refetch } = useQuery(HSN_CODES, {
+        client: inventoryApolloClient,
+        variables: { search: search.trim() || null, limit }
+    });
     const [createHsnCode] = useMutation(CREATE_HSN_CODE, { client: inventoryApolloClient });
     const [updateHsnCode] = useMutation(UPDATE_HSN_CODE, { client: inventoryApolloClient });
     const [deleteHsnCode] = useMutation(DELETE_HSN_CODE, { client: inventoryApolloClient });
 
+    const { permissions: masterPermissions } = useMasterActionPermissions(inventoryApolloClient);
+
     const rows: HsnCodeRow[] = useMemo(() => data?.hsnCodes ?? [], [data]);
 
-    const filteredRows = useMemo(() => {
-        const term = search.trim().toLowerCase();
-        if (!term) return rows;
-        return rows.filter((row) =>
-            [row.hsnCodeId, row.name, row.code]
-                .map((value) => String(value ?? '').toLowerCase())
-                .join(' ')
-                .includes(term)
-        );
-    }, [rows, search]);
+    const assertActionAllowed = (action: MasterAction) => {
+        if (isMasterActionAllowed(masterPermissions, action)) return true;
+        toastRef.current?.show({
+            severity: 'warn',
+            summary: 'Permission Denied',
+            detail: getMasterActionDeniedDetail(action)
+        });
+        return false;
+    };
 
     const openNew = () => {
+        setDryEditDigest('');
+        if (!assertActionAllowed('add')) return;
         setEditing(null);
         setForm(DEFAULT_FORM);
         setFormErrors({});
@@ -101,10 +126,18 @@ export default function InventoryHsnCodesPage() {
     };
 
     const openEdit = (row: HsnCodeRow) => {
+        setDryEditDigest('');
+        if (!assertActionAllowed('edit')) return;
         setEditing(row);
         setForm({ name: row.name ?? '', code: row.code ?? '' });
         setFormErrors({});
         setDialogVisible(true);
+    };
+
+    const openView = (row: HsnCodeRow) => {
+        if (!assertActionAllowed('view')) return;
+        setDetailRow(row);
+        setDetailVisible(true);
     };
 
     const save = async () => {
@@ -118,6 +151,15 @@ export default function InventoryHsnCodesPage() {
             toastRef.current?.show({ severity: 'warn', summary: 'Please fix validation errors' });
             return;
         }
+
+        if (!ensureDryEditCheck({
+            isEditing: Boolean(editing),
+            lastDigest: dryEditDigest,
+            currentDigest: JSON.stringify(form),
+            setLastDigest: setDryEditDigest,
+            toastRef,
+            entityLabel: 'record'
+        })) return;
 
         setSaving(true);
         try {
@@ -168,15 +210,27 @@ export default function InventoryHsnCodesPage() {
             toastRef.current?.show({
                 severity: 'error',
                 summary: 'Error',
-                detail: e?.message ?? 'Delete failed.'
+                detail: getDeleteFailureMessage(e, 'HSN code')
             });
         }
     };
 
-    const confirmDelete = (event: React.MouseEvent<HTMLButtonElement>, row: HsnCodeRow) => {
+    const confirmDelete = async () => {
+        if (!assertActionAllowed('delete')) return;
+        const impact = await fetchInventoryMasterDeleteImpact('HSN_CODE', row.hsnCodeId);
+        if (!impact.canDelete) {
+            toastRef.current?.show({
+                severity: 'warn',
+                summary: 'Cannot Delete',
+                detail: getDeleteBlockedMessage('HSN code', impact),
+                life: 7000
+            });
+            return;
+        }
+
         confirmPopup({
             target: event.currentTarget,
-            message: 'Delete this HSN code?',
+            message: `Dry Delete Check passed. ${getDeleteConfirmMessage('HSN code')}`,
             icon: 'pi pi-exclamation-triangle',
             acceptClassName: 'p-button-danger',
             acceptLabel: 'Delete',
@@ -189,8 +243,9 @@ export default function InventoryHsnCodesPage() {
 
     const actionsBody = (row: HsnCodeRow) => (
         <div className="flex gap-2">
-            <Button icon="pi pi-pencil" className="p-button-text" onClick={() => openEdit(row)} />
-            <Button icon="pi pi-trash" className="p-button-text" severity="danger" onClick={(e) => confirmDelete(e, row)} />
+            <Button icon="pi pi-eye" className="p-button-text" onClick={() => openView(row)} disabled={!masterPermissions.canView} />
+            <Button icon="pi pi-pencil" className="p-button-text" onClick={() => openEdit(row)} disabled={!masterPermissions.canEdit} />
+            <Button icon="pi pi-trash" className="p-button-text" severity="danger" onClick={(e) => { void confirmDelete(e, row); }} disabled={!masterPermissions.canDelete} />
         </div>
     );
 
@@ -208,7 +263,7 @@ export default function InventoryHsnCodesPage() {
                         </p>
                     </div>
                     <div className="flex gap-2 flex-wrap">
-                        <Button label="New HSN" icon="pi pi-plus" onClick={openNew} />
+                        <Button label="New HSN" icon="pi pi-plus" onClick={openNew} disabled={!masterPermissions.canAdd} />
                     </div>
                 </div>
                 {error && <p className="text-red-500 m-0">Error loading HSN codes: {error.message}</p>}
@@ -216,7 +271,7 @@ export default function InventoryHsnCodesPage() {
 
             <AppDataTable
                 ref={dtRef}
-                value={filteredRows}
+                value={rows}
                 paginator
                 rows={12}
                 rowsPerPageOptions={[12, 24, 50, 100]}
@@ -224,7 +279,7 @@ export default function InventoryHsnCodesPage() {
                 stripedRows
                 size="small"
                 loading={loading}
-                onRowDoubleClick={(e) => openEdit(e.data as HsnCodeRow)}
+                onRowDoubleClick={(e) => (masterPermissions.canEdit ? openEdit(e.data as HsnCodeRow) : openView(e.data as HsnCodeRow))}
                 headerLeft={
                     <span className="p-input-icon-left" style={{ minWidth: '320px' }}>
                         <i className="pi pi-search" />
@@ -243,7 +298,7 @@ export default function InventoryHsnCodesPage() {
                             icon="pi pi-download"
                             className="p-button-info"
                             onClick={() => dtRef.current?.exportCSV()}
-                            disabled={filteredRows.length === 0}
+                            disabled={rows.length === 0}
                         />
                         <Button
                             label="Print"
@@ -257,16 +312,25 @@ export default function InventoryHsnCodesPage() {
                             className="p-button-text"
                             onClick={() => refetch()}
                         />
+                        <span className="flex align-items-center gap-2">
+                            <span className="text-600 text-sm">Limit</span>
+                            <AppDropdown
+                                value={limit}
+                                options={limitOptions}
+                                onChange={(e) => setLimit(e.value ?? 2000)}
+                                className="w-6rem"
+                            />
+                        </span>
                         <span className="text-600 text-sm">
-                            Showing {filteredRows.length} code{filteredRows.length === 1 ? '' : 's'}
+                            Showing {rows.length} code{rows.length === 1 ? '' : 's'}
                         </span>
                     </>
                 }
-                recordSummary={`${filteredRows.length} code${filteredRows.length === 1 ? '' : 's'}`}
+                recordSummary={`${rows.length} code${rows.length === 1 ? '' : 's'}`}
             >
                 <Column field="name" header="Name" sortable />
                 <Column field="code" header="Code" sortable />
-                <Column header="Actions" body={actionsBody} style={{ width: '8rem' }} />
+                <Column header="Actions" body={actionsBody} style={{ width: '11rem' }} />
             </AppDataTable>
 
             <Dialog
@@ -306,6 +370,25 @@ export default function InventoryHsnCodesPage() {
                         />
                     </div>
                 </div>
+            </Dialog>
+
+            <Dialog
+                header="HSN Code Details"
+                visible={detailVisible}
+                style={{ width: 'min(520px, 96vw)' }}
+                onHide={() => setDetailVisible(false)}
+                footer={
+                    <div className="flex justify-content-end w-full">
+                        <Button label="Close" className="p-button-text" onClick={() => setDetailVisible(false)} />
+                    </div>
+                }
+            >
+                {detailRow && (
+                    <div className="flex flex-column gap-2">
+                        <div><strong>Name:</strong> {detailRow.name ?? '-'}</div>
+                        <div><strong>Code:</strong> {detailRow.code ?? '-'}</div>
+                    </div>
+                )}
             </Dialog>
         </div>
     );

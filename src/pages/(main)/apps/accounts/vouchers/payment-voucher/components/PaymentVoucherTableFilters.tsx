@@ -11,6 +11,7 @@ type PaymentVoucherTableFiltersProps = {
 
 export function PaymentVoucherTableFilters({ viewProps }: PaymentVoucherTableFiltersProps) {
     const {
+        isFormActive,
         setFirst,
         hasTouchedDatesRef,
         dateRange,
@@ -43,7 +44,7 @@ export function PaymentVoucherTableFilters({ viewProps }: PaymentVoucherTableFil
                     fiscalYearEnd={fiscalRange?.end ?? null}
                     inputRef={fromDateInputRef}
                     onEnterNext={() => toDateInputRef.current?.focus()}
-                    autoFocus
+                    autoFocus={!isFormActive}
                     selectOnFocus
                     className="app-entry-date"
                 />

@@ -4,6 +4,7 @@ import { classNames } from 'primereact/utils';
 
 type LedgerMetaPanelProps = {
     address?: string | null;
+    addressClassName?: string;
     balanceLabel?: string | null;
     balanceSeverity?: 'success' | 'warning' | 'info' | 'danger' | 'secondary';
     showBalance?: boolean;
@@ -12,6 +13,7 @@ type LedgerMetaPanelProps = {
 
 const LedgerMetaPanel = ({
     address,
+    addressClassName,
     balanceLabel,
     balanceSeverity,
     showBalance = false,
@@ -22,7 +24,9 @@ const LedgerMetaPanel = ({
     return (
         <div className={classNames('flex align-items-center gap-2 ledger-meta-panel', className)}>
             <div className="flex align-items-center border-1 surface-border border-round surface-card px-3 py-2 ledger-meta-address">
-                <span className="text-700 text-sm">{address?.trim() || 'Address not available'}</span>
+                <span className={classNames('text-sm', addressClassName ?? 'text-700')}>
+                    {address?.trim() || 'Address not available'}
+                </span>
             </div>
             {showBalance && balanceLabel && (
                 <div className="flex align-items-center gap-2 ledger-meta-balance">

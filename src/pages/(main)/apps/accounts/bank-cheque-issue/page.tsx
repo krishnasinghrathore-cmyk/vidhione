@@ -14,8 +14,10 @@ import type { AutoComplete } from 'primereact/autocomplete';
 import AppDataTable from '@/components/AppDataTable';
 import AppDateInput from '@/components/AppDateInput';
 import AppDropdown from '@/components/AppDropdown';
+import AppInput from '@/components/AppInput';
 import LedgerAutoComplete from '@/components/LedgerAutoComplete';
 import LedgerGroupAutoComplete from '@/components/LedgerGroupAutoComplete';
+import { ACCOUNT_MASTER_QUERY_OPTIONS } from '@/lib/accounts/masterLookupCache';
 import { useLedgerGroupOptions } from '@/lib/accounts/ledgerGroups';
 import { useAuth } from '@/lib/auth/context';
 import { resolveFiscalRange } from '@/lib/fiscalRange';
@@ -81,6 +83,7 @@ const VOUCHER_TYPES = gql`
             voucherTypeCode
             displayName
             voucherTypeName
+            isVoucherNoAutoFlag
         }
     }
 `;
@@ -293,6 +296,20 @@ const formatAmount = (value: number) =>
 
 const round2 = (value: number) => Math.round(value * 100) / 100;
 
+const resolveBooleanFlag = (value: unknown): boolean => {
+    if (value == null) return false;
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'number') return value !== 0;
+    if (typeof value === 'string') {
+        const normalized = value.trim().toLowerCase();
+        if (!normalized) return false;
+        if (normalized === 'true' || normalized === 'yes' || normalized === 'y') return true;
+        const numeric = Number(normalized);
+        return Number.isFinite(numeric) ? numeric !== 0 : false;
+    }
+    return false;
+};
+
 const makeKey = () => `${Date.now()}_${Math.random().toString(16).slice(2)}`;
 
 const startOfDay = (value: Date) => new Date(value.getFullYear(), value.getMonth(), value.getDate());
@@ -358,13 +375,21 @@ export default function AccountsBankChequeIssuePage() {
     const { data: voucherTypesData } = useQuery(VOUCHER_TYPES);
     const { options: ledgerGroupOptions, loading: ledgerGroupLoading } = useLedgerGroupOptions();
     const { data: ledgerData, loading: ledgerLoading } = useQuery(LEDGER_LOOKUP, {
-        variables: { search: null, limit: 5000 }
+        variables: { search: null, limit: 5000 },
+        ...ACCOUNT_MASTER_QUERY_OPTIONS
     });
-    const voucherTypeId = useMemo(() => {
+    const voucherType = useMemo(() => {
         const rows = voucherTypesData?.voucherTypes ?? [];
-        const match = rows.find((v: any) => Number(v.voucherTypeId) === VoucherTypeIds.Payment);
-        return match ? Number(match.voucherTypeId) : null;
+        return rows.find((v: any) => Number(v.voucherTypeId) === VoucherTypeIds.Payment) ?? null;
     }, [voucherTypesData]);
+    const voucherTypeId = useMemo(
+        () => (voucherType ? Number(voucherType.voucherTypeId) : null),
+        [voucherType]
+    );
+    const isVoucherNoAuto = useMemo(
+        () => resolveBooleanFlag(voucherType?.isVoucherNoAutoFlag),
+        [voucherType]
+    );
 
     const companyFiscalYearId = companyContext?.companyFiscalYearId ?? null;
     const fiscalYearStart = companyContext?.fiscalYearStart ?? null;
@@ -587,8 +612,11 @@ export default function AccountsBankChequeIssuePage() {
         setNarration(header.narration ?? '');
 
         const allLines = editData?.voucherEntryById?.lines ?? [];
-        const creditLine = allLines.find((l: any) => Number(l.drCrFlag) === 2);
-        const debitLines = allLines.filter((l: any) => Number(l.drCrFlag) === 1);
+        const usesTwoFlag = allLines.some((l: any) => Number(l.drCrFlag) === 2);
+        const isDebitFlag = (drCrFlag: number) => (usesTwoFlag ? drCrFlag === 1 : drCrFlag === 0);
+        const isCreditFlag = (drCrFlag: number) => (usesTwoFlag ? drCrFlag === 2 : drCrFlag === 1);
+        const creditLine = allLines.find((l: any) => isCreditFlag(Number(l.drCrFlag)));
+        const debitLines = allLines.filter((l: any) => isDebitFlag(Number(l.drCrFlag)));
         setBankLedgerId(creditLine?.ledgerId != null ? Number(creditLine.ledgerId) : bankLedgerId);
         setLines(
             debitLines.map((l: any) => ({
@@ -717,13 +745,13 @@ export default function AccountsBankChequeIssuePage() {
             const voucherLines = [
                 {
                     ledgerId: bankLedgerId,
-                    drCrFlag: 2,
+                    drCrFlag: 1,
                     amount: total,
                     narrationText: headerNarration
                 },
                 ...debitLines.map((l) => ({
                     ledgerId: l.ledgerId,
-                    drCrFlag: 1,
+                    drCrFlag: 0,
                     amount: l.amount,
                     narrationText: headerNarration
                 }))
@@ -1036,7 +1064,12 @@ export default function AccountsBankChequeIssuePage() {
                         <div className="grid">
                             <div className="col-12 md:col-3">
                                 <label className="block text-600 mb-1">Voucher No</label>
-                                <InputText value={voucherNo} onChange={(e) => setVoucherNo(e.target.value)} />
+                                <AppInput
+                                    value={voucherNo}
+                                    onChange={(e) => setVoucherNo(e.target.value)}
+                                    className={!isVoucherNoAuto ? 'app-field-noneditable' : undefined}
+                                    readOnly={!isVoucherNoAuto}
+                                />
                             </div>
                             <div className="col-12 md:col-3">
                                 <label className="block text-600 mb-1">Voucher Date</label>

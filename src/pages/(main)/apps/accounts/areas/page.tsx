@@ -12,19 +12,13 @@ import AppDropdown from '@/components/AppDropdown';
 import GeoImportDialog from '@/components/GeoImportDialog';
 import { z } from 'zod';
 import { apolloClient } from '@/lib/apolloClient';
+import { useGeoCityOptions } from '@/lib/accounts/cities';
+import { ACCOUNT_MASTER_QUERY_OPTIONS, invalidateAccountMasterLookups } from '@/lib/accounts/masterLookupCache';
 
 interface AreaRow {
     areaId: number;
     name: string | null;
     cityId: number | null;
-}
-
-interface CityOption {
-    cityId: number;
-    name: string | null;
-    districtName?: string | null;
-    stateName?: string | null;
-    countryName?: string | null;
 }
 
 const AREAS = gql`
@@ -33,18 +27,6 @@ const AREAS = gql`
             areaId
             name
             cityId
-        }
-    }
-`;
-
-const GEO_CITIES = gql`
-    query GeoCities($search: String, $limit: Int) {
-        geoCities(search: $search, limit: $limit) {
-            cityId
-            name
-            districtName
-            stateName
-            countryName
         }
     }
 `;
@@ -106,18 +88,15 @@ export default function AccountsAreasPage() {
 
     const { data, loading, error, refetch } = useQuery(AREAS, {
         client: apolloClient,
-        variables: { search: search.trim() || null, limit }
+        variables: { search: search.trim() || null, limit },
+        ...ACCOUNT_MASTER_QUERY_OPTIONS
     });
-    const { data: citiesData, refetch: refetchCities } = useQuery(GEO_CITIES, {
-        client: apolloClient,
-        variables: { search: null, limit: 2000 }
-    });
+    const { rows: cities, refetch: refetchCities } = useGeoCityOptions({ limit: 2000 });
     const [createArea] = useMutation(CREATE_AREA, { client: apolloClient });
     const [updateArea] = useMutation(UPDATE_AREA, { client: apolloClient });
     const [deleteArea] = useMutation(DELETE_AREA, { client: apolloClient });
 
     const rows: AreaRow[] = useMemo(() => data?.areas ?? [], [data]);
-    const cities: CityOption[] = useMemo(() => citiesData?.geoCities ?? [], [citiesData]);
 
     const cityMap = useMemo(() => {
         const map = new Map<number, string>();
@@ -188,6 +167,7 @@ export default function AccountsAreasPage() {
                 await createArea({ variables });
             }
 
+            invalidateAccountMasterLookups(apolloClient);
             await refetch();
             setDialogVisible(false);
             toastRef.current?.show({
@@ -209,6 +189,7 @@ export default function AccountsAreasPage() {
     const handleDelete = async (areaId: number) => {
         try {
             await deleteArea({ variables: { areaId } });
+            invalidateAccountMasterLookups(apolloClient);
             await refetch();
             toastRef.current?.show({
                 severity: 'success',
@@ -398,6 +379,7 @@ export default function AccountsAreasPage() {
                 visible={geoImportVisible}
                 onHide={() => setGeoImportVisible(false)}
                 onApply={(selection) => {
+                    invalidateAccountMasterLookups(apolloClient);
                     if (selection.cityId) {
                         setForm((prev) => ({ ...prev, cityId: selection.cityId ?? null }));
                     }

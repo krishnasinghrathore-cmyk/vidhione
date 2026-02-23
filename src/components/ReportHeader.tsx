@@ -19,4 +19,3 @@ export function ReportHeader({ title, subtitle, rightSlot, className }: ReportHe
         </div>
     );
 }
-

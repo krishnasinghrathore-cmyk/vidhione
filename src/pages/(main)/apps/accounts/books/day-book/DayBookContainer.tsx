@@ -7,9 +7,11 @@ import { ReportPrintHeader } from '@/components/ReportPrintHeader';
 import { ReportPrintFooter } from '@/components/ReportPrintFooter';
 import { ReportDataTable } from '@/components/ReportDataTable';
 import { ReportHeader } from '@/components/ReportHeader';
+import { ReportRegisterSearch } from '@/components/ReportRegisterSearch';
 import { buildSkeletonRows } from '@/components/reportSkeleton';
 import AppDateInput from '@/components/AppDateInput';
 import AppReportActions from '@/components/AppReportActions';
+import { ACCOUNT_MASTER_LAZY_QUERY_OPTIONS } from '@/lib/accounts/masterLookupCache';
 import { useAuth } from '@/lib/auth/context';
 import { validateDateRange, type DateRangeErrors } from '@/lib/reportDateValidation';
 import { formatReportTimestamp, useReportPrint } from '@/lib/reportPrint';
@@ -49,6 +51,9 @@ export function DayBookContainer() {
     const [toDate, setToDate] = useState<Date | null>(new Date());
     const [todayOnly, setTodayOnly] = useState(true);
     const [showCancelledOnly, setShowCancelledOnly] = useState(false);
+    const [globalSearchText, setGlobalSearchText] = useState('');
+    const [globalSearchMatchCase, setGlobalSearchMatchCase] = useState(false);
+    const [globalSearchWholeWord, setGlobalSearchWholeWord] = useState(false);
     const [dateErrors, setDateErrors] = useState<DateRangeErrors>({});
     const [columnFilters, setColumnFilters] = useState<DataTableFilterMeta>(() => buildDefaultColumnFilters());
     const [appliedFilters, setAppliedFilters] = useState<DayBookFilters | null>(null);
@@ -75,8 +80,12 @@ export function DayBookContainer() {
         return () => setPageTitle(null);
     }, [setPageTitle]);
 
-    const [loadLedgerOptions] = useLazyQuery(LEDGER_OPTIONS, { fetchPolicy: 'network-only' });
-    const [loadDayBook, { data, loading, error }] = useLazyQuery(DAY_BOOK, { fetchPolicy: 'network-only' });
+    const [loadLedgerOptions] = useLazyQuery(LEDGER_OPTIONS, { ...ACCOUNT_MASTER_LAZY_QUERY_OPTIONS });
+    const [loadDayBook, { data, loading, error }] = useLazyQuery(DAY_BOOK, {
+        fetchPolicy: 'cache-and-network',
+        nextFetchPolicy: 'cache-first',
+        notifyOnNetworkStatusChange: true
+    });
 
     useEffect(() => {
         const nextOptions = data?.dayBook?.filterOptions ?? null;
@@ -123,6 +132,7 @@ export function DayBookContainer() {
     );
 
     const reportLoading = Boolean(hasApplied && loading);
+    const showSkeletonRows = reportLoading && displayRows.length === 0;
     const skeletonRows = useMemo(
         () =>
             buildSkeletonRows(Math.min(rowsPerPage, 10), (idx) => ({
@@ -183,7 +193,7 @@ export function DayBookContainer() {
         getPrintRows: fetchAllDayBookRows
     });
 
-    const tableRows = isPrinting && printRows ? printRows : reportLoading ? skeletonRows : displayRows;
+    const tableRows = isPrinting && printRows ? printRows : showSkeletonRows ? skeletonRows : displayRows;
     const tablePageSize = isPrinting ? Math.max(tableRows.length, 1) : rowsPerPage;
 
     const clearAppliedFilters = () => {
@@ -482,7 +492,7 @@ export function DayBookContainer() {
         rows: displayRows,
         filterOptions,
         ledgerAddressMap,
-        reportLoading,
+        reportLoading: showSkeletonRows,
         totals: { debitTotal, creditTotal }
     });
     const dayBookActions = (
@@ -492,6 +502,7 @@ export function DayBookContainer() {
             onExportCsv={handleExportCsv}
             onExportExcel={handleExportExcel}
             onExportPdf={handleExportPdf}
+            loadingState={reportLoading}
             refreshDisabled={!canRefresh}
             printDisabled={!hasApplied || reportLoading || totalRecords === 0}
             exportDisabled={!hasApplied || reportLoading || totalRecords === 0}
@@ -512,7 +523,16 @@ export function DayBookContainer() {
             <ReportHeader
                 title="Day Book Register"
                 subtitle="Daily voucher register matching legacy Day Book columns and totals."
-                rightSlot={dayBookActions}
+                rightSlot={
+                    <ReportRegisterSearch
+                        value={globalSearchText}
+                        onValueChange={setGlobalSearchText}
+                        matchCase={globalSearchMatchCase}
+                        onMatchCaseChange={setGlobalSearchMatchCase}
+                        wholeWord={globalSearchWholeWord}
+                        onWholeWordChange={setGlobalSearchWholeWord}
+                    />
+                }
                 className="mb-3"
             />
             {error && <p className="text-red-500 m-0 mb-3">Error loading day book: {error.message}</p>}
@@ -527,6 +547,13 @@ export function DayBookContainer() {
                 first={isPrinting ? 0 : first}
                 loadingState={reportLoading}
                 loadingSummaryEnabled={hasApplied}
+                globalSearchRenderInTableHeader={false}
+                globalSearchValue={globalSearchText}
+                onGlobalSearchValueChange={setGlobalSearchText}
+                globalSearchMatchCase={globalSearchMatchCase}
+                onGlobalSearchMatchCaseChange={setGlobalSearchMatchCase}
+                globalSearchWholeWord={globalSearchWholeWord}
+                onGlobalSearchWholeWordChange={setGlobalSearchWholeWord}
                 sortField={sortField ?? undefined}
                 sortOrder={sortField ? sortOrder : undefined}
                 onSort={handleSort}
@@ -615,6 +642,7 @@ export function DayBookContainer() {
                         </div>
                     </div>
                 }
+                headerRight={dayBookActions}
                 recordSummary={
                     hasApplied
                         ? reportLoading

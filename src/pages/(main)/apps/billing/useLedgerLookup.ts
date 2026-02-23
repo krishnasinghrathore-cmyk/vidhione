@@ -1,5 +1,6 @@
 import { gql, useQuery } from '@apollo/client';
 import { useMemo } from 'react';
+import { ACCOUNT_MASTER_QUERY_OPTIONS } from '@/lib/accounts/masterLookupCache';
 
 export const LEDGER_LOOKUP = gql`
     query LedgerLookup($search: String, $limit: Int) {
@@ -35,7 +36,8 @@ export type LedgerOption = { label: string; value: number };
 
 export const useLedgerLookup = () => {
     const { data, loading, error } = useQuery(LEDGER_LOOKUP, {
-        variables: { search: null, limit: 500 }
+        variables: { search: null, limit: 500 },
+        ...ACCOUNT_MASTER_QUERY_OPTIONS
     });
 
     const ledgers = useMemo(() => {

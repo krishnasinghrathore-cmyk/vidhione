@@ -84,6 +84,9 @@ export function InvoiceItemSearch({ products, onAddItem, disabled }: InvoiceItem
 
     return (
         <div className="p-3 border-1 surface-border border-round mt-3">
+            <div className="flex align-items-center justify-content-between gap-2 mb-2">
+                <h4 className="m-0">Add Line Item Section</h4>
+            </div>
             <div className="flex flex-column lg:flex-row align-items-stretch lg:align-items-center gap-2">
                 <div className="flex-1">
                     <AppAutoComplete
@@ -91,6 +94,7 @@ export function InvoiceItemSearch({ products, onAddItem, disabled }: InvoiceItem
                         suggestions={suggestions}
                         completeMethod={complete}
                         onChange={handleChange}
+                        dropdown={false}
                         field="label"
                         placeholder="Search item by name, code, or HSN"
                         className="w-full"

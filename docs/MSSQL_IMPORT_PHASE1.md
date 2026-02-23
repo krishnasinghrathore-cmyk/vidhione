@@ -1,6 +1,6 @@
-# MSSQL Direct Import Phase 1 (Voucher/Accounts)
+# MSSQL Direct Import Phase 1 (Voucher + MoneyReceipt)
 
-This phase keeps `agency_db` as canonical schema and loads voucher/accounts data directly from MSSQL into controlled staging, then applies into canonical tables.
+This phase keeps `agency_db` as canonical schema and loads voucher/accounts + money-receipt data directly from MSSQL into controlled staging, then applies into canonical tables.
 
 ## Scope
 
@@ -11,6 +11,11 @@ Phase 1 tables:
 - `accounts.ledgers` (`dbo.LedgerMaster`)
 - `accounts.vouchers` (`dbo.VoucherH`)
 - `accounts.voucher_postings` (`dbo.VoucherL`)
+- `accounts.money_receipt_issue_books` (`dbo.MoneyReceiptIssueBookH`)
+- `accounts.money_receipt_cash_headers` (`dbo.MoneyReceiptCashH`)
+- `accounts.money_receipt_cash_lines` (`dbo.MoneyReceiptCashL`)
+- `accounts.money_receipt_bank_headers` (`dbo.MoneyReceiptBankH`)
+- `accounts.money_receipt_bank_lines` (`dbo.MoneyReceiptBankL`)
 
 Optional (skipped by default):
 
@@ -68,3 +73,5 @@ IMPORT_VOUCHER_TYPES_ALT=1 npm run db:import:voucher-accounts:mssql-direct
   `backend/scripts/refresh_voucher_accounts_from_agency_db_mssql.sh`
 - Mapping reference:
   `backend/scripts/mssql-import/voucher-accounts-canonical-map.yml`
+- Monitoring UI:
+  `/apps/accounts/migration-monitor`

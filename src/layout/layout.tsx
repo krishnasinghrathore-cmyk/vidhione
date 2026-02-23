@@ -6,12 +6,14 @@ import AppConfig from './AppConfig';
 import AppRightMenu from './AppRightMenu';
 import AppSidebar from './AppSidebar';
 import AppTopbar from './AppTopbar';
+import RouteTitleSync from './RouteTitleSync';
 import { LayoutContext } from './context/layoutcontext';
 import AppBreadcrumb from './AppBreadCrumb';
 import AppFooter from './AppFooter';
 import type { AppTopbarRef } from '@/types/layout';
 import { Outlet, useLocation, useSearchParams } from 'react-router-dom';
 import { PrimeReactContext, APIOptions } from 'primereact/api';
+import { focusNextElement, isEnterWithoutModifiers, resolveEnterScope, shouldSkipEnterAsTabTarget } from '@/lib/enterNavigation';
 
 const Layout = () => {
     const { layoutConfig, layoutState, setLayoutState, setLayoutConfig, isSlim, isSlimPlus, isHorizontal, isDesktop, isSidebarActive } = useContext(LayoutContext);
@@ -106,8 +108,6 @@ const Layout = () => {
     };
 
     useEffect(() => {
-        console.log('[LAYOUT] useEffect location.pathname:', location.pathname);
-        console.log('[LAYOUT] useEffect searchParams.toString():', searchParams.toString());
         setLayoutState((prev) => ({
             ...prev,
             overlayMenuActive: false,
@@ -125,59 +125,15 @@ const Layout = () => {
     useEffect(() => {
         if (typeof document === 'undefined') return;
 
-        const focusNext = (current: HTMLElement, scope: ParentNode) => {
-            const focusables = Array.from(
-                scope.querySelectorAll<HTMLElement>(
-                    'input, select, textarea, button, [tabindex]:not([tabindex="-1"])'
-                )
-            ).filter((element) => {
-                if (element.hasAttribute('disabled')) return false;
-                if (element.getAttribute('aria-disabled') === 'true') return false;
-                if (element.tabIndex < 0) return false;
-                const style = window.getComputedStyle(element);
-                if (style.visibility === 'hidden' || style.display === 'none') return false;
-                if (!element.getClientRects().length) return false;
-                return true;
-            });
-
-            const startIndex = focusables.indexOf(current);
-            if (startIndex < 0) return;
-            for (let i = startIndex + 1; i < focusables.length; i += 1) {
-                const candidate = focusables[i];
-                if (candidate) {
-                    candidate.focus();
-                    break;
-                }
-            }
-        };
-
         const handleEnterAsTab = (event: KeyboardEvent) => {
-            if (event.key !== 'Enter') return;
-            if (event.defaultPrevented) return;
-            if (event.isComposing) return;
-            if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+            if (!isEnterWithoutModifiers(event)) return;
 
             const target = event.target as HTMLElement | null;
             if (!target) return;
-            if (target.closest('[data-enter-tab="false"], [data-enter-submit="true"]')) return;
-
-            const tag = target.tagName.toLowerCase();
-            if (tag === 'textarea') return;
-            if (tag === 'button') return;
-            if (target.getAttribute('contenteditable') === 'true') return;
-            if (tag === 'input') {
-                const input = target as HTMLInputElement;
-                const type = (input.type || '').toLowerCase();
-                if (['button', 'submit', 'reset', 'image', 'checkbox', 'radio', 'file'].includes(type)) return;
-            }
-
-            const scope =
-                target.closest('form') ??
-                target.closest('.p-dialog, .p-overlaypanel, .p-sidebar, .layout-content') ??
-                document.body;
+            if (shouldSkipEnterAsTabTarget(target)) return;
 
             event.preventDefault();
-            focusNext(target, scope);
+            focusNextElement(target, resolveEnterScope(target));
         };
 
         document.addEventListener('keydown', handleEnterAsTab);
@@ -230,6 +186,7 @@ const Layout = () => {
 
     return (
         <React.Fragment>
+            <RouteTitleSync />
             <div className={classNames('layout-container', containerClassName)}>
                 <AppTopbar ref={topbarRef} />
                 <AppRightMenu />

@@ -36,8 +36,8 @@ const AccountsLedgerGroupsPage = lazy(
 const AccountsLedgerListPage = lazy(
   () => import('./pages/(main)/apps/accounts/ledgers/page')
 );
-const AccountsVoucherTypesPage = lazy(
-  () => import('./pages/(main)/apps/accounts/voucher-types/page')
+const AccountsVoucherOptionsPage = lazy(
+  () => import('./pages/(main)/apps/accounts/voucher-options/page')
 );
 const AccountsDayBookPage = lazy(
   () => import('./pages/(main)/apps/accounts/books/day-book/page')
@@ -62,6 +62,9 @@ const AccountsVoucherEntryPage = lazy(
 );
 const AccountsCashExpenditureEntryPage = lazy(
   () => import('./pages/(main)/apps/accounts/vouchers/payment-voucher/page')
+);
+const AccountsVoucherEnginePage = lazy(
+  () => import('./pages/(main)/apps/accounts/vouchers/voucher/page')
 );
 const AccountsBankCashDepositPage = lazy(
   () => import('./pages/(main)/apps/accounts/bank-cash-deposit/page')
@@ -93,6 +96,9 @@ const AccountsAccountsReportsPage = lazy(
 const AccountsInvoiceRolloverPage = lazy(
   () => import('./pages/(main)/apps/accounts/books/invoice-rollover/page')
 );
+const AccountsMigrationMonitorPage = lazy(
+  () => import('./pages/(main)/apps/accounts/migration-monitor/page')
+);
 const AccountsCompanyProfilePage = lazy(
   () => import('./pages/(main)/apps/accounts/company-profile/page')
 );
@@ -120,14 +126,15 @@ const BillingSalesBookPage = lazy(() => import('./pages/(main)/apps/billing/sale
 const BillingPurchaseBookPage = lazy(() => import('./pages/(main)/apps/billing/purchase-book/page'));
 const BillingSalesReturnBookPage = lazy(() => import('./pages/(main)/apps/billing/sales-return-book/page'));
 const BillingPurchaseReturnBookPage = lazy(() => import('./pages/(main)/apps/billing/purchase-return-book/page'));
+const BillingInvoiceFormPage = lazy(() => import('./pages/(main)/apps/billing/invoice-form/page'));
 const BillingMoneyReceiptCashPage = lazy(
   () => import('./pages/(main)/apps/billing/money-receipt-cash/page')
 );
 const BillingMoneyReceiptBankPage = lazy(
   () => import('./pages/(main)/apps/billing/money-receipt-bank/page')
 );
-const BillingMoneyReceiptManualBookIssuePage = lazy(
-  () => import('./pages/(main)/apps/billing/money-receipt-manual-book-issue/page')
+const BillingReceiptBookIssuePage = lazy(
+  () => import('./pages/(main)/apps/billing/receipt-book-issue/page')
 );
 const BillingSectionPage = lazy(() => import('./pages/(main)/apps/billing/section/page'));
 const AppMarketplace = lazy(() => import('./pages/(main)/apps/marketplace/page'));
@@ -166,6 +173,7 @@ const PagesContact = lazy(() => import('./pages/(main)/pages/contact/page'));
 const PagesCrud = lazy(() => import('./pages/(main)/pages/crud/page'));
 const PagesEmpty = lazy(() => import('./pages/(main)/pages/empty/page'));
 const PagesHelp = lazy(() => import('./pages/(main)/pages/help/page'));
+const PagesAccountingRules = lazy(() => import('./pages/(main)/pages/help/accounting-rules/page'));
 const PagesInvoice = lazy(() => import('./pages/(main)/pages/invoice/page'));
 const PagesTimeline = lazy(() => import('./pages/(main)/pages/timeline/page'));
 const NotFound = lazy(() => import('./pages/(full-page)/pages/notfound/page'));
@@ -284,7 +292,8 @@ const AppRoutes = [
                     { path: 'accounts', element: <AppLedger /> },
                     { path: 'accounts/ledger-groups', element: <AccountsLedgerGroupsPage /> },
                     { path: 'accounts/ledgers', element: <AccountsLedgerListPage /> },
-                    { path: 'accounts/voucher-types', element: <AccountsVoucherTypesPage /> },
+                    { path: 'accounts/voucher-options', element: <AccountsVoucherOptionsPage /> },
+                    { path: 'accounts/voucher-types', element: <Navigate to="/apps/accounts/voucher-options" replace /> },
                     { path: 'accounts/day-book', element: <AccountsDayBookPage /> },
                     { path: 'accounts/trial-balance', element: <AccountsTrialBalancePage /> },
                     { path: 'accounts/balance-sheet', element: <AccountsBalanceSheetPage /> },
@@ -297,6 +306,14 @@ const AppRoutes = [
                     { path: 'accounts/payment-vouchers/:mode', element: <AccountsCashExpenditureEntryPage /> },
                     { path: 'accounts/payment-vouchers/:mode/new', element: <AccountsCashExpenditureEntryPage /> },
                     { path: 'accounts/payment-vouchers/:mode/edit/:voucherNo', element: <AccountsCashExpenditureEntryPage /> },
+                    { path: 'accounts/vouchers/voucher', element: <AccountsVoucherEnginePage /> },
+                    { path: 'accounts/vouchers/voucher/:voucherType', element: <AccountsVoucherEnginePage /> },
+                    { path: 'accounts/vouchers/voucher/:voucherType/:mode', element: <AccountsVoucherEnginePage /> },
+                    { path: 'accounts/vouchers/voucher/:voucherType/:mode/new', element: <AccountsVoucherEnginePage /> },
+                    {
+                        path: 'accounts/vouchers/voucher/:voucherType/:mode/edit/:voucherNo',
+                        element: <AccountsVoucherEnginePage />
+                    },
                     { path: 'accounts/bank-cash-deposit', element: <AccountsBankCashDepositPage /> },
                     { path: 'accounts/bank-cheque-issue', element: <AccountsBankChequeIssuePage /> },
                     { path: 'accounts/cheque-book-issue', element: <AccountsChequeBookIssuePage /> },
@@ -307,6 +324,7 @@ const AppRoutes = [
                     { path: 'accounts/book-printing', element: <AccountsBookPrintingPage /> },
                     { path: 'accounts/accounts-reports', element: <AccountsAccountsReportsPage /> },
                     { path: 'accounts/invoice-rollover', element: <AccountsInvoiceRolloverPage /> },
+                    { path: 'accounts/migration-monitor', element: <AccountsMigrationMonitorPage /> },
                     { path: 'accounts/company-profile', element: <AccountsCompanyProfilePage /> },
                     { path: 'accounts/options', element: <AccountsOptionsPage /> },
                     { path: 'accounts/change-session', element: <AccountsChangeSessionPage /> },
@@ -329,11 +347,18 @@ const AppRoutes = [
                     { path: 'billing/sales-return-book', element: <BillingSalesReturnBookPage /> },
                     { path: 'billing/purchase-book', element: <BillingPurchaseBookPage /> },
                     { path: 'billing/purchase-return-book', element: <BillingPurchaseReturnBookPage /> },
+                    { path: 'billing/invoice-form', element: <BillingInvoiceFormPage /> },
+                    { path: 'billing/invoice-form/new', element: <BillingInvoiceFormPage /> },
+                    { path: 'billing/invoice-form/edit/:saleInvoiceId', element: <BillingInvoiceFormPage /> },
                     { path: 'billing/money-receipt-cash', element: <BillingMoneyReceiptCashPage /> },
                     { path: 'billing/money-receipt-bank', element: <BillingMoneyReceiptBankPage /> },
                     {
+                        path: 'billing/receipt-book-issue',
+                        element: <BillingReceiptBookIssuePage />
+                    },
+                    {
                         path: 'billing/money-receipt-manual-book-issue',
-                        element: <BillingMoneyReceiptManualBookIssuePage />
+                        element: <Navigate to="/apps/billing/receipt-book-issue" replace />
                     },
                     { path: 'billing/:section', element: <BillingSectionPage /> },
                     { path: 'gst', element: <AppGst /> },
@@ -393,6 +418,7 @@ const AppRoutes = [
                     { path: 'crud', element: <PagesCrud /> },
                     { path: 'empty', element: <PagesEmpty /> },
                     { path: 'help', element: <PagesHelp /> },
+                    { path: 'help/accounting-rules', element: <PagesAccountingRules /> },
                     { path: 'invoice', element: <PagesInvoice /> },
                     { path: 'timeline', element: <PagesTimeline /> },
                     { path: 'notfound', element: <NotFound /> }

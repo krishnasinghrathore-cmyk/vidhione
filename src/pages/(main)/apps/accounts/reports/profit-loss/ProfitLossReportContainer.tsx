@@ -776,6 +776,7 @@ export function ProfitLossReportContainer() {
             printDisabled={!hasApplied || reportLoading || exportRows.length === 0}
             exportDisabled={!hasApplied || reportLoading || exportRows.length === 0}
             refreshButtonId={refreshButtonId}
+            loadingState={reportLoading}
         />
     );
 

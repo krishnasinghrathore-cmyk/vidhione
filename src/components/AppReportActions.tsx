@@ -2,6 +2,7 @@ import React, { useRef } from 'react';
 import { Button } from 'primereact/button';
 import { SplitButton } from 'primereact/splitbutton';
 import type { MenuItem } from 'primereact/menuitem';
+import { formatReportLoadDuration, useReportLoadTime } from '@/lib/reportLoadTime';
 
 type AppReportActionsProps = {
     onRefresh?: (event: React.MouseEvent<HTMLButtonElement>) => void;
@@ -21,6 +22,12 @@ type AppReportActionsProps = {
     showPrint?: boolean;
     showExport?: boolean;
     refreshButtonId?: string;
+    loadingState?: boolean;
+    loadingSummaryEnabled?: boolean;
+    loadingSummaryLabel?: string;
+    pageLoadingState?: boolean;
+    pageLoadingSummaryEnabled?: boolean;
+    pageLoadingSummaryLabel?: string;
 };
 
 const shouldShow = (explicit: boolean | undefined, handler: unknown) => {
@@ -51,15 +58,41 @@ const AppReportActions = ({
     showStatement,
     showPrint,
     showExport,
-    refreshButtonId
+    refreshButtonId,
+    loadingState,
+    loadingSummaryEnabled = true,
+    loadingSummaryLabel = 'Load',
+    pageLoadingState,
+    pageLoadingSummaryEnabled = false,
+    pageLoadingSummaryLabel = 'Page'
 }: AppReportActionsProps) => {
     const exportMenuRef = useRef<{ show: () => void } | null>(null);
+    const { activeLoadMs, lastLoadMs } = useReportLoadTime({
+        loadingState,
+        enabled: loadingSummaryEnabled
+    });
+    const { activeLoadMs: activePageLoadMs, lastLoadMs: lastPageLoadMs } = useReportLoadTime({
+        loadingState: pageLoadingState,
+        enabled: pageLoadingSummaryEnabled
+    });
     const renderRefresh = shouldShow(showRefresh, onRefresh);
     const renderStatement = shouldShow(showStatement, onStatement);
     const renderPrint = shouldShow(showPrint, onPrint);
     const renderExport = shouldShow(showExport, onExport || onExportCsv || onExportExcel || onExportPdf);
     const hasPrintMenu = Boolean(printMenuItems?.length);
     const hasExportMenu = Boolean(onExportCsv || onExportExcel || onExportPdf);
+    const loadSummaryText =
+        loadingSummaryEnabled && loadingState && activeLoadMs != null
+            ? `${loadingSummaryLabel}: ${formatReportLoadDuration(activeLoadMs)} (loading...)`
+            : loadingSummaryEnabled && lastLoadMs != null
+              ? `${loadingSummaryLabel}: ${formatReportLoadDuration(lastLoadMs)}`
+              : null;
+    const pageLoadSummaryText =
+        pageLoadingSummaryEnabled && pageLoadingState && activePageLoadMs != null
+            ? `${pageLoadingSummaryLabel}: ${formatReportLoadDuration(activePageLoadMs)} (loading...)`
+            : pageLoadingSummaryEnabled && lastPageLoadMs != null
+              ? `${pageLoadingSummaryLabel}: ${formatReportLoadDuration(lastPageLoadMs)}`
+              : null;
     const exportItems: MenuItem[] = [
         onExportCsv
             ? { label: 'Export CSV', icon: 'pi pi-file', command: () => { onExportCsv(); blurActiveElement(); } }
@@ -95,6 +128,16 @@ const AppReportActions = ({
                     disabled={refreshDisabled}
                 />
             )}
+            {loadSummaryText ? (
+                <span className="app-report-actions__load-time text-600 text-sm" aria-live="polite">
+                    {loadSummaryText}
+                </span>
+            ) : null}
+            {pageLoadSummaryText ? (
+                <span className="app-report-actions__load-time text-600 text-sm" aria-live="polite">
+                    {pageLoadSummaryText}
+                </span>
+            ) : null}
             {renderStatement && (
                 <Button
                     label="Statement"

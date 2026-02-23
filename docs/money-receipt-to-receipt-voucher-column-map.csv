@@ -1,0 +1,63 @@
+Money Receipt Bank/Cash Column,Receipt Voucher Bank/Cash Column,Conversion Rule / Notes
+accounts.money_receipt_cash_headers.voucher_number,accounts.vouchers.voucher_number,Direct map (Cash receipt)
+accounts.money_receipt_bank_headers.voucher_number,accounts.vouchers.voucher_number,Direct map (Bank receipt)
+accounts.money_receipt_cash_headers.voucher_date_text,accounts.vouchers.voucher_date_text,Direct map (YYYYMMDD)
+accounts.money_receipt_bank_headers.voucher_date_text,accounts.vouchers.voucher_date_text,Direct map (YYYYMMDD)
+accounts.money_receipt_cash_headers.voucher_date_text,accounts.vouchers.posting_date_text,Usually same as voucher date unless posting date override is needed
+accounts.money_receipt_bank_headers.voucher_date_text,accounts.vouchers.posting_date_text,Usually same as voucher date unless posting date override is needed
+accounts.money_receipt_cash_headers.ledger_id,accounts.vouchers.primary_ledger_id,Map to receipt mode primary ledger (Cash ledger)
+accounts.money_receipt_bank_headers.ledger_id,accounts.vouchers.primary_ledger_id,Map to receipt mode primary ledger (Bank ledger)
+accounts.money_receipt_cash_headers.manager_id,accounts.vouchers.manager_id,Direct map (if available)
+accounts.money_receipt_cash_headers.remarks,accounts.vouchers.narration_text,Direct map
+accounts.money_receipt_bank_headers.remarks,accounts.vouchers.narration_text,Direct map
+accounts.money_receipt_cash_headers.is_cancelled_flag,accounts.vouchers.is_cancelled_flag,Direct map (0/1)
+accounts.money_receipt_bank_headers.is_cancelled_flag,accounts.vouchers.is_cancelled_flag,Direct map (0/1)
+accounts.money_receipt_bank_headers.cheque_number,accounts.vouchers.purchase_voucher_number,Recommended map for bank cheque number
+accounts.money_receipt_bank_headers.cheque_date_text,accounts.vouchers.purchase_voucher_date_text,Recommended map for bank cheque date
+accounts.money_receipt_bank_headers.cheque_number,accounts.vouchers.reference_number2,Optional mirror (backend also mirrors purchase_voucher_number -> reference_number2)
+accounts.money_receipt_bank_headers.cheque_date_text,accounts.vouchers.reference_date2,Optional mirror (backend also mirrors purchase_voucher_date_text -> reference_date2)
+accounts.money_receipt_cash_headers.net_amount,accounts.vouchers.total_net_amount,Use if discount/charges already netted
+accounts.money_receipt_bank_headers.net_amount,accounts.vouchers.total_net_amount,Use if discount/charges already netted
+accounts.money_receipt_cash_lines.cash_receipt_id,accounts.voucher_postings.voucher_id,Parent FK link
+accounts.money_receipt_bank_lines.bank_receipt_id,accounts.voucher_postings.voucher_id,Parent FK link
+accounts.money_receipt_cash_headers.voucher_number,accounts.voucher_postings.voucher_number,Copy header voucher number to all posting lines
+accounts.money_receipt_bank_headers.voucher_number,accounts.voucher_postings.voucher_number,Copy header voucher number to all posting lines
+accounts.money_receipt_cash_headers.voucher_date_text,accounts.voucher_postings.voucher_date_text,Copy header voucher date to all posting lines
+accounts.money_receipt_bank_headers.voucher_date_text,accounts.voucher_postings.voucher_date_text,Copy header voucher date to all posting lines
+accounts.money_receipt_cash_headers.voucher_date_text,accounts.voucher_postings.voucher_date_key,Derive as integer YYYYMMDD
+accounts.money_receipt_bank_headers.voucher_date_text,accounts.voucher_postings.voucher_date_key,Derive as integer YYYYMMDD
+accounts.money_receipt_cash_headers.is_cancelled_flag,accounts.voucher_postings.is_cancelled_flag,Copy cancel flag to each posting line
+accounts.money_receipt_bank_headers.is_cancelled_flag,accounts.voucher_postings.is_cancelled_flag,Copy cancel flag to each posting line
+accounts.money_receipt_cash_headers.ledger_id,accounts.voucher_postings.ledger_id,Create one header posting line with DR side for receipt profile
+accounts.money_receipt_bank_headers.ledger_id,accounts.voucher_postings.ledger_id,Create one header posting line with DR side for receipt profile
+accounts.money_receipt_cash_headers.net_amount,accounts.voucher_postings.line_amount,Header line amount (DR)
+accounts.money_receipt_bank_headers.net_amount,accounts.voucher_postings.line_amount,Header line amount (DR)
+accounts.money_receipt_cash_lines.line_amount,accounts.voucher_postings.line_amount,Create entry lines (CR) per converted ledger mapping
+accounts.money_receipt_bank_lines.line_amount,accounts.voucher_postings.line_amount,Create entry lines (CR) per converted ledger mapping
+accounts.money_receipt_cash_lines.remark_text,accounts.voucher_postings.narration_text,Optional per-line narration map
+accounts.money_receipt_bank_lines.remark_text,accounts.voucher_postings.narration_text,Optional per-line narration map
+accounts.money_receipt_cash_lines.sale_invoice_id,accounts.voucher_bill_details.sale_invoice_id,Needed if invoice allocation migration is required
+accounts.money_receipt_bank_lines.sale_invoice_id,accounts.voucher_bill_details.sale_invoice_id,Needed if invoice allocation migration is required
+accounts.money_receipt_cash_lines.line_amount,accounts.voucher_bill_details.applied_amount,Needed if invoice allocation migration is required
+accounts.money_receipt_bank_lines.line_amount,accounts.voucher_bill_details.applied_amount,Needed if invoice allocation migration is required
+accounts.money_receipt_cash_headers.discount_amount,[No direct receipt-voucher column],Represent through extra adjustment posting line(s)
+accounts.money_receipt_bank_headers.discount_amount,[No direct receipt-voucher column],Represent through extra adjustment posting line(s)
+accounts.money_receipt_cash_headers.cheque_cancel_charges,[No direct receipt-voucher column],Represent through extra adjustment posting line(s)
+accounts.money_receipt_bank_headers.cheque_cancel_charges,[No direct receipt-voucher column],Represent through extra adjustment posting line(s)
+accounts.money_receipt_cash_headers.total_diff_amount,[No direct receipt-voucher column],Derived/reconciliation value in legacy; keep in audit table if required
+accounts.money_receipt_bank_headers.total_diff_amount,[No direct receipt-voucher column],Derived/reconciliation value in legacy; keep in audit table if required
+accounts.money_receipt_cash_headers.other_ledger_id,[No direct receipt-voucher column],Store in extension table/json if business requires
+accounts.money_receipt_bank_headers.other_ledger_id,[No direct receipt-voucher column],Store in extension table/json if business requires
+accounts.money_receipt_cash_headers.sales_ledger_id,[No direct receipt-voucher column],Store in extension table/json if business requires
+accounts.money_receipt_bank_headers.sales_ledger_id,[No direct receipt-voucher column],Store in extension table/json if business requires
+accounts.money_receipt_cash_headers.salesman_id,[No direct receipt-voucher column],Store in extension table/json if business requires
+accounts.money_receipt_cash_headers.issue_book_id,[No direct receipt-voucher column],Store in extension table/json if business requires
+accounts.money_receipt_bank_headers.bank_id,[No direct receipt-voucher column],Store in extension table/json if business requires
+accounts.money_receipt_bank_headers.branch_id,[No direct receipt-voucher column],Store in extension table/json if business requires
+accounts.money_receipt_bank_headers.cheque_received_number,[No direct receipt-voucher column],Store in extension table/json if business requires
+accounts.money_receipt_bank_headers.cheque_received_date_text,[No direct receipt-voucher column],Store in extension table/json if business requires
+accounts.money_receipt_cash_headers.is_full_paid_flag,[No direct receipt-voucher column],Store in extension table/json if business requires
+accounts.money_receipt_bank_headers.is_full_paid_flag,[No direct receipt-voucher column],Store in extension table/json if business requires
+accounts.money_receipt_cash_headers.is_checked_flag,[No direct receipt-voucher column],Store in extension table/json if business requires
+accounts.money_receipt_bank_headers.is_checked_flag,[No direct receipt-voucher column],Store in extension table/json if business requires
+accounts.money_receipt_bank_headers.is_cheque_cancelled_flag,[No direct receipt-voucher column],Store in extension table/json if business requires

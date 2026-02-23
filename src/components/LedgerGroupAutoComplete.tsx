@@ -23,6 +23,7 @@ type LedgerGroupAutoCompleteProps = Omit<
     options?: LedgerGroupOption[];
     loading?: boolean;
     loadingPlaceholder?: string;
+    loadingWhenPanelOpenOnly?: boolean;
     onSelectNext?: () => void;
     skip?: boolean;
 };
@@ -34,12 +35,15 @@ const LedgerGroupAutoComplete = forwardRef<AutoComplete, LedgerGroupAutoComplete
         options: optionsProp,
         loading: loadingProp,
         loadingPlaceholder,
+        loadingWhenPanelOpenOnly,
         onSelectNext,
         placeholder,
         onBlur,
         onFocus,
         onKeyDown,
         onDropdownClick,
+        onShow,
+        onHide,
         openOnFocus,
         disabled,
         readOnly,
@@ -57,9 +61,11 @@ const LedgerGroupAutoComplete = forwardRef<AutoComplete, LedgerGroupAutoComplete
 
     const options = optionsProp ?? queryOptions;
     const loading = loadingProp ?? queryLoading;
-    const showLoading = loading && options.length === 0;
     const [query, setQuery] = useState('');
     const [suggestions, setSuggestions] = useState<LedgerGroupOption[]>([]);
+    const [isPanelOpen, setIsPanelOpen] = useState(false);
+    const showLoading =
+        (loadingWhenPanelOpenOnly ? loading && isPanelOpen : loading) && suggestions.length === 0;
     const pendingOpenRef = useRef(false);
     const resolvedOpenOnFocus = openOnFocus ?? true;
 
@@ -94,6 +100,16 @@ const LedgerGroupAutoComplete = forwardRef<AutoComplete, LedgerGroupAutoComplete
         return options.filter((option) => option.label.toLowerCase().includes(needle));
     };
 
+    const findExactLabelMatch = (input: string) => {
+        const needle = input.trim().toLowerCase();
+        if (!needle) return null;
+        return (
+            suggestions.find((option) => option.label.toLowerCase() === needle) ??
+            options.find((option) => option.label.toLowerCase() === needle) ??
+            null
+        );
+    };
+
     const handleComplete = (event: AutoCompleteCompleteEvent) => {
         const nextQuery = event.query ?? '';
         setQuery(nextQuery);
@@ -108,10 +124,22 @@ const LedgerGroupAutoComplete = forwardRef<AutoComplete, LedgerGroupAutoComplete
             return;
         }
         if (typeof nextValue === 'string') {
-            setQuery(nextValue);
-            if (!nextValue.trim()) {
+            const trimmed = nextValue.trim();
+            if (!trimmed) {
+                setQuery('');
                 onChange(null, null);
+                return;
             }
+            const match = findExactLabelMatch(nextValue);
+            if (match) {
+                setQuery('');
+                onChange(match.value ?? null, match);
+                if (onSelectNext) {
+                    window.setTimeout(onSelectNext, 0);
+                }
+                return;
+            }
+            setQuery(nextValue);
             return;
         }
         setQuery('');
@@ -123,6 +151,7 @@ const LedgerGroupAutoComplete = forwardRef<AutoComplete, LedgerGroupAutoComplete
 
     const handleBlur = (event: React.FocusEvent<HTMLSpanElement>) => {
         onBlur?.(event);
+        setIsPanelOpen(false);
         pendingOpenRef.current = false;
         setQuery('');
     };
@@ -184,6 +213,16 @@ const LedgerGroupAutoComplete = forwardRef<AutoComplete, LedgerGroupAutoComplete
         }
     };
 
+    const handleShow = () => {
+        setIsPanelOpen(true);
+        onShow?.();
+    };
+
+    const handleHide = () => {
+        setIsPanelOpen(false);
+        onHide?.();
+    };
+
     const displayValue = query.length ? query : selectedOption;
     const resolvedPlaceholder = showLoading
         ? loadingPlaceholder ?? 'Loading groups...'
@@ -201,6 +240,8 @@ const LedgerGroupAutoComplete = forwardRef<AutoComplete, LedgerGroupAutoComplete
             onFocus={handleFocus}
             onKeyDown={handleKeyDown}
             onDropdownClick={handleDropdownClick}
+            onShow={handleShow}
+            onHide={handleHide}
             field="label"
             loading={showLoading}
             showLoadingIcon

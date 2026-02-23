@@ -1,7 +1,7 @@
 // main.tsx
 import { StrictMode } from 'react';
-import { createRoot } from 'react-dom/client';
-import { createBrowserRouter, RouterProvider } from 'react-router-dom';
+import { createRoot, hydrateRoot } from 'react-dom/client';
+import { createBrowserRouter } from 'react-router-dom';
 import AppRoutes from './Router';
 
 import 'primereact/resources/primereact.min.css';
@@ -11,31 +11,28 @@ import './styles/layout/layout.scss';
 import './styles/demo/flags/flags.css';
 import './styles/demo/Demos.scss';
 
-import { LayoutProvider } from './layout/context/layoutcontext';
-import { PrimeReactProvider } from 'primereact/api';
-import { HelmetProvider } from 'react-helmet-async';
-import { ApolloProvider } from '@apollo/client';
 import { apolloClient } from './lib/apolloClient';
-import { AppErrorBoundary } from './components/AppErrorBoundary';
-import { AuthProvider } from './lib/auth/context';
+import { AppProviders } from './AppProviders';
+import type { AuthState } from './lib/auth/context';
 
 // ✅ Create router with future flags (recommended for React Router v7+)
 const router = createBrowserRouter(AppRoutes);
-
-createRoot(document.getElementById('root') as HTMLElement).render(
+const initialAuthState = (window.__AUTH_STATE__ ?? null) as Partial<AuthState> | null;
+const shouldHydrate = (document.getElementById('root') as HTMLElement).hasChildNodes();
+const app = (
     <StrictMode>
-        <PrimeReactProvider>
-            <HelmetProvider>
-                <AuthProvider>
-                    <ApolloProvider client={apolloClient}>
-                        <LayoutProvider>
-                            <AppErrorBoundary>
-                                <RouterProvider router={router} />
-                            </AppErrorBoundary>
-                        </LayoutProvider>
-                    </ApolloProvider>
-                </AuthProvider>
-            </HelmetProvider>
-        </PrimeReactProvider>
+        <AppProviders
+            router={router}
+            apolloClient={apolloClient}
+            authInitialState={initialAuthState}
+            skipInitialAuthRefresh={Boolean(initialAuthState)}
+        />
     </StrictMode>
 );
+const rootElement = document.getElementById('root') as HTMLElement;
+
+if (shouldHydrate) {
+    hydrateRoot(rootElement, app);
+} else {
+    createRoot(rootElement).render(app);
+}

@@ -1,6 +1,7 @@
 'use client';
 import React from 'react';
 import { InputText } from 'primereact/inputtext';
+import { Link } from 'react-router-dom';
 
 function Help() {
     return (
@@ -19,6 +20,16 @@ function Help() {
                         <i className="pi pi-search"></i>
                         <InputText id="name" type="text" placeholder="Search" style={{ borderRadius: '2rem' }} className={'w-full'} />
                     </span>
+                </div>
+
+                <div className="mb-5 p-3 border-round surface-100 border-1 surface-border flex flex-column md:flex-row md:align-items-center md:justify-content-between gap-2">
+                    <div>
+                        <div className="font-semibold text-lg mb-1">Accounting Rules</div>
+                        <div className="text-700">View documented accounting policies with rule version/date references.</div>
+                    </div>
+                    <Link to="/pages/help/accounting-rules" className="text-primary hover:underline font-semibold">
+                        Open Accounting Rules
+                    </Link>
                 </div>
 
                 <div className="grid mb-5">

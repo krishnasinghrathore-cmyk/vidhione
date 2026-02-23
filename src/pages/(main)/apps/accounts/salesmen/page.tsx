@@ -11,6 +11,15 @@ import AppDataTable from '@/components/AppDataTable';
 import AppDropdown from '@/components/AppDropdown';
 import { z } from 'zod';
 import { apolloClient } from '@/lib/apolloClient';
+import { getDeleteConfirmMessage, getDeleteFailureMessage } from '@/lib/deleteGuardrails';
+import { fetchAccountsMasterDeleteImpact, getDeleteBlockedMessage } from '@/lib/masterDeleteImpact';
+import {
+    getMasterActionDeniedDetail,
+    isMasterActionAllowed,
+    type MasterAction,
+    useMasterActionPermissions
+} from '@/lib/masterActionPermissions';
+import { ensureDryEditCheck } from '@/lib/masterDryRun';
 
 interface SalesmanRow {
     salesmanId: number;
@@ -74,8 +83,12 @@ export default function AccountsSalesmenPage() {
     const [dialogVisible, setDialogVisible] = useState(false);
     const [saving, setSaving] = useState(false);
     const [editing, setEditing] = useState<SalesmanRow | null>(null);
+    const [detailVisible, setDetailVisible] = useState(false);
+    const [detailRow, setDetailRow] = useState<SalesmanRow | null>(null);
     const [form, setForm] = useState<FormState>(DEFAULT_FORM);
     const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
+    const [dryEditDigest, setDryEditDigest] = useState('');
 
     const { data, loading, error, refetch } = useQuery(SALESMEN, {
         client: apolloClient,
@@ -85,19 +98,23 @@ export default function AccountsSalesmenPage() {
     const [updateSalesman] = useMutation(UPDATE_SALESMAN, { client: apolloClient });
     const [deleteSalesman] = useMutation(DELETE_SALESMAN, { client: apolloClient });
 
+    const { permissions: masterPermissions } = useMasterActionPermissions(apolloClient);
+
     const rows: SalesmanRow[] = useMemo(() => data?.salesmen ?? [], [data]);
 
-    const filteredRows = useMemo(() => {
-        const term = search.trim().toLowerCase();
-        if (!term) return rows;
-        return rows.filter((row) =>
-            [row.salesmanId, row.name]
-                .map((value) => String(value ?? '').toLowerCase())
-                .join(' ')
-                .includes(term)
-        );
-    }, [rows, search]);
+    const assertActionAllowed = (action: MasterAction) => {
+        if (isMasterActionAllowed(masterPermissions, action)) return true;
+        toastRef.current?.show({
+            severity: 'warn',
+            summary: 'Permission Denied',
+            detail: getMasterActionDeniedDetail(action)
+        });
+        return false;
+    };
+
     const openNew = () => {
+        setDryEditDigest('');
+        if (!assertActionAllowed('add')) return;
         setEditing(null);
         setForm(DEFAULT_FORM);
         setFormErrors({});
@@ -105,10 +122,18 @@ export default function AccountsSalesmenPage() {
     };
 
     const openEdit = (row: SalesmanRow) => {
+        setDryEditDigest('');
+        if (!assertActionAllowed('edit')) return;
         setEditing(row);
         setForm({ name: row.name ?? '' });
         setFormErrors({});
         setDialogVisible(true);
+    };
+
+    const openView = (row: SalesmanRow) => {
+        if (!assertActionAllowed('view')) return;
+        setDetailRow(row);
+        setDetailVisible(true);
     };
 
     const save = async () => {
@@ -122,6 +147,15 @@ export default function AccountsSalesmenPage() {
             toastRef.current?.show({ severity: 'warn', summary: 'Please fix validation errors' });
             return;
         }
+
+        if (!ensureDryEditCheck({
+            isEditing: Boolean(editing),
+            lastDigest: dryEditDigest,
+            currentDigest: JSON.stringify(form),
+            setLastDigest: setDryEditDigest,
+            toastRef,
+            entityLabel: 'record'
+        })) return;
 
         setSaving(true);
         try {
@@ -171,15 +205,27 @@ export default function AccountsSalesmenPage() {
             toastRef.current?.show({
                 severity: 'error',
                 summary: 'Error',
-                detail: e?.message ?? 'Delete failed.'
+                detail: getDeleteFailureMessage(e, 'salesman')
             });
         }
     };
 
-    const confirmDelete = (event: React.MouseEvent<HTMLButtonElement>, row: SalesmanRow) => {
+    const confirmDelete = async (event: React.MouseEvent<HTMLButtonElement>, row: SalesmanRow) => {
+        if (!assertActionAllowed('delete')) return;
+        const impact = await fetchAccountsMasterDeleteImpact('SALESMAN', row.salesmanId);
+        if (!impact.canDelete) {
+            toastRef.current?.show({
+                severity: 'warn',
+                summary: 'Cannot Delete',
+                detail: getDeleteBlockedMessage('salesman', impact),
+                life: 7000
+            });
+            return;
+        }
+
         confirmPopup({
             target: event.currentTarget,
-            message: 'Delete this salesman?',
+            message: `Dry Delete Check passed. ${getDeleteConfirmMessage('salesman')}`,
             icon: 'pi pi-exclamation-triangle',
             acceptClassName: 'p-button-danger',
             acceptLabel: 'Delete',
@@ -192,8 +238,9 @@ export default function AccountsSalesmenPage() {
 
     const actionsBody = (row: SalesmanRow) => (
         <div className="flex gap-2">
-            <Button icon="pi pi-pencil" className="p-button-text" onClick={() => openEdit(row)} />
-            <Button icon="pi pi-trash" className="p-button-text" severity="danger" onClick={(e) => confirmDelete(e, row)} />
+            <Button icon="pi pi-eye" className="p-button-text" onClick={() => openView(row)} disabled={!masterPermissions.canView} />
+            <Button icon="pi pi-pencil" className="p-button-text" onClick={() => openEdit(row)} disabled={!masterPermissions.canEdit} />
+            <Button icon="pi pi-trash" className="p-button-text" severity="danger" onClick={(e) => { void confirmDelete(e, row); }} disabled={!masterPermissions.canDelete} />
         </div>
     );
 
@@ -211,7 +258,7 @@ export default function AccountsSalesmenPage() {
                         </p>
                     </div>
                     <div className="flex gap-2 flex-wrap">
-                        <Button label="New Salesman" icon="pi pi-plus" onClick={openNew} />
+                        <Button label="New Salesman" icon="pi pi-plus" onClick={openNew} disabled={!masterPermissions.canAdd} />
                     </div>
                 </div>
                 {error && <p className="text-red-500 m-0">Error loading salesmen: {error.message}</p>}
@@ -219,7 +266,7 @@ export default function AccountsSalesmenPage() {
 
             <AppDataTable
                 ref={dtRef}
-                value={filteredRows}
+                value={rows}
                 paginator
                 rows={12}
                 rowsPerPageOptions={[12, 24, 50, 100]}
@@ -227,7 +274,7 @@ export default function AccountsSalesmenPage() {
                 stripedRows
                 size="small"
                 loading={loading}
-                onRowDoubleClick={(e) => openEdit(e.data as SalesmanRow)}
+                onRowDoubleClick={(e) => (masterPermissions.canEdit ? openEdit(e.data as SalesmanRow) : openView(e.data as SalesmanRow))}
                 headerLeft={
                     <span className="p-input-icon-left" style={{ minWidth: '320px' }}>
                         <i className="pi pi-search" />
@@ -246,7 +293,7 @@ export default function AccountsSalesmenPage() {
                             icon="pi pi-download"
                             className="p-button-info"
                             onClick={() => dtRef.current?.exportCSV()}
-                            disabled={filteredRows.length === 0}
+                            disabled={rows.length === 0}
                         />
                         <Button
                             label="Print"
@@ -270,14 +317,14 @@ export default function AccountsSalesmenPage() {
                             />
                         </span>
                         <span className="text-600 text-sm">
-                            Showing {filteredRows.length} salesman{filteredRows.length === 1 ? '' : 's'}
+                            Showing {rows.length} salesman{rows.length === 1 ? '' : 's'}
                         </span>
                     </>
                 }
-                recordSummary={`${filteredRows.length} salesman${filteredRows.length === 1 ? '' : 's'}`}
+                recordSummary={`${rows.length} salesman${rows.length === 1 ? '' : 's'}`}
             >
                 <Column field="name" header="Name" sortable />
-                <Column header="Actions" body={actionsBody} style={{ width: '8rem' }} />
+                <Column header="Actions" body={actionsBody} style={{ width: '11rem' }} />
             </AppDataTable>
 
             <Dialog
@@ -309,6 +356,24 @@ export default function AccountsSalesmenPage() {
                         {formErrors.name && <small className="p-error">{formErrors.name}</small>}
                     </div>
                 </div>
+            </Dialog>
+
+            <Dialog
+                header="Salesman Details"
+                visible={detailVisible}
+                style={{ width: 'min(520px, 96vw)' }}
+                onHide={() => setDetailVisible(false)}
+                footer={
+                    <div className="flex justify-content-end w-full">
+                        <Button label="Close" className="p-button-text" onClick={() => setDetailVisible(false)} />
+                    </div>
+                }
+            >
+                {detailRow && (
+                    <div className="flex flex-column gap-2">
+                        <div><strong>Name:</strong> {detailRow.name ?? '-'}</div>
+                    </div>
+                )}
             </Dialog>
         </div>
     );

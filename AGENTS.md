@@ -8,6 +8,9 @@ This project contains a Vite + React frontend and an Encore TS backend (GraphQL 
 - Follow the existing folder structure and naming; avoid introducing new libraries unless necessary.
 - Keep changes minimal and local (feature folders) instead of large global utilities.
 - Do not commit secrets; only update `.env.example` with safe sample values.
+- Daily knowledge log is mandatory: after every task/update, append a short entry to `docs/knowledge-book/daily-work-log.md`.
+- Each daily log entry must include: date, summary of change, key files touched, and validation/testing status.
+- If the task is discussion/planning only, still add an entry and mark `files touched` as `none`.
 
 ## Frontend (Vite + React + PrimeReact + Apollo + React Router)
 

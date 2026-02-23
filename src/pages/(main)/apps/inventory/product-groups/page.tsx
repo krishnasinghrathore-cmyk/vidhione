@@ -10,8 +10,18 @@ import { Toast } from 'primereact/toast';
 import { Button } from 'primereact/button';
 import { gql, useMutation, useQuery } from '@apollo/client';
 import AppDataTable from '@/components/AppDataTable';
+import AppDropdown from '@/components/AppDropdown';
 import { z } from 'zod';
 import { inventoryApolloClient } from '@/lib/inventoryApolloClient';
+import { getDeleteConfirmMessage, getDeleteFailureMessage } from '@/lib/deleteGuardrails';
+import { fetchInventoryMasterDeleteImpact, getDeleteBlockedMessage } from '@/lib/masterDeleteImpact';
+import {
+    getMasterActionDeniedDetail,
+    isMasterActionAllowed,
+    type MasterAction,
+    useMasterActionPermissions
+} from '@/lib/masterActionPermissions';
+import { ensureDryEditCheck } from '@/lib/masterDryRun';
 
 interface ProductGroupRow {
     productGroupId: number;
@@ -22,8 +32,8 @@ interface ProductGroupRow {
 }
 
 const PRODUCT_GROUPS = gql`
-    query ProductGroups {
-        productGroups {
+    query ProductGroups($search: String, $limit: Int) {
+        productGroups(search: $search, limit: $limit) {
             productGroupId
             name
             isShowInPurchaseFlag
@@ -97,6 +107,10 @@ const DEFAULT_FORM: FormState = {
     isShowInSaleFlag: false,
     highlightInReceiptFlag: false
 };
+const limitOptions = [100, 250, 500, 1000, 2000].map((value) => ({
+    label: String(value),
+    value
+}));
 
 const flagToBool = (value: number | null | undefined) => Number(value || 0) === 1;
 const boolToFlag = (value: boolean) => (value ? 1 : 0);
@@ -107,31 +121,42 @@ export default function InventoryProductGroupsPage() {
     const nameInputRef = useRef<HTMLInputElement>(null);
 
     const [search, setSearch] = useState('');
+    const [limit, setLimit] = useState(2000);
     const [dialogVisible, setDialogVisible] = useState(false);
     const [saving, setSaving] = useState(false);
     const [editing, setEditing] = useState<ProductGroupRow | null>(null);
+    const [detailVisible, setDetailVisible] = useState(false);
+    const [detailRow, setDetailRow] = useState<ProductGroupRow | null>(null);
     const [form, setForm] = useState<FormState>(DEFAULT_FORM);
     const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
-    const { data, loading, error, refetch } = useQuery(PRODUCT_GROUPS, { client: inventoryApolloClient });
+    const [dryEditDigest, setDryEditDigest] = useState('');
+
+    const { data, loading, error, refetch } = useQuery(PRODUCT_GROUPS, {
+        client: inventoryApolloClient,
+        variables: { search: search.trim() || null, limit }
+    });
     const [createProductGroup] = useMutation(CREATE_PRODUCT_GROUP, { client: inventoryApolloClient });
     const [updateProductGroup] = useMutation(UPDATE_PRODUCT_GROUP, { client: inventoryApolloClient });
     const [deleteProductGroup] = useMutation(DELETE_PRODUCT_GROUP, { client: inventoryApolloClient });
 
+    const { permissions: masterPermissions } = useMasterActionPermissions(inventoryApolloClient);
+
     const rows: ProductGroupRow[] = useMemo(() => data?.productGroups ?? [], [data]);
 
-    const filteredRows = useMemo(() => {
-        const term = search.trim().toLowerCase();
-        if (!term) return rows;
-        return rows.filter((r) =>
-            [r.productGroupId, r.name]
-                .map((v) => String(v ?? '').toLowerCase())
-                .join(' ')
-                .includes(term)
-        );
-    }, [rows, search]);
+    const assertActionAllowed = (action: MasterAction) => {
+        if (isMasterActionAllowed(masterPermissions, action)) return true;
+        toastRef.current?.show({
+            severity: 'warn',
+            summary: 'Permission Denied',
+            detail: getMasterActionDeniedDetail(action)
+        });
+        return false;
+    };
 
     const openNew = () => {
+        setDryEditDigest('');
+        if (!assertActionAllowed('add')) return;
         setEditing(null);
         setForm(DEFAULT_FORM);
         setFormErrors({});
@@ -139,6 +164,8 @@ export default function InventoryProductGroupsPage() {
     };
 
     const openEdit = (row: ProductGroupRow) => {
+        setDryEditDigest('');
+        if (!assertActionAllowed('edit')) return;
         setEditing(row);
         setForm({
             name: row.name ?? '',
@@ -148,6 +175,12 @@ export default function InventoryProductGroupsPage() {
         });
         setFormErrors({});
         setDialogVisible(true);
+    };
+
+    const openView = (row: ProductGroupRow) => {
+        if (!assertActionAllowed('view')) return;
+        setDetailRow(row);
+        setDetailVisible(true);
     };
 
     const save = async () => {
@@ -162,6 +195,15 @@ export default function InventoryProductGroupsPage() {
             setTimeout(() => nameInputRef.current?.focus(), 0);
             return;
         }
+
+        if (!ensureDryEditCheck({
+            isEditing: Boolean(editing),
+            lastDigest: dryEditDigest,
+            currentDigest: JSON.stringify(form),
+            setLastDigest: setDryEditDigest,
+            toastRef,
+            entityLabel: 'record'
+        })) return;
 
         setSaving(true);
         try {
@@ -214,15 +256,27 @@ export default function InventoryProductGroupsPage() {
             toastRef.current?.show({
                 severity: 'error',
                 summary: 'Error',
-                detail: e?.message ?? 'Delete failed.'
+                detail: getDeleteFailureMessage(e, 'product group')
             });
         }
     };
 
-    const confirmDelete = (event: React.MouseEvent<HTMLButtonElement>, row: ProductGroupRow) => {
+    const confirmDelete = async () => {
+        if (!assertActionAllowed('delete')) return;
+        const impact = await fetchInventoryMasterDeleteImpact('PRODUCT_GROUP', row.productGroupId);
+        if (!impact.canDelete) {
+            toastRef.current?.show({
+                severity: 'warn',
+                summary: 'Cannot Delete',
+                detail: getDeleteBlockedMessage('product group', impact),
+                life: 7000
+            });
+            return;
+        }
+
         confirmPopup({
             target: event.currentTarget,
-            message: 'Delete this product group?',
+            message: `Dry Delete Check passed. ${getDeleteConfirmMessage('product group')}`,
             icon: 'pi pi-exclamation-triangle',
             acceptClassName: 'p-button-danger',
             acceptLabel: 'Delete',
@@ -250,8 +304,9 @@ export default function InventoryProductGroupsPage() {
 
     const actionsBody = (row: ProductGroupRow) => (
         <div className="flex gap-2">
-            <Button icon="pi pi-pencil" className="p-button-text" onClick={() => openEdit(row)} />
-            <Button icon="pi pi-trash" className="p-button-text" severity="danger" onClick={(e) => confirmDelete(e, row)} />
+            <Button icon="pi pi-eye" className="p-button-text" onClick={() => openView(row)} disabled={!masterPermissions.canView} />
+            <Button icon="pi pi-pencil" className="p-button-text" onClick={() => openEdit(row)} disabled={!masterPermissions.canEdit} />
+            <Button icon="pi pi-trash" className="p-button-text" severity="danger" onClick={(e) => { void confirmDelete(e, row); }} disabled={!masterPermissions.canDelete} />
         </div>
     );
 
@@ -269,7 +324,7 @@ export default function InventoryProductGroupsPage() {
                         </p>
                     </div>
                     <div className="flex gap-2 flex-wrap">
-                        <Button label="New Group" icon="pi pi-plus" onClick={openNew} />
+                        <Button label="New Group" icon="pi pi-plus" onClick={openNew} disabled={!masterPermissions.canAdd} />
                     </div>
                 </div>
                 {error && <p className="text-red-500 m-0">Error loading product groups: {error.message}</p>}
@@ -277,7 +332,7 @@ export default function InventoryProductGroupsPage() {
 
             <AppDataTable
                 ref={dtRef}
-                value={filteredRows}
+                value={rows}
                 paginator
                 rows={12}
                 rowsPerPageOptions={[12, 24, 50, 100]}
@@ -285,7 +340,7 @@ export default function InventoryProductGroupsPage() {
                 stripedRows
                 size="small"
                 loading={loading}
-                onRowDoubleClick={(e) => openEdit(e.data as ProductGroupRow)}
+                onRowDoubleClick={(e) => (masterPermissions.canEdit ? openEdit(e.data as ProductGroupRow) : openView(e.data as ProductGroupRow))}
                 headerLeft={
                     <span className="p-input-icon-left" style={{ minWidth: '320px' }}>
                         <i className="pi pi-search" />
@@ -304,7 +359,7 @@ export default function InventoryProductGroupsPage() {
                             icon="pi pi-download"
                             className="p-button-info"
                             onClick={() => dtRef.current?.exportCSV()}
-                            disabled={filteredRows.length === 0}
+                            disabled={rows.length === 0}
                         />
                         <Button
                             label="Print"
@@ -318,16 +373,25 @@ export default function InventoryProductGroupsPage() {
                             className="p-button-text"
                             onClick={() => refetch()}
                         />
+                        <span className="flex align-items-center gap-2">
+                            <span className="text-600 text-sm">Limit</span>
+                            <AppDropdown
+                                value={limit}
+                                options={limitOptions}
+                                onChange={(e) => setLimit(e.value ?? 2000)}
+                                className="w-6rem"
+                            />
+                        </span>
                         <span className="text-600 text-sm">
-                            Showing {filteredRows.length} group{filteredRows.length === 1 ? '' : 's'}
+                            Showing {rows.length} group{rows.length === 1 ? '' : 's'}
                         </span>
                     </>
                 }
-                recordSummary={`${filteredRows.length} group${filteredRows.length === 1 ? '' : 's'}`}
+                recordSummary={`${rows.length} group${rows.length === 1 ? '' : 's'}`}
             >
                 <Column field="name" header="Name" sortable />
                 <Column header="Flags" body={flagsBody} />
-                <Column header="Actions" body={actionsBody} style={{ width: '8rem' }} />
+                <Column header="Actions" body={actionsBody} style={{ width: '11rem' }} />
             </AppDataTable>
 
             <Dialog
@@ -398,6 +462,27 @@ export default function InventoryProductGroupsPage() {
                         </div>
                     </div>
                 </div>
+            </Dialog>
+
+            <Dialog
+                header="Product Group Details"
+                visible={detailVisible}
+                style={{ width: 'min(620px, 96vw)' }}
+                onHide={() => setDetailVisible(false)}
+                footer={
+                    <div className="flex justify-content-end w-full">
+                        <Button label="Close" className="p-button-text" onClick={() => setDetailVisible(false)} />
+                    </div>
+                }
+            >
+                {detailRow && (
+                    <div className="flex flex-column gap-2">
+                        <div><strong>Name:</strong> {detailRow.name ?? '-'}</div>
+                        <div><strong>Show in Purchase:</strong> {flagToBool(detailRow.isShowInPurchaseFlag) ? 'Yes' : 'No'}</div>
+                        <div><strong>Show in Sale:</strong> {flagToBool(detailRow.isShowInSaleFlag) ? 'Yes' : 'No'}</div>
+                        <div><strong>Highlight in Receipt:</strong> {flagToBool(detailRow.highlightInReceiptFlag) ? 'Yes' : 'No'}</div>
+                    </div>
+                )}
             </Dialog>
         </div>
     );

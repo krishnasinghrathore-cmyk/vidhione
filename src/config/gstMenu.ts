@@ -20,6 +20,7 @@ export const GST_MENU_GROUPS: GstMenuGroup[] = [
         icon: 'pi pi-file',
         items: [
             { slug: 'gstr1', label: 'GSTR-1', icon: 'pi pi-file' },
+            { slug: 'gstr2', label: 'GSTR-2', icon: 'pi pi-file' },
             { slug: 'gstr3b', label: 'GSTR-3B', icon: 'pi pi-file' }
         ]
     },

@@ -675,6 +675,7 @@ export default function BillingSalesReturnBookPage() {
                         onExportCsv={handleExportCsv}
                         onExportExcel={handleExportExcel}
                         onExportPdf={handleExportPdf}
+                        loadingState={reportLoading}
                         refreshDisabled={!canRefresh}
                         printDisabled={!hasApplied || reportLoading || totalRecords === 0}
                         exportDisabled={!hasApplied || reportLoading || totalRecords === 0}

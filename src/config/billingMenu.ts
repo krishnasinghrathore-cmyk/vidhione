@@ -41,7 +41,7 @@ export const BILLING_MENU_GROUPS: BillingMenuGroup[] = [
         items: [
             { slug: 'delivery-process', label: 'Delivery Process', icon: 'pi pi-truck' },
             { slug: 'bill-collection', label: 'Bill Collection', icon: 'pi pi-wallet' },
-            { slug: 'money-receipt-manual-book-issue', label: 'Money Receipt Manual Book Issue', icon: 'pi pi-book' }
+            { slug: 'receipt-book-issue', label: 'Receipt Book Issue', icon: 'pi pi-book' }
         ]
     },
     {
@@ -68,7 +68,7 @@ export const BILLING_MENU_GROUPS: BillingMenuGroup[] = [
             { slug: 'bill-collection-book', label: 'Bill Collection Book', icon: 'pi pi-book' },
             { slug: 'money-receipt-cash-book', label: 'Money Receipt Cash Book', icon: 'pi pi-book' },
             { slug: 'money-receipt-bank-book', label: 'Money Receipt Bank Book', icon: 'pi pi-book' },
-            { slug: 'money-receipt-manual-book-issue-detail', label: 'Money Receipt Manual Book Issue Detail', icon: 'pi pi-book' },
+            { slug: 'receipt-book-issue-detail', label: 'Receipt Book Issue Detail', icon: 'pi pi-book' },
             { slug: 'cash-receipt-book', label: 'Cash Receipt Book', icon: 'pi pi-book' },
             { slug: 'scheme-book', label: 'Scheme Book', icon: 'pi pi-book' },
             { slug: 'party-loyalty-program-report', label: 'Party Loyalty Program Report', icon: 'pi pi-chart-line' },

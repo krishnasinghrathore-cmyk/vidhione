@@ -8,6 +8,7 @@ import { gql, useQuery } from '@apollo/client';
 import AppDataTable from '@/components/AppDataTable';
 import AppDateInput from '@/components/AppDateInput';
 import AppDropdown from '@/components/AppDropdown';
+import { ACCOUNT_MASTER_QUERY_OPTIONS } from '@/lib/accounts/masterLookupCache';
 import { useAuth } from '@/lib/auth/context';
 import { validateDateRange, type DateRangeErrors } from '@/lib/reportDateValidation';
 
@@ -176,7 +177,8 @@ export default function AccountsStockInHandPage() {
     );
 
     const { data: ledgerData, loading: ledgerLoading } = useQuery(LEDGER_LOOKUP, {
-        variables: { search: null, limit: 2000 }
+        variables: { search: null, limit: 2000 },
+        ...ACCOUNT_MASTER_QUERY_OPTIONS
     });
 
     const queryVariables = useMemo(

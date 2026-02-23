@@ -78,6 +78,8 @@ export interface LayoutContextProps {
     isSidebarActive: () => boolean;
     breadcrumbs?: Breadcrumb[];
     setBreadcrumbs: React.Dispatch<React.SetStateAction<Breadcrumb[]>>;
+    routeTitle?: string | null;
+    setRouteTitle: React.Dispatch<React.SetStateAction<string | null>>;
     pageTitle?: string | null;
     setPageTitle: React.Dispatch<React.SetStateAction<string | null>>;
 }

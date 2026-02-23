@@ -2,6 +2,7 @@ import React, { forwardRef, useCallback, useMemo, useRef } from 'react';
 import { DataTable, type DataTableProps } from 'primereact/datatable';
 import { classNames } from 'primereact/utils';
 import { Skeleton } from 'primereact/skeleton';
+import { focusNextElement, isEnterWithoutModifiers, shouldSkipEnterAsTabTarget } from '@/lib/enterNavigation';
 
 interface AppDataTableProps<T> extends DataTableProps<T[]> {
   headerLeft?: React.ReactNode;
@@ -66,47 +67,17 @@ export const AppDataTable = forwardRef(function AppDataTable<T>(
     return <div className="app-data-table-skeleton">{rows}</div>;
   }, [columnCount, resolvedSkeletonRows, rest.loadingIcon, shouldShowSkeleton]);
 
-  const focusNextInHeader = useCallback((current: HTMLElement | null) => {
-    if (!current || !headerRef.current || typeof document === 'undefined') return;
-    const focusables = Array.from(
-      headerRef.current.querySelectorAll<HTMLElement>(
-        'input, select, textarea, button, [tabindex]:not([tabindex="-1"])'
-      )
-    ).filter((element) => {
-      if (element.hasAttribute('disabled')) return false;
-      if (element.getAttribute('aria-disabled') === 'true') return false;
-      if (element.tabIndex < 0) return false;
-      const style = window.getComputedStyle(element);
-      if (style.visibility === 'hidden' || style.display === 'none') return false;
-      if (!element.getClientRects().length) return false;
-      return true;
-    });
-
-    const startIndex = focusables.indexOf(current);
-    if (startIndex < 0) return;
-    for (let i = startIndex + 1; i < focusables.length; i += 1) {
-      const candidate = focusables[i];
-      if (candidate) {
-        candidate.focus();
-        break;
-      }
-    }
-  }, []);
-
   const handleHeaderKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {
-      if (event.key !== 'Enter') return;
-      if (event.defaultPrevented) return;
+      if (!isEnterWithoutModifiers(event)) return;
       const target = event.target as HTMLElement | null;
       if (!target) return;
-      const tag = target.tagName.toLowerCase();
-      if (tag === 'textarea') return;
-      if (tag === 'button' || target.getAttribute('role') === 'button') return;
-      if (target.getAttribute('data-enter-submit') === 'true') return;
+      if (shouldSkipEnterAsTabTarget(target)) return;
       event.preventDefault();
-      focusNextInHeader(target);
+      if (!headerRef.current) return;
+      focusNextElement(target, headerRef.current);
     },
-    [focusNextInHeader]
+    []
   );
 
   const decorateHeaderActions = (actions: React.ReactNode): React.ReactNode =>

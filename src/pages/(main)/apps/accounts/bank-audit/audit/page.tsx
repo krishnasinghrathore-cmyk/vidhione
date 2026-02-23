@@ -12,6 +12,7 @@ import AppDateInput from '@/components/AppDateInput';
 import AppDropdown from '@/components/AppDropdown';
 import VoucherTypeAutoComplete from '@/components/VoucherTypeAutoComplete';
 import { LayoutContext } from '@/layout/context/layoutcontext';
+import { ACCOUNT_MASTER_QUERY_OPTIONS } from '@/lib/accounts/masterLookupCache';
 import { useVoucherTypeOptions } from '@/lib/accounts/voucherTypes';
 import { useAuth } from '@/lib/auth/context';
 import { resolveFiscalRange } from '@/lib/fiscalRange';
@@ -145,7 +146,10 @@ export default function AccountsAuditPage() {
         return () => setPageTitle(null);
     }, [setPageTitle]);
 
-    const { data: ledgerData } = useQuery(LEDGER_LOOKUP, { variables: { search: null, limit: 500 } });
+    const { data: ledgerData } = useQuery(LEDGER_LOOKUP, {
+        variables: { search: null, limit: 500 },
+        ...ACCOUNT_MASTER_QUERY_OPTIONS
+    });
     const { options: voucherTypeOptions, loading: voucherTypesLoading } = useVoucherTypeOptions();
 
     const fromDate = dateRange[0] ? toDateText(dateRange[0]) : null;

@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Column } from 'primereact/column';
 import { InputNumber } from 'primereact/inputnumber';
 import { InputText } from 'primereact/inputtext';
@@ -11,11 +11,16 @@ import { gql, useMutation, useQuery } from '@apollo/client';
 import AppDataTable from '@/components/AppDataTable';
 import AppDateInput from '@/components/AppDateInput';
 import AppDropdown from '@/components/AppDropdown';
+import AppInput from '@/components/AppInput';
+import AppReportActions from '@/components/AppReportActions';
+import { useLedgerOptionsByPurpose } from '@/lib/accounts/ledgerOptions';
+import { ACCOUNT_MASTER_QUERY_OPTIONS } from '@/lib/accounts/masterLookupCache';
 import { useAuth } from '@/lib/auth/context';
 import { resolveFiscalRange } from '@/lib/fiscalRange';
-import { validateSingleDate } from '@/lib/reportDateValidation';
+import { formatReportLoadDuration } from '@/lib/reportLoadTime';
+import { validateDateRange, validateSingleDate } from '@/lib/reportDateValidation';
 
-type DrCrFlag = 1 | 2;
+type DrCrFlag = 0 | 1;
 
 interface LineRow {
     key: string;
@@ -35,6 +40,12 @@ interface VoucherListRow {
     isCancelledFlag: number | null;
 }
 
+interface PageIndexLoadRequest {
+    first: number;
+    rows: number;
+    startedAtMs: number;
+}
+
 const VOUCHER_TYPES = gql`
     query VoucherTypes {
         voucherTypes {
@@ -42,6 +53,7 @@ const VOUCHER_TYPES = gql`
             displayName
             voucherTypeName
             voucherTypeCode
+            isVoucherNoAutoFlag
         }
     }
 `;
@@ -58,21 +70,13 @@ const LEDGER_LOOKUP = gql`
     }
 `;
 
-const LEDGER_OPTIONS_BY_PURPOSE = gql`
-    query LedgerOptionsByPurpose($purpose: String!, $limit: Int) {
-        ledgerOptionsByPurpose(purpose: $purpose, limit: $limit) {
-            ledgerId
-            name
-            address
-        }
-    }
-`;
-
 const VOUCHER_ENTRY_LIST = gql`
     query VoucherEntryList(
         $voucherTypeId: Int
         $search: String
         $cancelled: Int
+        $fromDate: String
+        $toDate: String
         $limit: Int
         $offset: Int
     ) {
@@ -80,6 +84,8 @@ const VOUCHER_ENTRY_LIST = gql`
             voucherTypeId: $voucherTypeId
             search: $search
             cancelled: $cancelled
+            fromDate: $fromDate
+            toDate: $toDate
             limit: $limit
             offset: $offset
         ) {
@@ -118,6 +124,7 @@ const CREATE_VOUCHER = gql`
 `;
 
 const makeKey = () => Math.random().toString(36).slice(2);
+const nowMs = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
 
 const formatAmount = (value: number) =>
     new Intl.NumberFormat('en-IN', {
@@ -130,6 +137,20 @@ const toDateText = (date: Date) => {
     const mm = String(date.getMonth() + 1).padStart(2, '0');
     const dd = String(date.getDate()).padStart(2, '0');
     return `${yyyy}${mm}${dd}`;
+};
+
+const resolveBooleanFlag = (value: unknown): boolean => {
+    if (value == null) return false;
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'number') return value !== 0;
+    if (typeof value === 'string') {
+        const normalized = value.trim().toLowerCase();
+        if (!normalized) return false;
+        if (normalized === 'true' || normalized === 'yes' || normalized === 'y') return true;
+        const numeric = Number(normalized);
+        return Number.isFinite(numeric) ? numeric !== 0 : false;
+    }
+    return false;
 };
 
 const formatDate = (value: string | null) => {
@@ -149,6 +170,9 @@ export default function AccountsVoucherEntryPage() {
     const { companyContext } = useAuth();
     const [searchParams] = useSearchParams();
     const toastRef = useRef<Toast>(null);
+    const listFromDateInputRef = useRef<HTMLInputElement>(null);
+    const listToDateInputRef = useRef<HTMLInputElement>(null);
+    const listRefreshButtonId = 'voucher-entry-list-refresh';
     const [voucherTypeId, setVoucherTypeId] = useState<number | null>(null);
     const [voucherDate, setVoucherDate] = useState<Date | null>(new Date());
     const [voucherDateError, setVoucherDateError] = useState<string | null>(null);
@@ -160,22 +184,33 @@ export default function AccountsVoucherEntryPage() {
         () => resolveFiscalRange(companyContext?.fiscalYearStart ?? null, companyContext?.fiscalYearEnd ?? null),
         [companyContext?.fiscalYearStart, companyContext?.fiscalYearEnd]
     );
+    const today = useMemo(() => new Date(), []);
 
     const [listVoucherTypeId, setListVoucherTypeId] = useState<number | null>(null);
     const [listTypeTouched, setListTypeTouched] = useState(false);
     const [listSearch, setListSearch] = useState('');
     const [listCancelled, setListCancelled] = useState<-1 | 0 | 1>(0);
+    const [listDateRange, setListDateRange] = useState<[Date | null, Date | null]>([
+        fiscalRange?.start ?? null,
+        fiscalRange?.end ?? today
+    ]);
+    const [listDateErrors, setListDateErrors] = useState<{ fromDate?: string; toDate?: string }>({});
     const [listRowsPerPage, setListRowsPerPage] = useState(15);
     const [listFirst, setListFirst] = useState(0);
+    const [listPageLoadRequest, setListPageLoadRequest] = useState<PageIndexLoadRequest | null>(null);
+    const [activeListPageLoadMs, setActiveListPageLoadMs] = useState<number | null>(null);
+    const [lastListPageLoadMs, setLastListPageLoadMs] = useState<number | null>(null);
+    const listDateTouchedRef = useRef(false);
 
     const [lines, setLines] = useState<LineRow[]>([
-        { key: makeKey(), ledgerId: null, drCrFlag: 1, amount: null, narrationText: '' },
-        { key: makeKey(), ledgerId: null, drCrFlag: 2, amount: null, narrationText: '' }
+        { key: makeKey(), ledgerId: null, drCrFlag: 0, amount: null, narrationText: '' },
+        { key: makeKey(), ledgerId: null, drCrFlag: 1, amount: null, narrationText: '' }
     ]);
 
     const { data: voucherTypesData, loading: voucherTypesLoading, error: voucherTypesError } = useQuery(VOUCHER_TYPES);
     const { data: ledgerData, loading: ledgerLoading, error: ledgerError } = useQuery(LEDGER_LOOKUP, {
-        variables: { search: null, limit: 2000 }
+        variables: { search: null, limit: 2000 },
+        ...ACCOUNT_MASTER_QUERY_OPTIONS
     });
 
     const [createVoucher] = useMutation(CREATE_VOUCHER);
@@ -193,6 +228,12 @@ export default function AccountsVoucherEntryPage() {
         () => voucherTypeOptions.find((option) => option.value === voucherTypeId) ?? null,
         [voucherTypeId, voucherTypeOptions]
     );
+    const isVoucherNoAuto = useMemo(() => {
+        if (!voucherTypeId) return false;
+        const rows = voucherTypesData?.voucherTypes ?? [];
+        const selectedType = rows.find((row: any) => Number(row.voucherTypeId) === Number(voucherTypeId));
+        return resolveBooleanFlag(selectedType?.isVoucherNoAutoFlag);
+    }, [voucherTypeId, voucherTypesData]);
 
     const { primaryPurpose, secondaryPurpose } = useMemo(() => {
         const code = selectedVoucherType?.code ?? null;
@@ -219,29 +260,38 @@ export default function AccountsVoucherEntryPage() {
         }
     }, [selectedVoucherType]);
 
-    const { data: primaryLedgerData, loading: primaryLedgerLoading } = useQuery(LEDGER_OPTIONS_BY_PURPOSE, {
-        variables: { purpose: primaryPurpose ?? '', limit: 2000 },
+    const { options: primaryPurposeOptions, loading: primaryLedgerLoading } = useLedgerOptionsByPurpose({
+        purpose: primaryPurpose ?? null,
+        limit: 2000,
         skip: !primaryPurpose
     });
 
-    const { data: secondaryLedgerData, loading: secondaryLedgerLoading } = useQuery(LEDGER_OPTIONS_BY_PURPOSE, {
-        variables: { purpose: secondaryPurpose ?? '', limit: 2000 },
+    const { options: secondaryPurposeOptions, loading: secondaryLedgerLoading } = useLedgerOptionsByPurpose({
+        purpose: secondaryPurpose ?? null,
+        limit: 2000,
         skip: !secondaryPurpose
     });
 
+    const listFromDate = listDateRange[0] ? toDateText(listDateRange[0]) : null;
+    const listToDate = listDateRange[1] ? toDateText(listDateRange[1]) : null;
     const listVariables = useMemo(
         () => ({
             voucherTypeId: listVoucherTypeId ?? null,
             search: listSearch.trim() ? listSearch.trim() : null,
             cancelled: listCancelled,
+            fromDate: listFromDate,
+            toDate: listToDate,
             limit: listRowsPerPage,
             offset: listFirst
         }),
-        [listCancelled, listFirst, listRowsPerPage, listSearch, listVoucherTypeId]
+        [listCancelled, listFirst, listFromDate, listRowsPerPage, listSearch, listToDate, listVoucherTypeId]
     );
 
     const { data: listData, loading: listLoading, refetch: refetchList } = useQuery(VOUCHER_ENTRY_LIST, {
-        variables: listVariables
+        variables: listVariables,
+        notifyOnNetworkStatusChange: true,
+        fetchPolicy: 'cache-and-network',
+        nextFetchPolicy: 'cache-first'
     });
 
     useEffect(() => {
@@ -270,6 +320,42 @@ export default function AccountsVoucherEntryPage() {
         }
     }, [listTypeTouched, listVoucherTypeId, voucherTypeId]);
 
+    useEffect(() => {
+        if (listDateTouchedRef.current) return;
+        setListDateRange([fiscalRange?.start ?? null, fiscalRange?.end ?? today]);
+    }, [fiscalRange?.end, fiscalRange?.start, today]);
+
+    const clearListPageLoadMeasurement = useCallback(() => {
+        setListPageLoadRequest(null);
+        setActiveListPageLoadMs(null);
+    }, []);
+
+    const startListPageLoadMeasurement = useCallback((nextFirst: number, nextRows: number) => {
+        const first = Number.isFinite(nextFirst) ? Math.max(0, Math.trunc(nextFirst)) : 0;
+        const rows = Number.isFinite(nextRows) ? Math.max(1, Math.trunc(nextRows)) : 15;
+        setListPageLoadRequest({ first, rows, startedAtMs: nowMs() });
+        setActiveListPageLoadMs(0);
+    }, []);
+
+    useEffect(() => {
+        if (!listPageLoadRequest) return;
+        const update = () => {
+            setActiveListPageLoadMs(nowMs() - listPageLoadRequest.startedAtMs);
+        };
+        update();
+        const intervalId = globalThis.setInterval(update, 200);
+        return () => {
+            globalThis.clearInterval(intervalId);
+        };
+    }, [listPageLoadRequest]);
+
+    useEffect(() => {
+        if (!listPageLoadRequest) return;
+        if (listLoading) return;
+        setLastListPageLoadMs(nowMs() - listPageLoadRequest.startedAtMs);
+        clearListPageLoadMeasurement();
+    }, [clearListPageLoadMeasurement, listLoading, listPageLoadRequest]);
+
     const baseLedgerOptions = useMemo(() => {
         const rows = ledgerData?.ledgerSummaries?.items ?? [];
         return rows.map((l: any) => ({
@@ -279,30 +365,26 @@ export default function AccountsVoucherEntryPage() {
     }, [ledgerData]);
 
     const purposeLedgerOptions = useMemo(() => {
-        const rows = [
-            ...(primaryLedgerData?.ledgerOptionsByPurpose ?? []),
-            ...(secondaryLedgerData?.ledgerOptionsByPurpose ?? [])
-        ] as Array<{ ledgerId: number; name: string | null }>;
         const seen = new Set<number>();
         const options: Array<{ label: string; value: number }> = [];
-        rows.forEach((row) => {
-            const ledgerId = Number(row.ledgerId);
+        [...primaryPurposeOptions, ...secondaryPurposeOptions].forEach((row) => {
+            const ledgerId = Number(row.value);
             if (!Number.isFinite(ledgerId) || ledgerId <= 0 || seen.has(ledgerId)) return;
             seen.add(ledgerId);
-            options.push({ label: row.name ?? `Ledger ${ledgerId}`, value: ledgerId });
+            options.push({ label: row.label ?? `Ledger ${ledgerId}`, value: ledgerId });
         });
         return options;
-    }, [primaryLedgerData, secondaryLedgerData]);
+    }, [primaryPurposeOptions, secondaryPurposeOptions]);
 
     const ledgerOptions = purposeLedgerOptions.length > 0 ? purposeLedgerOptions : baseLedgerOptions;
     const lineLedgerLoading = ledgerLoading || primaryLedgerLoading || secondaryLedgerLoading;
 
     const debitTotal = useMemo(
-        () => lines.reduce((sum, l) => sum + (l.drCrFlag === 1 ? Number(l.amount || 0) : 0), 0),
+        () => lines.reduce((sum, l) => sum + (l.drCrFlag === 0 ? Number(l.amount || 0) : 0), 0),
         [lines]
     );
     const creditTotal = useMemo(
-        () => lines.reduce((sum, l) => sum + (l.drCrFlag === 2 ? Number(l.amount || 0) : 0), 0),
+        () => lines.reduce((sum, l) => sum + (l.drCrFlag === 1 ? Number(l.amount || 0) : 0), 0),
         [lines]
     );
     const diff = useMemo(() => Math.round((debitTotal - creditTotal) * 100) / 100, [creditTotal, debitTotal]);
@@ -313,6 +395,14 @@ export default function AccountsVoucherEntryPage() {
         () => listRows.reduce((sum, row) => sum + Number(row.totalNetAmount || 0), 0),
         [listRows]
     );
+    const listCanRefresh = Boolean(listDateRange[0] && listDateRange[1]);
+    const listPageIndexLoading = listPageLoadRequest != null;
+    const pageLoadSummaryText =
+        listPageIndexLoading && listLoading && activeListPageLoadMs != null
+            ? `Page: ${formatReportLoadDuration(activeListPageLoadMs)} (loading...)`
+            : lastListPageLoadMs != null
+              ? `Page: ${formatReportLoadDuration(lastListPageLoadMs)}`
+              : null;
     const listVoucherTypeOptions = useMemo(
         () => [{ label: 'All types', value: null }].concat(voucherTypeOptions),
         [voucherTypeOptions]
@@ -346,8 +436,8 @@ export default function AccountsVoucherEntryPage() {
         setVoucherNumber('');
         setNarrationText('');
         setLines([
-            { key: makeKey(), ledgerId: null, drCrFlag: 1, amount: null, narrationText: '' },
-            { key: makeKey(), ledgerId: null, drCrFlag: 2, amount: null, narrationText: '' }
+            { key: makeKey(), ledgerId: null, drCrFlag: 0, amount: null, narrationText: '' },
+            { key: makeKey(), ledgerId: null, drCrFlag: 1, amount: null, narrationText: '' }
         ]);
     };
 
@@ -396,6 +486,36 @@ export default function AccountsVoucherEntryPage() {
         } finally {
             setSaving(false);
         }
+    };
+
+    const handleListRefresh = async () => {
+        const validation = validateDateRange(
+            {
+                fromDate: listDateRange[0],
+                toDate: listDateRange[1]
+            },
+            fiscalRange,
+            { enforceFiscalRange: true }
+        );
+        if (!validation.ok) {
+            setListDateErrors(validation.errors);
+            toastRef.current?.show({
+                severity: 'warn',
+                summary: 'Validation',
+                detail: validation.errors.fromDate || validation.errors.toDate || 'Please select a valid date range'
+            });
+            return;
+        }
+
+        setListDateErrors({});
+        clearListPageLoadMeasurement();
+        setListFirst(0);
+        await refetchList({
+            ...listVariables,
+            offset: 0,
+            fromDate: listFromDate,
+            toDate: listToDate
+        });
     };
 
     return (
@@ -458,7 +578,12 @@ export default function AccountsVoucherEntryPage() {
                 </div>
                 <div className="col-12 md:col-2">
                     <label className="block text-600 mb-1">Voucher No</label>
-                    <InputText value={voucherNumber} onChange={(e) => setVoucherNumber(e.target.value)} />
+                    <AppInput
+                        value={voucherNumber}
+                        onChange={(e) => setVoucherNumber(e.target.value)}
+                        className={!isVoucherNoAuto ? 'app-field-noneditable' : undefined}
+                        readOnly={!isVoucherNoAuto}
+                    />
                 </div>
                 <div className="col-12 md:col-3">
                     <label className="block text-600 mb-1">Totals</label>
@@ -548,8 +673,8 @@ export default function AccountsVoucherEntryPage() {
                         <AppDropdown
                             value={row.drCrFlag}
                             options={[
-                                { label: 'Dr', value: 1 },
-                                { label: 'Cr', value: 2 }
+                                { label: 'Dr', value: 0 },
+                                { label: 'Cr', value: 1 }
                             ]}
                             onChange={(e) => updateLine(row.key, { drCrFlag: e.value })}
                             style={{ width: '6.5rem' }}
@@ -618,9 +743,9 @@ export default function AccountsVoucherEntryPage() {
                     lazy
                     first={listFirst}
                     onPage={(e) => {
+                        startListPageLoadMeasurement(e.first, e.rows);
                         setListRowsPerPage(e.rows);
                         setListFirst(e.first);
-                        refetchList({ ...listVariables, limit: e.rows, offset: e.first });
                     }}
                     dataKey="voucherId"
                     stripedRows
@@ -655,9 +780,41 @@ export default function AccountsVoucherEntryPage() {
                                 placeholder="Status"
                                 style={{ minWidth: '160px' }}
                             />
+                            <div className="flex align-items-center gap-2">
+                                <AppDateInput
+                                    value={listDateRange[0]}
+                                    onChange={(value) => {
+                                        listDateTouchedRef.current = true;
+                                        setListFirst(0);
+                                        setListDateRange((prev) => [value, prev[1]]);
+                                        setListDateErrors((prev) => ({ ...prev, fromDate: undefined }));
+                                    }}
+                                    placeholder="Entry from"
+                                    fiscalYearStart={fiscalRange?.start ?? null}
+                                    fiscalYearEnd={fiscalRange?.end ?? null}
+                                    inputRef={listFromDateInputRef}
+                                    onEnterNext={() => listToDateInputRef.current?.focus()}
+                                    style={{ width: '130px' }}
+                                />
+                                <AppDateInput
+                                    value={listDateRange[1]}
+                                    onChange={(value) => {
+                                        listDateTouchedRef.current = true;
+                                        setListFirst(0);
+                                        setListDateRange((prev) => [prev[0], value]);
+                                        setListDateErrors((prev) => ({ ...prev, toDate: undefined }));
+                                    }}
+                                    placeholder="Entry to"
+                                    fiscalYearStart={fiscalRange?.start ?? null}
+                                    fiscalYearEnd={fiscalRange?.end ?? null}
+                                    inputRef={listToDateInputRef}
+                                    onEnterNext={() => document.getElementById(listRefreshButtonId)?.focus()}
+                                    style={{ width: '130px' }}
+                                />
+                            </div>
                             <span className="p-input-icon-left" style={{ minWidth: '240px' }}>
                                 <i className="pi pi-search" />
-                                <InputText
+                                <AppInput
                                     value={listSearch}
                                     onChange={(e) => {
                                         setListFirst(0);
@@ -667,20 +824,37 @@ export default function AccountsVoucherEntryPage() {
                                     style={{ width: '100%' }}
                                 />
                             </span>
+                            {(listDateErrors.fromDate || listDateErrors.toDate) && (
+                                <small className="text-red-500">{listDateErrors.fromDate || listDateErrors.toDate}</small>
+                            )}
                         </>
                     }
                     headerRight={
                         <>
                             <Tag value={`Total ${formatAmount(listTotalAmount)}`} severity="info" />
-                            <Button
-                                label="Refresh"
-                                icon="pi pi-refresh"
-                                className="p-button-text"
-                                onClick={() => refetchList(listVariables)}
+                            <AppReportActions
+                                onRefresh={() => {
+                                    void handleListRefresh();
+                                }}
+                                loadingState={listLoading}
+                                refreshDisabled={!listCanRefresh}
+                                showStatement={false}
+                                showPrint={false}
+                                showExport={false}
+                                refreshButtonId={listRefreshButtonId}
                             />
+                            {pageLoadSummaryText ? (
+                                <span className="text-600 text-sm" aria-live="polite">
+                                    {pageLoadSummaryText}
+                                </span>
+                            ) : null}
                         </>
                     }
-                    recordSummary={`${listRows.length} voucher${listRows.length === 1 ? '' : 's'}`}
+                    recordSummary={
+                        listLoading
+                            ? 'Loading vouchers...'
+                            : `${listTotalCount} voucher${listTotalCount === 1 ? '' : 's'}`
+                    }
                 >
                     <Column
                         field="voucherDate"

@@ -3,10 +3,11 @@ import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } 
 import { useLazyQuery, useQuery } from '@apollo/client';
 import type { DataTableFilterEvent, DataTableFilterMeta } from 'primereact/datatable';
 import type { Dropdown } from 'primereact/dropdown';
-import { AutoCompleteChangeEvent, AutoCompleteCompleteEvent } from 'primereact/autocomplete';
+import type { AutoComplete } from 'primereact/autocomplete';
 import { ReportPrintHeader } from '@/components/ReportPrintHeader';
 import { ReportPrintFooter } from '@/components/ReportPrintFooter';
 import { buildSkeletonRows, isSkeletonRow, skeletonCell } from '@/components/reportSkeleton';
+import type { VoucherTypeOption } from '@/lib/accounts/voucherTypes';
 import { useAuth } from '@/lib/auth/context';
 import { formatReportTimestamp } from '@/lib/reportPrint';
 import { useReportCompanyInfo } from '@/lib/reportCompany';
@@ -20,7 +21,6 @@ import { TrialBalanceReportTable } from './components/TrialBalanceReportTable';
 import type {
     AppliedFilters,
     EntryType,
-    SelectOption,
     TrialBalanceDisplayRow,
     TrialBalanceGroup,
     TrialBalanceReportProps,
@@ -39,7 +39,6 @@ import {
     buildMultiSelectFilterElement,
     buildNumberFilterOptions,
     buildTextFilterOptions,
-    filterOptions,
     formatAmount,
     formatDateRangeLabel,
     resolveDrCrFromSigned,
@@ -78,20 +77,16 @@ export function TrialBalanceReportContainer({ initialView = 'detailed' }: TrialB
         return () => setPageTitle(null);
     }, [setPageTitle, viewMode]);
 
-    const [voucherTypeQuery, setVoucherTypeQuery] = useState('');
-    const [voucherTypeSuggestions, setVoucherTypeSuggestions] = useState<SelectOption[]>([]);
-    const [selectedVoucherType, setSelectedVoucherType] = useState<SelectOption | null>(null);
-
     const hasTouchedDatesRef = useRef(false);
     const fromDateInputRef = useRef<HTMLInputElement>(null);
     const toDateInputRef = useRef<HTMLInputElement>(null);
-    const voucherTypeInputRef = useRef<HTMLInputElement>(null);
+    const voucherTypeInputRef = useRef<AutoComplete>(null);
     const balanceStatusRef = useRef<Dropdown>(null);
     const entryTypeRef = useRef<Dropdown>(null);
     const taxTypeRef = useRef<Dropdown>(null);
     const rcmRef = useRef<Dropdown>(null);
 
-    const { data: voucherTypesData } = useQuery(VOUCHER_TYPES);
+    const { data: voucherTypesData, loading: voucherTypesLoading } = useQuery(VOUCHER_TYPES);
 
     const [loadTrialBalance, { data: reportData, loading: reportLoading, error: reportError }] = useLazyQuery(
         TRIAL_BALANCE,
@@ -109,6 +104,10 @@ export function TrialBalanceReportContainer({ initialView = 'detailed' }: TrialB
     const focusInput = (ref: React.RefObject<HTMLInputElement>) => {
         const element = ref.current;
         if (element) element.focus();
+    };
+
+    const focusAutoComplete = (ref: React.RefObject<AutoComplete>) => {
+        ref.current?.getInput?.()?.focus();
     };
 
     const focusDropdown = (ref: React.RefObject<Dropdown>) => {
@@ -138,11 +137,13 @@ export function TrialBalanceReportContainer({ initialView = 'detailed' }: TrialB
         focusElementById(id);
     };
 
-    const voucherTypeOptions = useMemo<SelectOption[]>(() => {
+    const voucherTypeOptions = useMemo<VoucherTypeOption[]>(() => {
         const rows = (voucherTypesData?.voucherTypeMasters ?? []) as VoucherTypeRow[];
         return rows.map((row) => ({
             label: row.displayName || row.voucherTypeName || `Voucher ${row.voucherTypeId}`,
-            value: Number(row.voucherTypeId)
+            value: Number(row.voucherTypeId),
+            voucherTypeName: row.voucherTypeName,
+            displayName: row.displayName
         }));
     }, [voucherTypesData]);
 
@@ -167,37 +168,6 @@ export function TrialBalanceReportContainer({ initialView = 'detailed' }: TrialB
     const handleVoucherTypeChange = (value: number | null) => {
         setVoucherTypeId(value);
         clearAppliedFilters();
-    };
-
-    const handleVoucherTypeComplete = (event: AutoCompleteCompleteEvent) => {
-        const query = event.query ?? '';
-        setVoucherTypeQuery(query);
-        setVoucherTypeSuggestions(filterOptions(voucherTypeOptions, query));
-    };
-
-    const handleVoucherTypeDropdownClick = () => {
-        setVoucherTypeSuggestions([...voucherTypeOptions]);
-    };
-
-    const handleVoucherTypeInputChange = (event: AutoCompleteChangeEvent) => {
-        const value = event.value as SelectOption | string | null;
-        if (value == null) {
-            setVoucherTypeQuery('');
-            setSelectedVoucherType(null);
-            handleVoucherTypeChange(null);
-            return;
-        }
-        if (typeof value === 'string') {
-            setVoucherTypeQuery(value);
-            if (!value.trim()) {
-                setSelectedVoucherType(null);
-                handleVoucherTypeChange(null);
-            }
-            return;
-        }
-        setVoucherTypeQuery('');
-        setSelectedVoucherType(value);
-        handleVoucherTypeChange(value.value ?? null);
     };
 
     const handleBalanceStatusChange = (value: number) => {
@@ -805,7 +775,7 @@ export function TrialBalanceReportContainer({ initialView = 'detailed' }: TrialB
         [triggerPrint]
     );
 
-    const onVoucherTypeKeyDown = handleEnterFocusDropdown(balanceStatusRef);
+    const onVoucherTypeSelectNext = () => focusDropdown(balanceStatusRef);
     const onBalanceStatusKeyDown = handleEnterFocusDropdown(entryTypeRef);
     const onEntryTypeKeyDown = handleEnterFocusDropdown(taxTypeRef);
     const onTaxTypeKeyDown = handleEnterFocusDropdown(rcmRef);
@@ -823,14 +793,13 @@ export function TrialBalanceReportContainer({ initialView = 'detailed' }: TrialB
             toDateInputRef={toDateInputRef}
             voucherTypeInputRef={voucherTypeInputRef}
             onFromDateEnterNext={() => focusInput(toDateInputRef)}
-            onToDateEnterNext={() => focusInput(voucherTypeInputRef)}
+            onToDateEnterNext={() => focusAutoComplete(voucherTypeInputRef)}
             dateErrors={dateErrors}
-            voucherTypeValue={voucherTypeQuery.length ? voucherTypeQuery : selectedVoucherType}
-            voucherTypeSuggestions={voucherTypeSuggestions}
-            onVoucherTypeComplete={handleVoucherTypeComplete}
-            onVoucherTypeDropdownClick={handleVoucherTypeDropdownClick}
-            onVoucherTypeChange={handleVoucherTypeInputChange}
-            onVoucherTypeKeyDown={onVoucherTypeKeyDown}
+            voucherTypeId={voucherTypeId}
+            voucherTypeOptions={voucherTypeOptions}
+            voucherTypesLoading={voucherTypesLoading}
+            onVoucherTypeChange={handleVoucherTypeChange}
+            onVoucherTypeSelectNext={onVoucherTypeSelectNext}
             balanceStatus={balanceStatus}
             onBalanceStatusChange={handleBalanceStatusChange}
             onBalanceStatusKeyDown={onBalanceStatusKeyDown}

@@ -1,5 +1,6 @@
 import { gql, useQuery } from '@apollo/client';
 import { apolloClient } from '@/lib/apolloClient';
+import { ACCOUNT_MASTER_QUERY_OPTIONS } from '@/lib/accounts/masterLookupCache';
 
 type LedgerOptionRow = {
     ledgerId: number;
@@ -23,6 +24,12 @@ export type LedgerOptionsByPurposeArgs = {
     limit?: number | null;
     includeNone?: boolean | null;
     skip?: boolean;
+};
+
+type LedgerSummaryFallbackRow = {
+    ledgerId: number;
+    name: string | null;
+    address: string | null;
 };
 
 const LEDGER_OPTIONS_BY_PURPOSE = gql`
@@ -53,9 +60,31 @@ const LEDGER_OPTIONS_BY_PURPOSE = gql`
     }
 `;
 
+const LEDGER_SUMMARY_NAME_FALLBACK = gql`
+    query LedgerSummaryNameFallback($search: String, $ledgerGroupId: Int, $limit: Int) {
+        ledgerSummaries(
+            search: $search
+            ledgerGroupId: $ledgerGroupId
+            limit: $limit
+            offset: 0
+            sortField: "name"
+            sortOrder: 1
+        ) {
+            items {
+                ledgerId
+                name
+                address
+            }
+        }
+    }
+`;
+
 export const useLedgerOptionsByPurpose = (args: LedgerOptionsByPurposeArgs) => {
     const purpose = args.purpose?.trim() ?? '';
     const skip = args.skip || !purpose;
+    const limit = args.limit ?? 2000;
+    const search = args.search ?? null;
+    const ledgerGroupId = args.ledgerGroupId ?? null;
 
     const { data, loading, error, refetch } = useQuery<{ ledgerOptionsByPurpose: LedgerOptionRow[] }>(
         LEDGER_OPTIONS_BY_PURPOSE,
@@ -63,23 +92,57 @@ export const useLedgerOptionsByPurpose = (args: LedgerOptionsByPurposeArgs) => {
             client: apolloClient,
             variables: {
                 purpose,
-                ledgerGroupId: args.ledgerGroupId ?? null,
+                ledgerGroupId,
                 areaId: args.areaId ?? null,
                 areaIds: args.areaIds ?? null,
                 excludeLedgerId: args.excludeLedgerId ?? null,
-                search: args.search ?? null,
-                limit: args.limit ?? 2000,
+                search,
+                limit,
                 includeNone: args.includeNone ?? null
             },
-            skip
+            skip,
+            ...ACCOUNT_MASTER_QUERY_OPTIONS
         }
     );
 
-    const options: LedgerOption[] = (data?.ledgerOptionsByPurpose ?? []).map((row) => ({
-        value: Number(row.ledgerId),
-        label: row.name ?? `Ledger ${row.ledgerId}`,
-        address: row.address ?? null
-    }));
+    const purposeRows = data?.ledgerOptionsByPurpose ?? [];
+    const hasUnnamedRows = purposeRows.some((row) => {
+        const label = row.name?.trim() ?? '';
+        return !label;
+    });
+    const shouldLoadNameFallback = !skip && hasUnnamedRows;
 
-    return { options, loading, error, refetch };
+    const { data: fallbackData, loading: fallbackLoading } = useQuery<{
+        ledgerSummaries: { items: LedgerSummaryFallbackRow[] };
+    }>(LEDGER_SUMMARY_NAME_FALLBACK, {
+        client: apolloClient,
+        variables: {
+            search,
+            ledgerGroupId,
+            limit
+        },
+        skip: !shouldLoadNameFallback,
+        ...ACCOUNT_MASTER_QUERY_OPTIONS
+    });
+
+    const fallbackNameById = new Map<number, LedgerSummaryFallbackRow>();
+    (fallbackData?.ledgerSummaries?.items ?? []).forEach((row) => {
+        const ledgerId = Number(row.ledgerId);
+        if (!Number.isFinite(ledgerId)) return;
+        fallbackNameById.set(ledgerId, row);
+    });
+
+    const options: LedgerOption[] = purposeRows.map((row) => {
+        const ledgerId = Number(row.ledgerId);
+        const fallback = fallbackNameById.get(ledgerId);
+        const label = row.name?.trim() || fallback?.name?.trim() || `Ledger ${row.ledgerId}`;
+        const address = row.address ?? fallback?.address ?? null;
+        return {
+            value: ledgerId,
+            label,
+            address
+        };
+    });
+
+    return { options, loading: loading || fallbackLoading, error, refetch };
 };

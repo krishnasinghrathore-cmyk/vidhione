@@ -3,8 +3,17 @@ export type FiscalRange = {
     end?: Date | null;
 };
 
-const parseDateText = (value: string | null) => {
+type FiscalRangeInput = string | Date | null | undefined;
+
+const normalizeDate = (value: Date) => {
+    if (Number.isNaN(value.getTime())) return null;
+    return new Date(value.getFullYear(), value.getMonth(), value.getDate());
+};
+
+const parseDateText = (value: FiscalRangeInput) => {
     if (!value) return null;
+    if (value instanceof Date) return normalizeDate(value);
+    if (typeof value !== 'string') return null;
     const trimmed = value.trim();
     if (!trimmed) return null;
 
@@ -33,8 +42,8 @@ const parseDateText = (value: string | null) => {
     return null;
 };
 
-const parseFiscalYearRange = (value: string | null) => {
-    if (!value) return null;
+const parseFiscalYearRange = (value: FiscalRangeInput) => {
+    if (!value || typeof value !== 'string') return null;
     const trimmed = value.trim();
     if (!trimmed) return null;
     const match = trimmed.match(/(\d{4})\D+(\d{2,4})/);
@@ -54,9 +63,9 @@ export const buildDefaultFiscalRange = (baseDate = new Date()): FiscalRange => {
     };
 };
 
-export const resolveFiscalRange = (startText: string | null, endText: string | null): FiscalRange => {
-    let start = parseDateText(startText);
-    let end = parseDateText(endText);
+export const resolveFiscalRange = (startInput: FiscalRangeInput, endInput: FiscalRangeInput): FiscalRange => {
+    let start = parseDateText(startInput);
+    let end = parseDateText(endInput);
 
     if (start || end) {
         if (start && !end) {
@@ -67,7 +76,7 @@ export const resolveFiscalRange = (startText: string | null, endText: string | n
         return { start: start ?? null, end: end ?? null };
     }
 
-    const range = parseFiscalYearRange(startText ?? endText);
+    const range = parseFiscalYearRange(startInput ?? endInput);
     if (range) {
         return {
             start: new Date(range.startYear, 3, 1),

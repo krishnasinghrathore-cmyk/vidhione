@@ -16,11 +16,13 @@ import { useLedgerGroupOptions } from '@/lib/accounts/ledgerGroups';
 import { isBankAccountsLabel } from '@/lib/accounts/ledgerGroupFilter';
 import { VoucherTypeIds } from '@/lib/accounts/voucherTypeIds';
 import { useAuth } from '@/lib/auth/context';
+import { deriveVoucherUiState, getVoucherActionsConfig } from '@/lib/accounts/voucherActionsState';
 import { LayoutContext } from '@/layout/context/layoutcontext';
 import { resolveFiscalRange } from '@/lib/fiscalRange';
 import { validateDateRange } from '@/lib/reportDateValidation';
 
 import type {
+    ChequeBookOption,
     ChequeIssueBookRow,
     ColumnFilterMeta,
     DebitLineDraft,
@@ -30,6 +32,7 @@ import type {
     PaymentMode,
     PaymentVoucherRouteView,
     PaymentViaOption,
+    RecentlySavedVoucher,
     SelectOption,
     VoucherRow
 } from './types';
@@ -39,6 +42,7 @@ import {
     DELETE_VOUCHER,
     LEDGER_CURRENT_BALANCE,
     MANAGERS,
+    NEXT_CHEQUE_NUMBER_FOR_BOOK,
     NEXT_VOUCHER_NUMBER,
     PAYMENT_VIA_MASTERS,
     UPDATE_VOUCHER,
@@ -65,12 +69,25 @@ import {
     parseDateText,
     parseInputNumber,
     persistPaymentMode,
+    getStoredRecentSavedVouchers,
+    persistRecentSavedVouchers,
+    PAYMENT_VOUCHER_RECENT_SAVED_STORAGE_LIMIT,
+    PAYMENT_VOUCHER_RECENT_SAVED_LIMIT,
     resolveAddress,
     resolveFilterValue,
     resolveReportRange,
     toDateKey,
     toDateText
 } from './utils';
+import {
+    getStoredAddAnotherAfterSavePreference,
+    persistAddAnotherAfterSavePreference
+} from './preferences';
+import {
+    buildPaymentVoucherSaveSuccessMessage,
+    resolvePaymentVoucherPostSaveAction,
+    type PaymentVoucherSaveIntent
+} from './saveBehavior';
 
 const createLineEditorDraft = (overrides: Partial<DebitLineEditorDraft> = {}): DebitLineEditorDraft => ({
     mode: 'add',
@@ -90,6 +107,40 @@ const decodeRouteToken = (value: string) => {
         return value;
     }
 };
+
+const toPositiveId = (value: unknown): number | null => {
+    if (value == null) return null;
+    const numeric = Number(value);
+    return Number.isFinite(numeric) && numeric > 0 ? numeric : null;
+};
+
+const toNumericId = (value: unknown): number | null => {
+    if (value == null) return null;
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? numeric : null;
+};
+
+const resolveBooleanFlag = (value: unknown): boolean => {
+    if (value == null) return false;
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'number') return value !== 0;
+    if (typeof value === 'string') {
+        const normalized = value.trim().toLowerCase();
+        if (!normalized) return false;
+        if (normalized === 'true' || normalized === 'yes' || normalized === 'y') return true;
+        const numeric = Number(normalized);
+        return Number.isFinite(numeric) ? numeric !== 0 : false;
+    }
+    return false;
+};
+
+const hasSameNumericId = (left: unknown, right: unknown): boolean => {
+    const leftId = toNumericId(left);
+    const rightId = toNumericId(right);
+    return leftId != null && rightId != null && leftId === rightId;
+};
+
+const MANUAL_RECEIPT_VOUCHER_TYPE_IDS = new Set<number>([VoucherTypeIds.Receipt, 29]);
 
 type PaymentVoucherFormSnapshot = {
     editingId: number | null;
@@ -159,15 +210,21 @@ export const usePaymentVoucherState = (
     const [printFormat, setPrintFormat] = useState<'format-1' | 'format-2'>('format-1');
     const fromDateInputRef = useRef<HTMLInputElement | null>(null);
     const toDateInputRef = useRef<HTMLInputElement | null>(null);
+    const refNoInputRef = useRef<HTMLInputElement | null>(null);
     const cashLedgerInputRef = useRef<AutoComplete | null>(null);
     const cashLedgerAmountInputRef = useRef<HTMLInputElement | null>(null);
+    const chequeInFavourInputRef = useRef<HTMLInputElement | null>(null);
     const paidByInputRef = useRef<AutoComplete | null>(null);
     const voucherDateInputRef = useRef<HTMLInputElement | null>(null);
     const lineEditorLedgerGroupRef = useRef<AutoComplete | null>(null);
     const lineEditorLedgerRef = useRef<AutoComplete | null>(null);
     const lineEditorAmountRef = useRef<HTMLInputElement | null>(null);
+    const voucherDateFocusTimeoutsRef = useRef<number[]>([]);
+    const hydratedEditVoucherDataKeyRef = useRef<string | null>(null);
     const refreshButtonId = 'cash-expenditure-refresh';
+    const addButtonId = 'payment-voucher-add';
     const saveButtonId = 'payment-voucher-save';
+    const refNoInputId = 'payment-voucher-ref-no';
     const printMenuRef = useRef<Menu>(null);
     const missingConfigRef = useRef(false);
 
@@ -199,6 +256,14 @@ export const usePaymentVoucherState = (
     const [formManagerSuggestions, setFormManagerSuggestions] = useState<SelectOption[]>([]);
     const [cancelledChecked, setCancelledChecked] = useState(false);
     const [saving, setSaving] = useState(false);
+    const [lastSavedVoucher, setLastSavedVoucher] = useState<RecentlySavedVoucher | null>(null);
+    const [recentlySavedVouchers, setRecentlySavedVouchers] = useState<RecentlySavedVoucher[]>(
+        () => getStoredRecentSavedVouchers().slice(0, PAYMENT_VOUCHER_RECENT_SAVED_STORAGE_LIMIT)
+    );
+    const [addAnotherAfterSave, setAddAnotherAfterSave] = useState<boolean>(() => getStoredAddAnotherAfterSavePreference());
+    const saveInFlightRef = useRef(false);
+    const lastAutoChequeNoRef = useRef<string>('');
+    const postSaveRebaselineRef = useRef(false);
     const paymentModeInitRef = useRef(false);
     const previousPaymentModeRef = useRef<PaymentMode>(paymentMode);
     const routeSyncKeyRef = useRef<string | null>(null);
@@ -210,6 +275,7 @@ export const usePaymentVoucherState = (
     const [globalSearchWholeWord, setGlobalSearchWholeWord] = useState(false);
     const [initialFormSnapshotJson, setInitialFormSnapshotJson] = useState<string | null>(null);
     const [formSnapshotCaptureToken, setFormSnapshotCaptureToken] = useState(0);
+    const capturedSnapshotTokenRef = useRef(0);
     const pageHeading = paymentMode === 'bank' ? 'Payment Vouchers – Bank' : 'Payment Vouchers – Cash';
 
     useEffect(() => {
@@ -220,6 +286,23 @@ export const usePaymentVoucherState = (
     useEffect(() => {
         persistPaymentMode(paymentMode);
     }, [paymentMode]);
+
+    useEffect(() => {
+        persistRecentSavedVouchers(recentlySavedVouchers);
+    }, [recentlySavedVouchers]);
+
+    useEffect(() => {
+        persistAddAnotherAfterSavePreference(addAnotherAfterSave);
+    }, [addAnotherAfterSave]);
+
+    const recordRecentlySavedVoucher = useCallback((entry: RecentlySavedVoucher) => {
+        setRecentlySavedVouchers((prev) => {
+            const deduped = prev.filter(
+                (item) => !(item.mode === entry.mode && Number(item.voucherId) === Number(entry.voucherId))
+            );
+            return [entry, ...deduped].slice(0, PAYMENT_VOUCHER_RECENT_SAVED_STORAGE_LIMIT);
+        });
+    }, []);
 
     const clearFormError = useCallback((key: string) => {
         setFormErrors((prev) => {
@@ -245,10 +328,10 @@ export const usePaymentVoucherState = (
             voucherNo,
             voucherDateText: toSnapshotDateText(voucherDate),
             postingDateText: toSnapshotDateText(postingDate),
-            paymentViaId: paymentViaId != null ? Number(paymentViaId) : null,
+            paymentViaId: toPositiveId(paymentViaId),
             refNo,
             refDateText: toSnapshotDateText(refDate),
-            chequeIssueBookId: chequeIssueBookId != null ? Number(chequeIssueBookId) : null,
+            chequeIssueBookId: toPositiveId(chequeIssueBookId),
             cashLedgerId: cashLedgerId != null ? Number(cashLedgerId) : null,
             paymentLedgerGroupId: paymentLedgerGroupId != null ? Number(paymentLedgerGroupId) : null,
             cashLedgerAmount: normalizeSnapshotAmount(effectiveHeaderAmount),
@@ -302,6 +385,10 @@ export const usePaymentVoucherState = (
         voucherNo
     ]);
 
+    const markCurrentFormSnapshotAsClean = useCallback(() => {
+        setInitialFormSnapshotJson(JSON.stringify(buildCurrentFormSnapshot()));
+    }, [buildCurrentFormSnapshot]);
+
     const scheduleFormSnapshotCapture = useCallback(() => {
         setFormSnapshotCaptureToken((value) => value + 1);
     }, []);
@@ -311,6 +398,7 @@ export const usePaymentVoucherState = (
         if (!initialFormSnapshotJson) return false;
         return JSON.stringify(buildCurrentFormSnapshot()) !== initialFormSnapshotJson;
     }, [buildCurrentFormSnapshot, initialFormSnapshotJson, isFormActive]);
+    const canRebaselineAutoDefaults = isFormActive && editingId == null && !isFormDirty;
 
     const { data: voucherTypesData } = useQuery(VOUCHER_TYPES);
     const { data: managersData, loading: managersLoading } = useQuery(MANAGERS, { variables: { search: null, limit: 2000 } });
@@ -350,6 +438,9 @@ export const usePaymentVoucherState = (
     useEffect(() => {
         if (!isFormActive) return;
         if (formSnapshotCaptureToken <= 0) return;
+        if (capturedSnapshotTokenRef.current === formSnapshotCaptureToken) return;
+        // Capture exactly once per scheduled token so user edits stay dirty afterwards.
+        capturedSnapshotTokenRef.current = formSnapshotCaptureToken;
         setInitialFormSnapshotJson(JSON.stringify(buildCurrentFormSnapshot()));
     }, [buildCurrentFormSnapshot, formSnapshotCaptureToken, isFormActive]);
 
@@ -381,6 +472,19 @@ export const usePaymentVoucherState = (
     const isCashMode = paymentMode === 'cash';
     const isBankMode = paymentMode === 'bank';
     const isChequePayment = isBankMode && (selectedPaymentVia?.code ?? '').toUpperCase() === 'CHEQUE';
+    const voucherType = useMemo(() => {
+        const rows = voucherTypesData?.voucherTypes ?? [];
+        return rows.find((v: any) => Number(v.voucherTypeId) === VoucherTypeIds.Payment) ?? null;
+    }, [voucherTypesData]);
+    const voucherTypeId = useMemo(
+        () => (voucherType ? Number(voucherType.voucherTypeId) : null),
+        [voucherType]
+    );
+    const isVoucherNoAuto = useMemo(
+        () => resolveBooleanFlag(voucherType?.isVoucherNoAutoFlag),
+        [voucherType]
+    );
+    const isManualReceiptVoucher = voucherTypeId != null && MANUAL_RECEIPT_VOUCHER_TYPE_IDS.has(Number(voucherTypeId));
     const paymentLedgerLabel = isCashMode ? 'Cash Ledger (Cr)' : 'Bank Ledger (Cr)';
     const paymentLedgerPurpose = isCashMode ? 'CONTRA-CASH' : 'CONTRA-BANK';
     const paymentLedgerPlaceholder = isCashMode ? 'Cash ledger' : 'Bank ledger';
@@ -415,8 +519,8 @@ export const usePaymentVoucherState = (
     }, [bankLedgerGroupOption, cashLedgerGroupOption, isBankMode, isCashMode]);
     const paymentLedgerGroupDisabled =
         !isFormActive || ledgerGroupOptionsLoading || Boolean(resolvedPaymentLedgerGroupId);
-    const refNoLabel = isChequePayment ? 'Cheque No.' : 'Reference No.';
-    const refDateLabel = isChequePayment ? 'Cheque Date' : 'Reference Date';
+    const refNoLabel = isManualReceiptVoucher ? 'Manual Receipt No.' : isChequePayment ? 'Cheque No.' : 'Reference No.';
+    const refDateLabel = isManualReceiptVoucher ? 'Manual Receipt Date' : isChequePayment ? 'Cheque Date' : 'Reference Date';
     const defaultLedgerGroupTypeCodes = useMemo(
         () => (isBankMode ? BANK_LEDGER_GROUP_TYPES : CASH_LEDGER_GROUP_TYPES),
         [isBankMode]
@@ -455,7 +559,7 @@ export const usePaymentVoucherState = (
     );
     const { options: paymentAgainstOptions } = useLedgerOptionsByPurpose({
         purpose: 'PAYMENT-AGAINST',
-        limit: 2000
+        limit: 5000
     });
     const paymentAgainstOptionMap = useMemo(() => {
         const map = new Map<number, LedgerOption>();
@@ -472,12 +576,6 @@ export const usePaymentVoucherState = (
         });
         return map;
     }, [paymentAgainstOptions]);
-
-    const voucherTypeId = useMemo(() => {
-        const rows = voucherTypesData?.voucherTypes ?? [];
-        const match = rows.find((v: any) => Number(v.voucherTypeId) === VoucherTypeIds.Payment);
-        return match ? Number(match.voucherTypeId) : null;
-    }, [voucherTypesData]);
 
     const companyFiscalYearId = companyContext?.companyFiscalYearId ?? null;
     const fiscalYearStart = companyContext?.fiscalYearStart ?? null;
@@ -523,6 +621,17 @@ export const usePaymentVoucherState = (
         [companyContext?.fiscalYearStart, companyContext?.fiscalYearEnd]
     );
     const voucherFormSchema = useMemo(() => buildVoucherFormSchema(fiscalRange, refDateLabel), [fiscalRange, refDateLabel]);
+    const shouldFetchNextChequeNo =
+        isFormActive &&
+        editingId == null &&
+        isChequePayment &&
+        chequeIssueBookId != null &&
+        Number(chequeIssueBookId) > 0;
+    const { data: nextChequeNoData } = useQuery(NEXT_CHEQUE_NUMBER_FOR_BOOK, {
+        variables: { chequeIssueBookId: chequeIssueBookId ?? 0 },
+        skip: !shouldFetchNextChequeNo,
+        fetchPolicy: 'network-only'
+    });
     const hasTouchedDatesRef = useRef(false);
     const canRefresh = Boolean(fromDate && toDate);
 
@@ -582,7 +691,11 @@ export const usePaymentVoucherState = (
 
     const { data, loading, error, refetch } = useQuery(VOUCHER_REGISTER_BY_LEDGER, {
         variables: appliedVariables ?? registerVariables,
-        skip: !appliedVariables
+        skip: !appliedVariables,
+        fetchPolicy: 'cache-and-network',
+        nextFetchPolicy: 'cache-first',
+        notifyOnNetworkStatusChange: true,
+        returnPartialData: true
     });
 
     const appliedBaseVariables = useMemo(() => {
@@ -607,7 +720,10 @@ export const usePaymentVoucherState = (
 
     const { data: editData, refetch: refetchEdit } = useQuery(VOUCHER_ENTRY_BY_ID, {
         skip: !editingId,
-        variables: { voucherId: editingId ?? 0 }
+        variables: { voucherId: editingId ?? 0 },
+        fetchPolicy: 'network-only',
+        nextFetchPolicy: 'cache-first',
+        notifyOnNetworkStatusChange: true
     });
     const cashLedgerBalanceDate = postingDate ?? voucherDate ?? dateRange[1] ?? null;
     const cashLedgerBalanceToDateText = useMemo(() => toDateText(cashLedgerBalanceDate), [cashLedgerBalanceDate]);
@@ -654,10 +770,16 @@ export const usePaymentVoucherState = (
         return rows.map((m) => ({ label: m.name ?? `Manager ${m.managerId}`, value: Number(m.managerId) }));
     }, [managersData]);
 
-    const chequeBookOptions = useMemo(() => {
+    const selectedChequeBookId = useMemo(() => toPositiveId(chequeIssueBookId), [chequeIssueBookId]);
+    const chequeBookOptions = useMemo<ChequeBookOption[]>(() => {
         const rows = (chequeBooksData?.chequeIssueBooks ?? []) as ChequeIssueBookRow[];
-        return rows
-            .filter((row) => !row.isCancelledFlag)
+        const options = rows
+            .filter((row) => {
+                const rowBookId = toPositiveId(row?.chequeIssueBookId);
+                if (rowBookId == null) return false;
+                const isSelectedBook = selectedChequeBookId != null && rowBookId === selectedChequeBookId;
+                return !row.isCancelledFlag || isSelectedBook;
+            })
             .map((row) => {
                 const labelParts = [
                     row.voucherNumber ? row.voucherNumber : `Book ${row.chequeIssueBookId}`,
@@ -665,9 +787,46 @@ export const usePaymentVoucherState = (
                         ? `(${row.chequeStartNumber} to ${row.chequeEndNumber})`
                         : null
                 ].filter(Boolean);
-                return { label: labelParts.join(' '), value: Number(row.chequeIssueBookId) };
+                if (row.isCancelledFlag) {
+                    labelParts.push('(Cancelled)');
+                }
+                return {
+                    label: labelParts.join(' '),
+                    value: Number(row.chequeIssueBookId),
+                    chequeStartNumber: row.chequeStartNumber != null ? Number(row.chequeStartNumber) : null,
+                    chequeEndNumber: row.chequeEndNumber != null ? Number(row.chequeEndNumber) : null
+                };
             });
-    }, [chequeBooksData]);
+        if (selectedChequeBookId != null && !options.some((option) => Number(option.value) === selectedChequeBookId)) {
+            options.unshift({
+                label: `Book ${selectedChequeBookId}`,
+                value: selectedChequeBookId,
+                chequeStartNumber: null,
+                chequeEndNumber: null
+            });
+        }
+        return options;
+    }, [chequeBooksData, selectedChequeBookId]);
+    const chequeBookOptionMap = useMemo(() => {
+        const map = new Map<number, ChequeBookOption>();
+        chequeBookOptions.forEach((option) => {
+            map.set(Number(option.value), option);
+        });
+        return map;
+    }, [chequeBookOptions]);
+    const normalizeChequeNumber = useCallback((value: string): number | null => {
+        const parsed = parseInputNumber(value);
+        if (typeof parsed !== 'number' || !Number.isFinite(parsed)) return null;
+        if (!Number.isInteger(parsed) || parsed <= 0) return null;
+        return parsed;
+    }, []);
+    const isChequeNumberInRange = useCallback((chequeNo: number, option: ChequeBookOption | null) => {
+        if (!Number.isFinite(chequeNo) || chequeNo <= 0) return false;
+        if (!option) return true;
+        if (option.chequeStartNumber != null && chequeNo < option.chequeStartNumber) return false;
+        if (option.chequeEndNumber != null && chequeNo > option.chequeEndNumber) return false;
+        return true;
+    }, []);
 
     const selectedManager = useMemo(
         () => (formManagerId != null ? managerOptions.find((m) => m.value === formManagerId) ?? null : null),
@@ -684,6 +843,8 @@ export const usePaymentVoucherState = (
         [data, hasApplied]
     );
     const totalCount = hasApplied ? data?.voucherRegisterByLedgerDetailed?.totalCount ?? rows.length ?? 0 : 0;
+    const registerLoading = loading && rows.length === 0;
+    const registerQueryLoading = Boolean(hasApplied && loading);
 
     const fetchFilterSourceRows = useCallback(async () => {
         if (!hasApplied || !appliedBaseVariables) return;
@@ -775,6 +936,8 @@ export const usePaymentVoucherState = (
     ]);
 
     const focusLineEditorAmountInput = () => {
+        lineEditorLedgerGroupRef.current?.hide?.();
+        lineEditorLedgerRef.current?.hide?.();
         const input = lineEditorAmountRef.current ?? null;
         if (!input) return;
         input.focus();
@@ -785,15 +948,25 @@ export const usePaymentVoucherState = (
     };
 
     const focusLineEditorLedgerGroupInput = () => {
-        const ref = lineEditorLedgerGroupRef.current ?? null;
-        ref?.focus?.();
-        ref?.show?.();
+        const groupRef = lineEditorLedgerGroupRef.current ?? null;
+        if (!groupRef) return;
+        lineEditorLedgerRef.current?.hide?.();
+        groupRef.hide?.();
+        groupRef.focus?.();
+        window.setTimeout(() => {
+            groupRef.show?.();
+        }, 0);
     };
 
     const focusLineEditorLedgerInput = () => {
-        const ref = lineEditorLedgerRef.current ?? null;
-        ref?.focus?.();
-        ref?.show?.();
+        const ledgerRef = lineEditorLedgerRef.current ?? null;
+        if (!ledgerRef) return;
+        lineEditorLedgerGroupRef.current?.hide?.();
+        ledgerRef.hide?.();
+        ledgerRef.focus?.();
+        window.setTimeout(() => {
+            ledgerRef.show?.();
+        }, 0);
     };
 
     const focusPaymentLedgerInput = () => {
@@ -804,6 +977,43 @@ export const usePaymentVoucherState = (
 
     const focusCashLedgerAmountInput = () => {
         const input = cashLedgerAmountInputRef.current ?? null;
+        if (!input) return;
+        input.focus();
+        if (typeof input.setSelectionRange === 'function') {
+            const length = input.value?.length ?? 0;
+            input.setSelectionRange(0, length);
+        }
+    };
+
+    const focusRefNoInput = () => {
+        const resolveRefNoInput = () => {
+            const directRef = refNoInputRef.current;
+            if (directRef instanceof HTMLInputElement) {
+                return directRef;
+            }
+            const element = document.getElementById(refNoInputId);
+            return element instanceof HTMLInputElement ? element : null;
+        };
+
+        const focusInput = () => {
+            const input = resolveRefNoInput();
+            if (!input || input.disabled) return false;
+            input.focus();
+            if (typeof input.setSelectionRange === 'function') {
+                const length = input.value?.length ?? 0;
+                input.setSelectionRange(0, length);
+            }
+            return document.activeElement === input;
+        };
+
+        if (focusInput()) return;
+        [60, 140, 260].forEach((delay) => {
+            window.setTimeout(focusInput, delay);
+        });
+    };
+
+    const focusChequeInFavourInput = () => {
+        const input = chequeInFavourInputRef.current ?? null;
         if (!input) return;
         input.focus();
         if (typeof input.setSelectionRange === 'function') {
@@ -829,6 +1039,8 @@ export const usePaymentVoucherState = (
     };
 
     const resetVoucherFormState = useCallback(() => {
+        lastAutoChequeNoRef.current = '';
+        postSaveRebaselineRef.current = false;
         setIsFormActive(false);
         setEditingId(null);
         setSelectedRow(null);
@@ -922,22 +1134,148 @@ export const usePaymentVoucherState = (
 
     useEffect(() => {
         if (!resolvedPaymentLedgerGroupId) return;
-        setPaymentLedgerGroupId((prev) =>
-            Number(prev) === Number(resolvedPaymentLedgerGroupId) ? prev : Number(resolvedPaymentLedgerGroupId)
-        );
-    }, [resolvedPaymentLedgerGroupId]);
+        const nextGroupId = Number(resolvedPaymentLedgerGroupId);
+        if (Number(paymentLedgerGroupId) === nextGroupId) return;
+        setPaymentLedgerGroupId(nextGroupId);
+        if (isFormActive && editingId != null) {
+            scheduleFormSnapshotCapture();
+            return;
+        }
+        if (canRebaselineAutoDefaults) {
+            scheduleFormSnapshotCapture();
+        }
+    }, [
+        canRebaselineAutoDefaults,
+        editingId,
+        isFormActive,
+        paymentLedgerGroupId,
+        resolvedPaymentLedgerGroupId,
+        scheduleFormSnapshotCapture
+    ]);
 
     useEffect(() => {
         if (paymentMode === 'bank') {
-            if (paymentViaId == null && chequePaymentViaId != null) {
+            const selectedChequeBookId = toPositiveId(chequeIssueBookId);
+            const shouldForceChequePaymentVia =
+                selectedChequeBookId != null &&
+                chequePaymentViaId != null &&
+                paymentViaId !== chequePaymentViaId;
+            if (shouldForceChequePaymentVia) {
                 setPaymentViaId(chequePaymentViaId);
+                if (canRebaselineAutoDefaults) {
+                    scheduleFormSnapshotCapture();
+                }
+                return;
+            }
+            if (editingId == null && paymentViaId == null && chequePaymentViaId != null) {
+                setPaymentViaId(chequePaymentViaId);
+                if (canRebaselineAutoDefaults) {
+                    scheduleFormSnapshotCapture();
+                }
             }
             return;
         }
         if (paymentViaId != null) {
             setPaymentViaId(null);
+            if (canRebaselineAutoDefaults) {
+                scheduleFormSnapshotCapture();
+            }
         }
-    }, [paymentMode, paymentViaId, chequePaymentViaId]);
+    }, [
+        canRebaselineAutoDefaults,
+        chequeIssueBookId,
+        chequePaymentViaId,
+        editingId,
+        paymentMode,
+        paymentViaId,
+        scheduleFormSnapshotCapture
+    ]);
+
+    useEffect(() => {
+        if (editingId != null) return;
+        if (isChequePayment) return;
+        lastAutoChequeNoRef.current = '';
+        if (chequeIssueBookId == null) return;
+        setChequeIssueBookId(null);
+        if (canRebaselineAutoDefaults) {
+            scheduleFormSnapshotCapture();
+        }
+    }, [canRebaselineAutoDefaults, chequeIssueBookId, editingId, isChequePayment, scheduleFormSnapshotCapture]);
+
+    useEffect(() => {
+        if (!isChequePayment) return;
+        if (!cashLedgerId) {
+            if (editingId == null && chequeIssueBookId != null) {
+                setChequeIssueBookId(null);
+            }
+            return;
+        }
+        if (editingId != null) return;
+        const selectedBookId = chequeIssueBookId != null ? Number(chequeIssueBookId) : null;
+        const hasValidSelection =
+            selectedBookId != null && Number.isFinite(selectedBookId) && chequeBookOptionMap.has(selectedBookId);
+        if (hasValidSelection) return;
+        const firstBook = chequeBookOptions[0] ?? null;
+        if (!firstBook) {
+            if (chequeIssueBookId != null) {
+                setChequeIssueBookId(null);
+            }
+            return;
+        }
+        setChequeIssueBookId(Number(firstBook.value));
+        if (canRebaselineAutoDefaults) {
+            scheduleFormSnapshotCapture();
+        }
+    }, [
+        canRebaselineAutoDefaults,
+        cashLedgerId,
+        chequeBookOptionMap,
+        chequeBookOptions,
+        chequeIssueBookId,
+        editingId,
+        isChequePayment,
+        scheduleFormSnapshotCapture
+    ]);
+
+    useEffect(() => {
+        if (!shouldFetchNextChequeNo) {
+            return;
+        }
+        const selectedBookId = chequeIssueBookId != null ? Number(chequeIssueBookId) : null;
+        if (selectedBookId == null || !Number.isFinite(selectedBookId)) return;
+        const selectedBook = chequeBookOptionMap.get(selectedBookId) ?? null;
+        if (!selectedBook) return;
+
+        const suggestedChequeNo = String(nextChequeNoData?.nextChequeNumberForBook ?? '').trim();
+        if (!suggestedChequeNo) return;
+
+        const currentChequeNoText = refNo.trim();
+        const currentChequeNo = normalizeChequeNumber(currentChequeNoText);
+        const currentIsInRange =
+            currentChequeNo != null && isChequeNumberInRange(currentChequeNo, selectedBook);
+        const currentWasAutoFilled =
+            currentChequeNoText.length > 0 && currentChequeNoText === lastAutoChequeNoRef.current;
+        const shouldApplySuggestion =
+            currentChequeNoText.length === 0 || currentWasAutoFilled || !currentIsInRange;
+
+        if (!shouldApplySuggestion || currentChequeNoText === suggestedChequeNo) return;
+
+        setRefNo(suggestedChequeNo);
+        lastAutoChequeNoRef.current = suggestedChequeNo;
+        if (canRebaselineAutoDefaults) {
+            scheduleFormSnapshotCapture();
+        }
+    }, [
+        canRebaselineAutoDefaults,
+        chequeBookOptionMap,
+        chequeIssueBookId,
+        isChequeNumberInRange,
+        nextChequeNoData?.nextChequeNumberForBook,
+        normalizeChequeNumber,
+        refNo,
+        scheduleFormSnapshotCapture,
+        shouldFetchNextChequeNo
+    ]);
 
     useEffect(() => {
         if (!isCashMode) return;
@@ -945,8 +1283,11 @@ export const usePaymentVoucherState = (
         const defaultLedgerId = agencyOptions?.defaultExpenditureLedgerId ?? null;
         if (defaultLedgerId != null) {
             setCashLedgerId(defaultLedgerId);
+            if (canRebaselineAutoDefaults) {
+                scheduleFormSnapshotCapture();
+            }
         }
-    }, [agencyOptions, cashLedgerId, isCashMode]);
+    }, [agencyOptions, canRebaselineAutoDefaults, cashLedgerId, isCashMode, scheduleFormSnapshotCapture]);
 
     useEffect(() => {
         if (!isFormActive || editingId) return;
@@ -954,9 +1295,12 @@ export const usePaymentVoucherState = (
         refetchNextNo(nextVoucherVariables)
             .then((next) => {
                 setVoucherNo(next.data?.nextVoucherNumber ?? '');
+                if (canRebaselineAutoDefaults) {
+                    scheduleFormSnapshotCapture();
+                }
             })
             .catch(() => undefined);
-    }, [canFetchNextNo, editingId, isFormActive, nextVoucherVariables, refetchNextNo]);
+    }, [canFetchNextNo, canRebaselineAutoDefaults, editingId, isFormActive, nextVoucherVariables, refetchNextNo, scheduleFormSnapshotCapture]);
 
     useEffect(() => {
         if (!isFormActive || !editingId) return;
@@ -964,25 +1308,69 @@ export const usePaymentVoucherState = (
     }, [editingId, isFormActive, refetchEdit]);
 
     useEffect(() => {
+        if (!isFormActive || editingId == null) {
+            hydratedEditVoucherDataKeyRef.current = null;
+        }
+    }, [editingId, isFormActive]);
+
+    useEffect(() => {
         if (!isFormActive || !editingId) return;
         const header = editData?.voucherEntryById?.header;
         if (!header) return;
+        const headerVoucherId = toPositiveId(header.voucherId);
+        if (headerVoucherId != null && !hasSameNumericId(headerVoucherId, editingId)) return;
+        const voucherLines = editData?.voucherEntryById?.lines ?? [];
+        const fallbackRow =
+            hasSameNumericId(selectedRow?.voucherId, editingId)
+                ? selectedRow
+                : rows.find((row) => hasSameNumericId(row.voucherId, editingId)) ?? null;
+        const fallbackRefNo = fallbackRow?.refNo?.trim() ?? '';
+        const fallbackRefDate = fallbackRow?.refDate ?? null;
+        const headerRefNo = header.refNo?.trim() ?? '';
+        const headerRefDate = header.refDate?.trim() ?? '';
+        const parsedHeaderRefDate = parseDateText(headerRefDate);
+        const parsedFallbackRefDate = parseDateText(fallbackRefDate);
+        const resolvedRefNo = headerRefNo || fallbackRefNo || '';
+        const resolvedRefDate = parsedHeaderRefDate ?? parsedFallbackRefDate;
+        const hydrationDataKey = JSON.stringify({
+            voucherId: headerVoucherId ?? editingId,
+            voucherDate: header.voucherDate ?? null,
+            postingDate: header.postingDate ?? null,
+            refNo: header.refNo ?? null,
+            refDate: header.refDate ?? null,
+            resolvedRefNo,
+            resolvedRefDateText: toDateText(resolvedRefDate),
+            fallbackVoucherId: fallbackRow?.voucherId ?? null,
+            paymentViaId: toPositiveId(header.paymentViaId),
+            chequeIssueBookId: toPositiveId(header.chequeIssueBookId),
+            primaryLedgerId: toPositiveId(header.primaryLedgerId),
+            lines: voucherLines.map((line: any) => ({
+                ledgerId: toPositiveId(line?.ledgerId),
+                amount: line?.amount != null ? Number(line.amount) : null,
+                drCrFlag: line?.drCrFlag != null ? Number(line.drCrFlag) : null
+            }))
+        });
+        if (hydratedEditVoucherDataKeyRef.current === hydrationDataKey) return;
         setVoucherNo(header.voucherNumber ?? '');
         setVoucherDate(header.voucherDate ? new Date(`${header.voucherDate}T00:00:00`) : new Date());
         setPostingDate(header.postingDate ? new Date(`${header.postingDate}T00:00:00`) : new Date());
-        const fallbackRow =
-            selectedRow?.voucherId === editingId ? selectedRow : rows.find((row) => row.voucherId === editingId) ?? null;
-        const fallbackRefNo = fallbackRow?.refNo ?? '';
-        const fallbackRefDate = fallbackRow?.refDate ?? null;
-        const fallbackDebitGroupName = fallbackRow?.debitLedgerGroupName ?? '';
+        const debitGroupCandidates = [header.debitLedgerGroupName, fallbackRow?.debitLedgerGroupName]
+            .flatMap((value) => String(value ?? '').split(/\r?\n|,/))
+            .map((value) => value.trim())
+            .filter((value) => value.length > 0);
         const fallbackDebitGroupId = (() => {
-            const normalized = normalizeTextValue(fallbackDebitGroupName);
-            if (!normalized) return null;
-            const match = ledgerGroupOptions.find((option) => {
-                const label = option.label ?? option.name ?? '';
-                return normalizeTextValue(label) === normalized;
+            const normalizedCandidates = debitGroupCandidates.map((name) => normalizeTextValue(name)).filter(Boolean);
+            if (!normalizedCandidates.length) return null;
+            const exactMatch = ledgerGroupOptions.find((option) => {
+                const label = normalizeTextValue(option.label ?? option.name ?? '');
+                return normalizedCandidates.includes(label);
             });
-            return match ? Number(match.value) : null;
+            if (exactMatch) return Number(exactMatch.value);
+            const relaxedMatch = ledgerGroupOptions.find((option) => {
+                const label = normalizeTextValue(option.label ?? option.name ?? '');
+                return normalizedCandidates.some((candidate) => label.includes(candidate) || candidate.includes(label));
+            });
+            return relaxedMatch ? Number(relaxedMatch.value) : null;
         })();
         const fallbackCreditLedgerName = (() => {
             const primaryFromHeader = (header.primaryLedgerName ?? '').trim();
@@ -995,22 +1383,21 @@ export const usePaymentVoucherState = (
                 .find(Boolean);
             return firstFromList ?? '';
         })();
-        const headerRefNo = header.refNo?.trim() ?? '';
-        const headerRefDate = header.refDate?.trim() ?? '';
-        setRefNo(headerRefNo || fallbackRefNo || '');
-        setRefDate(parseDateText(headerRefDate) ?? parseDateText(fallbackRefDate));
+        setRefNo(resolvedRefNo);
+        setRefDate(resolvedRefDate);
         setChequeInFavour(header.chequeInFavourText ?? '');
-        setChequeIssueBookId(header.chequeIssueBookId != null ? Number(header.chequeIssueBookId) : null);
-        setPaymentViaId(header.paymentViaId != null ? Number(header.paymentViaId) : null);
+        setChequeIssueBookId(toPositiveId(header.chequeIssueBookId));
+        setPaymentViaId(toPositiveId(header.paymentViaId));
         setNarration(header.narration ?? '');
         setFormManagerId(header.managerId != null ? Number(header.managerId) : null);
         setCancelledChecked(Number(header.isCancelledFlag) === 1);
         setCashLedgerAmount(null);
         setCashLedgerAmountDraft(undefined);
         setCashLedgerOption(null);
-        setPaymentLedgerGroupId(null);
+        setPaymentLedgerGroupId(
+            resolvedPaymentLedgerGroupId != null ? Number(resolvedPaymentLedgerGroupId) : null
+        );
 
-        const voucherLines = editData?.voucherEntryById?.lines ?? [];
         const primaryLedgerId = header.primaryLedgerId != null ? Number(header.primaryLedgerId) : null;
         const usesTwoFlag = voucherLines.some((line: any) => Number(line.drCrFlag) === 2);
         const isDebitFlag = (drCrFlag: number) => (usesTwoFlag ? drCrFlag === 1 : drCrFlag === 0);
@@ -1024,7 +1411,7 @@ export const usePaymentVoucherState = (
         const creditLine = voucherLines.find((line: any) => isCreditFlag(Number(line.drCrFlag ?? -1)));
         const fallbackNames = (
             selectedRow?.debitLedgerNames ??
-            rows.find((row) => row.voucherId === editingId)?.debitLedgerNames ??
+            rows.find((row) => hasSameNumericId(row.voucherId, editingId))?.debitLedgerNames ??
             ''
         )
             .split(/\r?\n/)
@@ -1032,7 +1419,7 @@ export const usePaymentVoucherState = (
             .filter(Boolean);
         const fallbackAmounts = (
             selectedRow?.debitLedgerAmounts ??
-            rows.find((row) => row.voucherId === editingId)?.debitLedgerAmounts ??
+            rows.find((row) => hasSameNumericId(row.voucherId, editingId))?.debitLedgerAmounts ??
             ''
         )
             .split(/\r?\n/)
@@ -1097,9 +1484,14 @@ export const usePaymentVoucherState = (
         const mappedLines = resolvedDebitLines.map((line: any, index: number) => {
             const ledgerId = line.ledgerId != null ? Number(line.ledgerId) : null;
             const option = ledgerId != null ? paymentAgainstOptionMap.get(ledgerId) ?? null : null;
+            const parsedLineLedgerGroupId = line.ledgerGroupId != null ? Number(line.ledgerGroupId) : null;
+            const lineLedgerGroupId =
+                parsedLineLedgerGroupId != null && Number.isFinite(parsedLineLedgerGroupId)
+                    ? parsedLineLedgerGroupId
+                    : null;
             const lineLedgerName = typeof line.ledgerName === 'string' ? line.ledgerName.trim() : '';
             return createDebitLine({
-                ledgerGroupId: fallbackDebitGroupId,
+                ledgerGroupId: lineLedgerGroupId ?? fallbackDebitGroupId,
                 ledgerId,
                 ledgerOption: option,
                 amount: line.amount != null ? Number(line.amount) : null,
@@ -1131,46 +1523,83 @@ export const usePaymentVoucherState = (
             setCashLedgerAmount(fallbackRow?.totalNetAmount != null ? Number(fallbackRow.totalNetAmount) : null);
         }
         scheduleFormSnapshotCapture();
-    }, [editData, editingId, isFormActive, ledgerGroupOptions, paymentAgainstOptionMap, rows, scheduleFormSnapshotCapture, selectedRow]);
+        hydratedEditVoucherDataKeyRef.current = hydrationDataKey;
+        if (postSaveRebaselineRef.current) {
+            postSaveRebaselineRef.current = false;
+            window.setTimeout(markCurrentFormSnapshotAsClean, 0);
+        }
+    }, [
+        markCurrentFormSnapshotAsClean,
+        editData,
+        editingId,
+        isFormActive,
+        ledgerGroupOptions,
+        paymentAgainstOptionMap,
+        resolvedPaymentLedgerGroupId,
+        rows,
+        scheduleFormSnapshotCapture,
+        selectedRow
+    ]);
 
     useEffect(() => {
         if (!selectedRow) return;
-        const stillExists = rows.some((row) => row.voucherId === selectedRow.voucherId);
+        const stillExists = rows.some((row) => hasSameNumericId(row.voucherId, selectedRow.voucherId));
         if (!stillExists) setSelectedRow(null);
     }, [rows, selectedRow]);
 
-    useEffect(() => {
-        if (!isFormActive) return;
-        const rafId = window.requestAnimationFrame(() => {
-            window.requestAnimationFrame(() => {
-                voucherDateInputRef.current?.focus();
-            });
+    const clearQueuedVoucherDateFocus = useCallback(() => {
+        voucherDateFocusTimeoutsRef.current.forEach((timeoutId) => {
+            window.clearTimeout(timeoutId);
         });
-        return () => window.cancelAnimationFrame(rafId);
-    }, [isFormActive, focusNonce]);
+        voucherDateFocusTimeoutsRef.current = [];
+    }, []);
 
-    const focusVoucherDateInput = () => {
+    useEffect(() => clearQueuedVoucherDateFocus, [clearQueuedVoucherDateFocus]);
+
+    const focusVoucherDateInput = useCallback(() => {
         const element = voucherDateInputRef.current;
-        if (!element) return;
+        if (!element) return false;
         element.focus();
         if (typeof element.setSelectionRange === 'function') {
             const length = element.value?.length ?? 0;
-            element.setSelectionRange(0, length);
+            element.setSelectionRange(length, length);
         }
-    };
+        return document.activeElement === element;
+    }, []);
+
+    const queueVoucherDateFocus = useCallback(() => {
+        clearQueuedVoucherDateFocus();
+        [0, 60, 140, 260, 420].forEach((delay) => {
+            const timeoutId = window.setTimeout(() => {
+                const focused = focusVoucherDateInput();
+                if (focused) {
+                    clearQueuedVoucherDateFocus();
+                }
+            }, delay);
+            voucherDateFocusTimeoutsRef.current.push(timeoutId);
+        });
+    }, [clearQueuedVoucherDateFocus, focusVoucherDateInput]);
+
+    useEffect(() => {
+        if (!isFormActive) return;
+        queueVoucherDateFocus();
+    }, [focusNonce, isFormActive, queueVoucherDateFocus]);
 
     const openAdd = () => {
+        lastAutoChequeNoRef.current = '';
+        hydratedEditVoucherDataKeyRef.current = null;
         setEditingId(null);
         setSelectedRow(null);
         setIsFormActive(true);
         setFocusNonce((value) => value + 1);
-        window.setTimeout(focusVoucherDateInput, 0);
-        window.setTimeout(focusVoucherDateInput, 100);
+        queueVoucherDateFocus();
         setCancelledChecked(false);
         setCashLedgerAmount(null);
         setCashLedgerAmountDraft(undefined);
         setCashLedgerOption(null);
-        setPaymentLedgerGroupId(null);
+        setPaymentLedgerGroupId(
+            resolvedPaymentLedgerGroupId != null ? Number(resolvedPaymentLedgerGroupId) : null
+        );
         setFormErrors({});
         setVoucherNo(canFetchNextNo ? nextNoData?.nextVoucherNumber ?? '' : '');
         setVoucherDate(new Date());
@@ -1206,22 +1635,76 @@ export const usePaymentVoucherState = (
     };
 
     const openEditForRow = useCallback((row: VoucherRow) => {
+        const rowVoucherId = toPositiveId(row.voucherId);
+        if (rowVoucherId == null) {
+            toastRef.current?.show({ severity: 'warn', summary: 'Select', detail: 'Invalid voucher selected.' });
+            return;
+        }
+        const parsedVoucherDate = parseDateText(row.voucherDate);
+        const parsedPostingDate = parseDateText(row.postingDate) ?? parsedVoucherDate;
+        const parsedRefDate = parseDateText(row.refDate);
+        const normalizedVoucherNo = row.voucherNumber?.trim() || String(rowVoucherId);
+        lastAutoChequeNoRef.current = '';
+        hydratedEditVoucherDataKeyRef.current = null;
         setSelectedRow(row);
-        setEditingId(row.voucherId);
+        setEditingId(rowVoucherId);
         setIsFormActive(true);
+        setFocusNonce((value) => value + 1);
+        queueVoucherDateFocus();
         setFormErrors({});
         setVoucherDateError(null);
         setPostingDateError(null);
         setRefDateError(null);
+        setVoucherNo(normalizedVoucherNo);
+        setVoucherDate(parsedVoucherDate ?? new Date());
+        setPostingDate(parsedPostingDate ?? parsedVoucherDate ?? new Date());
+        setRefNo(row.refNo?.trim() ?? '');
+        setRefDate(parsedRefDate);
+        setNarration(row.narration ?? '');
+        setCashLedgerAmount(row.totalNetAmount != null ? Number(row.totalNetAmount) : null);
+        setLines([]);
+        setSelectedLineKey(null);
+        setLineEditorCarryGroupId(null);
+        setLineEditorDraft(createLineEditorDraft());
+        setFormManagerId(row.managerId != null ? Number(row.managerId) : null);
+        setFormManagerQuery('');
         setSaving(false);
         setInitialFormSnapshotJson(null);
-        const voucherNoForRoute = row.voucherNumber?.trim() || String(row.voucherId);
-        const targetPath = editRoutePath(voucherNoForRoute);
+        const targetPath = editRoutePath(normalizedVoucherNo);
         const normalizedRouteVoucherNo = routeVoucherNo ? decodeRouteToken(routeVoucherNo) : null;
-        if (routeView !== 'edit' || normalizedRouteVoucherNo !== voucherNoForRoute) {
+        if (routeView !== 'edit' || normalizedRouteVoucherNo !== normalizedVoucherNo) {
             navigate(targetPath);
         }
-    }, [editRoutePath, navigate, routeVoucherNo, routeView]);
+    }, [editRoutePath, navigate, queueVoucherDateFocus, routeVoucherNo, routeView]);
+
+    const openRecentlySavedVoucher = useCallback(
+        (recent: RecentlySavedVoucher) => {
+            const voucherToken = recent.voucherNo?.trim() || String(recent.voucherId);
+            if (!voucherToken) return;
+            const targetPath = `/apps/accounts/payment-vouchers/${recent.mode}/edit/${encodeURIComponent(voucherToken)}`;
+            const navigateToRecent = () => navigate(targetPath);
+            if (!isFormActive || !isFormDirty) {
+                navigateToRecent();
+                return;
+            }
+            confirmDialog({
+                header: 'Discard Changes?',
+                message: 'Unsaved changes will be lost.',
+                icon: 'pi pi-exclamation-triangle',
+                rejectLabel: 'Keep Editing',
+                acceptLabel: 'Discard',
+                acceptClassName: 'p-button-danger',
+                accept: navigateToRecent,
+                reject: () => undefined
+            });
+        },
+        [isFormActive, isFormDirty, navigate]
+    );
+
+    const openLastSavedVoucherForEdit = useCallback(() => {
+        if (!lastSavedVoucher) return;
+        openRecentlySavedVoucher(lastSavedVoucher);
+    }, [lastSavedVoucher, openRecentlySavedVoucher]);
 
     useEffect(() => {
         const routeKey = `${paymentMode}:${routeView}:${routeVoucherNo ?? ''}`;
@@ -1253,6 +1736,16 @@ export const usePaymentVoucherState = (
             null;
 
         if (!matchedRow) {
+            const currentVoucherNo = voucherNo.trim();
+            const matchesCurrentEditingVoucher =
+                isFormActive &&
+                editingId != null &&
+                (decodedVoucherNo === String(editingId) ||
+                    (currentVoucherNo.length > 0 && decodedVoucherNo === currentVoucherNo));
+            if (matchesCurrentEditingVoucher) {
+                routeSyncKeyRef.current = routeKey;
+                return;
+            }
             if (loading) return;
             routeSyncKeyRef.current = routeKey;
             toastRef.current?.show({
@@ -1264,13 +1757,26 @@ export const usePaymentVoucherState = (
             return;
         }
 
-        if (isFormActive && editingId === matchedRow.voucherId) {
+        if (isFormActive && hasSameNumericId(editingId, matchedRow.voucherId)) {
             routeSyncKeyRef.current = routeKey;
             return;
         }
         routeSyncKeyRef.current = routeKey;
         openEditForRow(matchedRow);
-    }, [editingId, isFormActive, loading, navigate, openAdd, openEditForRow, paymentMode, registerRoutePath, routeView, routeVoucherNo, rows]);
+    }, [
+        editingId,
+        isFormActive,
+        loading,
+        navigate,
+        openAdd,
+        openEditForRow,
+        paymentMode,
+        registerRoutePath,
+        routeView,
+        routeVoucherNo,
+        rows,
+        voucherNo
+    ]);
 
     const updateLineEditorDraft = (patch: Partial<DebitLineEditorDraft>) => {
         setLineEditorDraft((prev) => ({ ...prev, ...patch }));
@@ -1378,6 +1884,35 @@ export const usePaymentVoucherState = (
         }
 
         const amountValue = Number(amount);
+        const isAddLineMode = lineEditorDraft.mode !== 'edit' || !lineEditorDraft.targetKey;
+        const nextTotalDebit =
+            lineEditorDraft.mode === 'edit' && lineEditorDraft.targetKey
+                ? lines.reduce(
+                      (sum, line) => sum + (line.key === lineEditorDraft.targetKey ? amountValue : Number(line.amount || 0)),
+                      0
+                  )
+                : lines.reduce((sum, line) => sum + Number(line.amount || 0), 0) + amountValue;
+        const headerAmountValue = Number((cashLedgerAmountDraft !== undefined ? cashLedgerAmountDraft : cashLedgerAmount) || 0);
+        if (isAddLineMode && headerAmountValue <= 0) {
+            setFormErrors((prev) => ({
+                ...prev,
+                debitLines: 'Enter Cr amount before adding lines.',
+                cashLedgerAmount: 'Enter Cr amount first.'
+            }));
+            window.setTimeout(focusCashLedgerAmountInput, 0);
+            return;
+        }
+        if (isAddLineMode && nextTotalDebit > headerAmountValue + 0.00001) {
+            setFormErrors((prev) => ({
+                ...prev,
+                debitLines: `Total Dr cannot exceed Cr amount (${formatAmount(headerAmountValue)}).`
+            }));
+            window.setTimeout(focusLineEditorAmountInput, 0);
+            return;
+        }
+        const nextDifferenceAmount = headerAmountValue - nextTotalDebit;
+        const hasBalancedHeaderAndLines =
+            Math.abs(nextDifferenceAmount) < 0.00001 && headerAmountValue > 0 && nextTotalDebit > 0;
         const resolvedGroupId = resolveCarryGroupId();
         const draftToPersist: DebitLineEditorDraft = {
             ...lineEditorDraft,
@@ -1398,7 +1933,25 @@ export const usePaymentVoucherState = (
         setLineEditorDraft(createLineEditorDraft({ ledgerGroupId: resolvedGroupId }));
         clearFormError('debitLines');
         clearFormError('cashLedgerAmount');
-        window.setTimeout(focusLineEditorLedgerInput, 0);
+        if (Math.abs(nextDifferenceAmount) > 0.00001) {
+            window.setTimeout(focusLineEditorLedgerGroupInput, 0);
+            return;
+        }
+        if (hasBalancedHeaderAndLines) {
+            if (isCashMode) {
+                window.setTimeout(focusPaidByInput, 0);
+                return;
+            }
+            if (isBankMode) {
+                if (isChequePayment) {
+                    window.setTimeout(focusChequeInFavourInput, 0);
+                    return;
+                }
+                window.setTimeout(focusSaveButton, 0);
+                return;
+            }
+        }
+        window.setTimeout(focusLineEditorLedgerGroupInput, 0);
     };
 
     const cancelLineDraft = () => {
@@ -1451,16 +2004,14 @@ export const usePaymentVoucherState = (
 
     const deleteRow = async (row: VoucherRow) => {
         if (!row?.voucherId || saving) return;
-        const confirmDelete = typeof window === 'undefined' ? true : window.confirm(`Delete voucher #${row.voucherNumber ?? row.voucherId}?`);
-        if (!confirmDelete) return;
         setSaving(true);
         try {
             await deleteVoucherEntry({ variables: { voucherId: row.voucherId } });
             toastRef.current?.show({ severity: 'success', summary: 'Deleted', detail: `Voucher #${row.voucherNumber ?? row.voucherId}` });
-            if (selectedRow?.voucherId === row.voucherId) {
+            if (hasSameNumericId(selectedRow?.voucherId, row.voucherId)) {
                 setSelectedRow(null);
             }
-            if (editingId === row.voucherId) {
+            if (hasSameNumericId(editingId, row.voucherId)) {
                 setEditingId(null);
                 setIsFormActive(false);
                 setSelectedLineKey(null);
@@ -1478,153 +2029,344 @@ export const usePaymentVoucherState = (
         }
     };
 
-    const handleDelete = async () => {
+    const handleDelete = () => {
         if (!editingId) {
             toastRef.current?.show({ severity: 'warn', summary: 'Delete', detail: 'Select a voucher to delete.' });
             return;
         }
         const row =
             selectedRow ??
-            rows.find((item) => item.voucherId === editingId) ??
+            rows.find((item) => hasSameNumericId(item.voucherId, editingId)) ??
             ({ voucherId: editingId, voucherNumber: voucherNo } as VoucherRow);
-        await deleteRow(row);
+        confirmDialog({
+            header: 'Delete Voucher?',
+            message: `Delete voucher #${row.voucherNumber ?? row.voucherId}?`,
+            icon: 'pi pi-exclamation-triangle',
+            rejectLabel: 'No',
+            acceptLabel: 'Delete',
+            acceptClassName: 'p-button-danger',
+            accept: () => {
+                void deleteRow(row);
+            },
+            reject: () => undefined
+        });
     };
 
-    const cancelForm = () => {
+    const leaveForm = useCallback(() => {
         resetVoucherFormState();
         if (routeView !== 'register') {
             navigate(registerRoutePath(), { replace: true });
         }
-    };
+    }, [navigate, registerRoutePath, resetVoucherFormState, routeView]);
 
-    const save = async () => {
-        if (!isFormActive) return;
-        const debitLines = lines
-            .map((line) => ({
-                ledgerId: line.ledgerId != null ? Number(line.ledgerId) : null,
-                amount: line.amount
-            }))
-            .filter((line) => line.ledgerId && line.amount && Number(line.amount) > 0)
-            .map((line) => ({
-                ledgerId: Number(line.ledgerId),
-                amount: Number(line.amount)
-            }));
-        const total = debitLines.reduce((sum, line) => sum + Number(line.amount || 0), 0);
-        const effectiveCashLedgerAmount =
-            cashLedgerAmountDraft !== undefined ? cashLedgerAmountDraft : cashLedgerAmount;
-        const headerAmount = effectiveCashLedgerAmount != null ? Number(effectiveCashLedgerAmount) : 0;
-
-        const parsed = voucherFormSchema.safeParse({
-            voucherNo: voucherNo.trim(),
-            voucherDate,
-            postingDate,
-            refDate,
-            voucherTypeId: voucherTypeId ?? 0,
-            cashLedgerId: cashLedgerId ?? 0,
-            cashLedgerAmount: headerAmount,
-            debitLines,
-            isCashMode,
-            managerId: formManagerId ?? null,
-            lineTotal: total
-        });
-
-        if (!parsed.success) {
-            const nextErrors: Record<string, string> = {};
-            let nextVoucherDateError: string | null = null;
-            let nextPostingDateError: string | null = null;
-            let nextRefDateError: string | null = null;
-
-            parsed.error.issues.forEach((issue) => {
-                const pathKey = issue.path[0] ? String(issue.path[0]) : 'form';
-                if (pathKey === 'voucherDate') {
-                    nextVoucherDateError = issue.message;
-                    return;
-                }
-                if (pathKey === 'postingDate') {
-                    nextPostingDateError = issue.message;
-                    return;
-                }
-                if (pathKey === 'refDate') {
-                    nextRefDateError = issue.message;
-                    return;
-                }
-                const resolvedKey = pathKey === 'voucherTypeId' ? 'form' : pathKey;
-                if (!nextErrors[resolvedKey]) {
-                    nextErrors[resolvedKey] = issue.message;
-                }
-            });
-
-            setVoucherDateError(nextVoucherDateError);
-            setPostingDateError(nextPostingDateError);
-            setRefDateError(nextRefDateError);
-            setFormErrors(nextErrors);
+    const cancelForm = useCallback(() => {
+        if (!isFormActive) {
+            leaveForm();
             return;
         }
+        if (!isFormDirty) {
+            leaveForm();
+            return;
+        }
+        confirmDialog({
+            header: 'Discard Changes?',
+            message: 'Unsaved changes will be lost.',
+            icon: 'pi pi-exclamation-triangle',
+            rejectLabel: 'Keep Editing',
+            acceptLabel: 'Discard',
+            acceptClassName: 'p-button-danger',
+            accept: leaveForm,
+            reject: () => undefined
+        });
+    }, [isFormActive, isFormDirty, leaveForm]);
 
-        setVoucherDateError(null);
-        setPostingDateError(null);
-        setRefDateError(null);
-        setFormErrors({});
+    const handleCancelVoucherToggle = useCallback(() => {
+        if (!isFormActive || saving) return;
+        const nextCancelledValue = !cancelledChecked;
+        const isCancelling = nextCancelledValue;
+        confirmDialog({
+            header: isCancelling ? 'Cancel Voucher?' : 'Remove Cancelled Mark?',
+            message: isCancelling
+                ? 'This voucher will be marked as cancelled when saved.'
+                : 'This voucher will be marked as active when saved.',
+            icon: 'pi pi-exclamation-triangle',
+            rejectLabel: 'No',
+            acceptLabel: isCancelling ? 'Cancel Voucher' : 'Mark Active',
+            acceptClassName: isCancelling ? 'p-button-danger' : undefined,
+            accept: () => setCancelledChecked(nextCancelledValue),
+            reject: () => undefined
+        });
+    }, [cancelledChecked, isFormActive, saving]);
 
-        if (!voucherDate || !postingDate) return;
+    const save = async ({ intent = 'primary' }: { intent?: PaymentVoucherSaveIntent } = {}) => {
+        if (!isFormActive || saveInFlightRef.current) return;
+        saveInFlightRef.current = true;
 
-        setSaving(true);
         try {
-            const headerNarration = narration.trim() ? narration.trim() : null;
-            const paymentViaValue = isBankMode ? paymentViaId : null;
-            const chequeInFavourText =
-                isChequePayment && chequeInFavour.trim() ? chequeInFavour.trim() : null;
-            const chequeIssueBookValue =
-                isChequePayment && chequeIssueBookId != null ? Number(chequeIssueBookId) : null;
-            const voucherLines = [
-                ...debitLines.map((line) => ({
-                    ledgerId: line.ledgerId,
-                    amount: line.amount,
-                    drCrFlag: 1,
-                    narrationText: headerNarration
-                })),
-                {
-                    ledgerId: cashLedgerId,
-                    amount: headerAmount,
-                    drCrFlag: 2,
-                    narrationText: headerNarration
+            const isEditing = editingId != null;
+            const debitLines = lines
+                .map((line) => ({
+                    ledgerId: line.ledgerId != null ? Number(line.ledgerId) : null,
+                    amount: line.amount
+                }))
+                .filter((line) => line.ledgerId && line.amount && Number(line.amount) > 0)
+                .map((line) => ({
+                    ledgerId: Number(line.ledgerId),
+                    amount: Number(line.amount)
+                }));
+            const total = debitLines.reduce((sum, line) => sum + Number(line.amount || 0), 0);
+            const effectiveCashLedgerAmount =
+                cashLedgerAmountDraft !== undefined ? cashLedgerAmountDraft : cashLedgerAmount;
+            const headerAmount = effectiveCashLedgerAmount != null ? Number(effectiveCashLedgerAmount) : 0;
+
+            const parsed = voucherFormSchema.safeParse({
+                voucherNo: voucherNo.trim(),
+                voucherDate,
+                postingDate,
+                refDate,
+                voucherTypeId: voucherTypeId ?? 0,
+                cashLedgerId: cashLedgerId ?? 0,
+                cashLedgerAmount: headerAmount,
+                debitLines,
+                isCashMode,
+                managerId: formManagerId ?? null,
+                lineTotal: total
+            });
+
+            if (!parsed.success) {
+                const nextErrors: Record<string, string> = {};
+                let nextVoucherDateError: string | null = null;
+                let nextPostingDateError: string | null = null;
+                let nextRefDateError: string | null = null;
+
+                parsed.error.issues.forEach((issue) => {
+                    const pathKey = issue.path[0] ? String(issue.path[0]) : 'form';
+                    if (pathKey === 'voucherDate') {
+                        nextVoucherDateError = issue.message;
+                        return;
+                    }
+                    if (pathKey === 'postingDate') {
+                        nextPostingDateError = issue.message;
+                        return;
+                    }
+                    if (pathKey === 'refDate') {
+                        nextRefDateError = issue.message;
+                        return;
+                    }
+                    const resolvedKey = pathKey === 'voucherTypeId' ? 'form' : pathKey;
+                    if (!nextErrors[resolvedKey]) {
+                        nextErrors[resolvedKey] = issue.message;
+                    }
+                });
+                if (!nextErrors.form) {
+                    nextErrors.form = 'Please review highlighted fields before saving.';
                 }
-            ];
-            const variables = {
-                voucherTypeId,
-                voucherDateText: toDateText(voucherDate),
-                postingDateText: postingDate ? toDateText(postingDate) : null,
-                voucherNumber: voucherNo.trim() ? voucherNo.trim() : null,
-                narrationText: headerNarration,
-                purchaseVoucherNumber: refNo.trim() ? refNo.trim() : null,
-                purchaseVoucherDateText: refDate ? toDateText(refDate) : null,
-                managerId: isCashMode ? formManagerId : null,
-                chequeInFavourText,
-                chequeIssueBookId: chequeIssueBookValue,
-                paymentViaId: paymentViaValue,
-                primaryLedgerId: cashLedgerId,
-                isCancelledFlag: cancelledChecked ? 1 : 0,
-                lines: voucherLines
-            };
 
-            if (editingId) {
-                await updateVoucher({ variables: { voucherId: editingId, ...variables } });
-                toastRef.current?.show({ severity: 'success', summary: 'Updated', detail: `Voucher #${voucherNo}` });
-            } else {
-                await createVoucher({ variables });
-                toastRef.current?.show({ severity: 'success', summary: 'Saved', detail: `Voucher #${voucherNo}` });
+                setVoucherDateError(nextVoucherDateError);
+                setPostingDateError(nextPostingDateError);
+                setRefDateError(nextRefDateError);
+                setFormErrors(nextErrors);
+                return;
             }
 
-            await refetch();
+            setVoucherDateError(null);
+            setPostingDateError(null);
+            setRefDateError(null);
+            setFormErrors({});
 
-            resetVoucherFormState();
-            if (routeView !== 'register') {
-                navigate(registerRoutePath(), { replace: true });
+            if (isChequePayment) {
+                const chequeValidationErrors: Record<string, string> = {};
+                const selectedChequeBookId = toPositiveId(chequeIssueBookId);
+                const selectedChequeBook =
+                    selectedChequeBookId != null ? chequeBookOptionMap.get(selectedChequeBookId) ?? null : null;
+                if (!selectedChequeBook) {
+                    chequeValidationErrors.chequeIssueBookId = 'Select cheque book.';
+                }
+
+                const chequeNoText = refNo.trim();
+                if (!chequeNoText) {
+                    chequeValidationErrors.refNo = 'Enter cheque no.';
+                } else {
+                    const chequeNoValue = normalizeChequeNumber(chequeNoText);
+                    if (chequeNoValue == null) {
+                        chequeValidationErrors.refNo = 'Cheque no should be numeric.';
+                    } else if (!isChequeNumberInRange(chequeNoValue, selectedChequeBook)) {
+                        const rangeLabel =
+                            selectedChequeBook?.chequeStartNumber != null &&
+                            selectedChequeBook?.chequeEndNumber != null
+                                ? `${selectedChequeBook.chequeStartNumber} to ${selectedChequeBook.chequeEndNumber}`
+                                : null;
+                        chequeValidationErrors.refNo = rangeLabel
+                            ? `Cheque no should be in range ${rangeLabel}.`
+                            : 'Cheque no is outside selected cheque book range.';
+                    }
+                }
+
+                if (Object.keys(chequeValidationErrors).length > 0) {
+                    setFormErrors({
+                        ...chequeValidationErrors,
+                        form: 'Please review highlighted fields before saving.'
+                    });
+                    return;
+                }
             }
-        } catch (err: any) {
-            toastRef.current?.show({ severity: 'error', summary: 'Error', detail: err?.message || 'Failed to save voucher' });
+
+            if (!voucherDate || !postingDate) return;
+
+            setSaving(true);
+            try {
+                const headerNarration = narration.trim() ? narration.trim() : null;
+                const paymentViaValue = isBankMode ? toPositiveId(paymentViaId) : null;
+                const chequeInFavourText =
+                    isChequePayment && chequeInFavour.trim() ? chequeInFavour.trim() : null;
+                const chequeIssueBookValue = isChequePayment ? toPositiveId(chequeIssueBookId) : null;
+                const referenceNumber = refNo.trim() ? refNo.trim() : null;
+                const referenceDateText = refDate ? toDateText(refDate) : null;
+                const voucherLines = [
+                    ...debitLines.map((line) => ({
+                        ledgerId: line.ledgerId,
+                        amount: line.amount,
+                        drCrFlag: 1,
+                        narrationText: headerNarration
+                    })),
+                    {
+                        ledgerId: cashLedgerId,
+                        amount: headerAmount,
+                        drCrFlag: 2,
+                        narrationText: headerNarration
+                    }
+                ];
+                const variables = {
+                    voucherTypeId,
+                    voucherDateText: toDateText(voucherDate),
+                    postingDateText: postingDate ? toDateText(postingDate) : null,
+                    voucherNumber: voucherNo.trim() ? voucherNo.trim() : null,
+                    narrationText: headerNarration,
+                    // Neutral payload naming for reference fields; keep legacy keys for API compatibility.
+                    referenceNumber,
+                    referenceDateText,
+                    // TODO(voucher-reference-cutover): remove legacy purchaseVoucher* keys when API is fully migrated.
+                    purchaseVoucherNumber: referenceNumber,
+                    purchaseVoucherDateText: referenceDateText,
+                    managerId: isCashMode ? formManagerId : null,
+                    chequeInFavourText,
+                    chequeIssueBookId: chequeIssueBookValue,
+                    paymentViaId: paymentViaValue,
+                    primaryLedgerId: cashLedgerId,
+                    isCancelledFlag: cancelledChecked ? 1 : 0,
+                    lines: voucherLines
+                };
+                let savedVoucherId = isEditing && editingId != null ? Number(editingId) : null;
+
+                if (isEditing) {
+                    await updateVoucher({ variables: { voucherId: editingId, ...variables } });
+                } else {
+                    const createResult = await createVoucher({ variables });
+                    const createdVoucherId = Number(createResult.data?.createVoucher?.voucherId ?? 0);
+                    savedVoucherId = Number.isFinite(createdVoucherId) && createdVoucherId > 0 ? createdVoucherId : null;
+                }
+
+                const savedVoucherNo = voucherNo.trim() || (savedVoucherId != null ? String(savedVoucherId) : '');
+                const postSaveAction = resolvePaymentVoucherPostSaveAction({
+                    isEditing,
+                    addAnotherAfterSave,
+                    intent
+                });
+                toastRef.current?.show({
+                    severity: 'success',
+                    summary: 'Saved',
+                    detail: buildPaymentVoucherSaveSuccessMessage(savedVoucherNo, postSaveAction)
+                });
+
+                if (savedVoucherId != null) {
+                    const recentSavedEntry: RecentlySavedVoucher = {
+                        voucherId: savedVoucherId,
+                        voucherNo: savedVoucherNo || String(savedVoucherId),
+                        savedAt: new Date().toISOString(),
+                        mode: paymentMode
+                    };
+                    setLastSavedVoucher(recentSavedEntry);
+                    recordRecentlySavedVoucher(recentSavedEntry);
+                }
+                if (isEditing && savedVoucherId != null) {
+                    // After edit-save, treat the current server-backed form as clean.
+                    markCurrentFormSnapshotAsClean();
+                    postSaveRebaselineRef.current = true;
+                }
+
+                const refreshedRegisterVariables = { ...registerVariables, offset: 0 };
+                setFirst(0);
+                setAppliedVariables(refreshedRegisterVariables);
+                setFilterSourceRows(null);
+                setFilterSourceLoading(false);
+                let refreshedRows: VoucherRow[] = [];
+                if (hasApplied) {
+                    const refreshed = await refetch(refreshedRegisterVariables);
+                    const refreshedItems = refreshed.data?.voucherRegisterByLedgerDetailed?.items;
+                    refreshedRows = Array.isArray(refreshedItems) ? (refreshedItems as VoucherRow[]) : [];
+                }
+
+                if (!isEditing) {
+                    if (postSaveAction === 'prepare-next') {
+                        openAdd();
+                        return;
+                    }
+                    resetVoucherFormState();
+                    if (routeView !== 'register') {
+                        navigate(registerRoutePath(), { replace: true });
+                    }
+                    return;
+                }
+
+                const shouldRefreshEditBeforeHydration = isEditing && savedVoucherId != null;
+                if (shouldRefreshEditBeforeHydration) {
+                    await refetchEdit({ voucherId: savedVoucherId }).catch(() => undefined);
+                }
+
+                // Keep user on the saved voucher after Save (no auto-return to register).
+                if (savedVoucherId != null) {
+                    const savedVoucherToken = savedVoucherNo || String(savedVoucherId);
+                    const savedRow =
+                        refreshedRows.find((row) => Number(row.voucherId) === savedVoucherId) ??
+                        rows.find((row) => Number(row.voucherId) === savedVoucherId) ??
+                        null;
+                    if (savedRow) {
+                        openEditForRow(savedRow);
+                        return;
+                    }
+
+                    hydratedEditVoucherDataKeyRef.current = null;
+                    setSelectedRow(null);
+                    setEditingId(savedVoucherId);
+                    setIsFormActive(true);
+                    setFocusNonce((value) => value + 1);
+                    queueVoucherDateFocus();
+                    setFormErrors({});
+                    setVoucherDateError(null);
+                    setPostingDateError(null);
+                    setRefDateError(null);
+                    setInitialFormSnapshotJson(null);
+                    if (!shouldRefreshEditBeforeHydration) {
+                        refetchEdit({ voucherId: savedVoucherId }).catch(() => undefined);
+                    }
+                    const normalizedRouteVoucherNo = routeVoucherNo ? decodeRouteToken(routeVoucherNo) : null;
+                    if (routeView !== 'edit' || normalizedRouteVoucherNo !== savedVoucherToken) {
+                        navigate(editRoutePath(savedVoucherToken), { replace: true });
+                    }
+                    return;
+                }
+
+                resetVoucherFormState();
+                if (routeView !== 'register') {
+                    navigate(registerRoutePath(), { replace: true });
+                }
+            } catch (err: any) {
+                toastRef.current?.show({ severity: 'error', summary: 'Error', detail: err?.message || 'Failed to save voucher' });
+            } finally {
+                setSaving(false);
+            }
         } finally {
-            setSaving(false);
+            saveInFlightRef.current = false;
         }
     };
 
@@ -1636,10 +2378,24 @@ export const usePaymentVoucherState = (
         () => (selectedLineKey ? lines.find((line) => line.key === selectedLineKey) ?? null : null),
         [lines, selectedLineKey]
     );
-    const isLineDraftValid = useMemo(
-        () => Number(lineEditorDraft.ledgerId || 0) > 0 && Number(lineEditorDraft.amount || 0) > 0,
-        [lineEditorDraft.amount, lineEditorDraft.ledgerId]
-    );
+    const isLineDraftValid = useMemo(() => {
+        const ledgerId = Number(lineEditorDraft.ledgerId || 0);
+        const draftAmount = Number(lineEditorDraft.amount || 0);
+        if (!(ledgerId > 0 && draftAmount > 0)) return false;
+        if (lineEditorDraft.mode === 'edit' && lineEditorDraft.targetKey) return true;
+        const headerAmountValue = Number((cashLedgerAmountDraft !== undefined ? cashLedgerAmountDraft : cashLedgerAmount) || 0);
+        if (headerAmountValue <= 0) return false;
+        const currentTotalDebit = lines.reduce((sum, line) => sum + Number(line.amount || 0), 0);
+        return currentTotalDebit + draftAmount <= headerAmountValue + 0.00001;
+    }, [
+        cashLedgerAmount,
+        cashLedgerAmountDraft,
+        lineEditorDraft.amount,
+        lineEditorDraft.ledgerId,
+        lineEditorDraft.mode,
+        lineEditorDraft.targetKey,
+        lines
+    ]);
     const effectiveCashLedgerAmount = cashLedgerAmountDraft !== undefined ? cashLedgerAmountDraft : cashLedgerAmount;
     const differenceAmount = useMemo(
         () => (Number(effectiveCashLedgerAmount || 0) || 0) - totalDebit,
@@ -1667,6 +2423,10 @@ export const usePaymentVoucherState = (
             const ledgerDrPrimary = (row.debitLedgerName ?? '').trim();
             const ledgerDrDisplay = ledgerDrNames || ledgerDrPrimary;
             const ledgerDrTitle = ledgerDrDisplay;
+            const debitLedgerGroupLinesDisplay = (row.debitLedgerGroupName ?? '')
+                .split('\n')
+                .map((name) => name.trim())
+                .filter((name) => name.length > 0);
             const debitLedgerAmountDetail = (row.debitLedgerAmounts ?? '').trim();
             const debitLedgerNames = (ledgerDrNames ? ledgerDrNames.split('\n') : ledgerDrPrimary ? [ledgerDrPrimary] : [])
                 .map((name) => name.trim())
@@ -1713,6 +2473,7 @@ export const usePaymentVoucherState = (
                 ledgerDrDisplay,
                 ledgerDrTitle,
                 ledgerDrLinesDisplay,
+                debitLedgerGroupLinesDisplay,
                 showLedgerDrAmounts,
                 netAmtDisplay
             };
@@ -1757,7 +2518,7 @@ export const usePaymentVoucherState = (
         [filterDisplayRows]
     );
     const ledgerGroupFilterOptions = useMemo(
-        () => buildTextFilterOptions(filterDisplayRows.map((row) => row.debitLedgerGroupName)),
+        () => buildTextFilterOptions(filterDisplayRows.flatMap((row) => row.debitLedgerGroupLinesDisplay)),
         [filterDisplayRows]
     );
     const netAmtFilterOptions = useMemo(
@@ -2045,6 +2806,24 @@ export const usePaymentVoucherState = (
                             const amount = Number(row.totalNetAmount ?? 0);
                             return list.some((item) => Number(item) === amount);
                         }
+                        case 'debitLedgerGroupName': {
+                            const rowGroupNames =
+                                row.debitLedgerGroupLinesDisplay.length > 0
+                                    ? row.debitLedgerGroupLinesDisplay
+                                    : row.debitLedgerGroupName
+                                      ? [row.debitLedgerGroupName]
+                                      : [];
+                            if (Array.isArray(value)) {
+                                if (value.length === 0) return true;
+                                return value.some((item) => {
+                                    const selected = normalizeTextValue(item);
+                                    return rowGroupNames.some((groupName) => normalizeTextValue(groupName) === selected);
+                                });
+                            }
+                            const needle = normalizeTextValue(value);
+                            if (!needle) return true;
+                            return rowGroupNames.some((groupName) => normalizeTextValue(groupName).includes(needle));
+                        }
                         default: {
                             const rowFieldValue = (row as Record<string, unknown>)[field];
                             if (Array.isArray(value)) {
@@ -2085,7 +2864,7 @@ export const usePaymentVoucherState = (
                     row.totalNetAmount,
                     row.narration,
                     row.managerName,
-                    row.debitLedgerGroupName,
+                    row.debitLedgerGroupLinesDisplay.join(' '),
                     row.voucherTypeNoDisplay,
                     row.voucherPostingDateDisplay
                 ]
@@ -2123,6 +2902,48 @@ export const usePaymentVoucherState = (
         return filteredSourceRows.slice(first, first + rowsPerPage);
     }, [first, filteredSourceRows, hasClientSideFiltering, rowsPerPage, searchedRows]);
     const totalRecordsForTable = hasClientSideFiltering ? filteredSourceRows.length : totalCount;
+    const { uiState: voucherUiState, baseUiState: voucherBaseUiState } = useMemo(
+        () => deriveVoucherUiState(isFormActive, editingId != null, saving),
+        [editingId, isFormActive, saving]
+    );
+    const voucherActions = useMemo(
+        () =>
+            getVoucherActionsConfig({
+                uiState: voucherUiState,
+                baseUiState: voucherBaseUiState,
+                isDirty: isFormDirty,
+                hasVoucherId: editingId != null,
+                isCancelled: cancelledChecked,
+                canRefresh,
+                hasRegisterRows: totalRecordsForTable > 0
+            }),
+        [
+            canRefresh,
+            cancelledChecked,
+            editingId,
+            isFormDirty,
+            totalRecordsForTable,
+            voucherBaseUiState,
+            voucherUiState
+        ]
+    );
+    const showSavedStatusBar = useMemo(
+        () =>
+            isFormActive &&
+            !isFormDirty &&
+            editingId != null &&
+            lastSavedVoucher != null &&
+            lastSavedVoucher.mode === paymentMode &&
+            Number(lastSavedVoucher.voucherId) === Number(editingId),
+        [editingId, isFormActive, isFormDirty, lastSavedVoucher, paymentMode]
+    );
+    const recentlySavedVouchersForMode = useMemo(
+        () =>
+            recentlySavedVouchers
+                .filter((item) => item.mode === paymentMode)
+                .slice(0, PAYMENT_VOUCHER_RECENT_SAVED_LIMIT),
+        [paymentMode, recentlySavedVouchers]
+    );
 
     useEffect(() => {
         if (!hasClientSideFiltering) return;
@@ -2170,8 +2991,11 @@ export const usePaymentVoucherState = (
     );
 
     return {
+        routeView,
         error,
         pageHeading,
+        voucherUiState,
+        voucherActions,
         paymentMode,
         paymentModeOptions,
         changePaymentMode,
@@ -2181,6 +3005,7 @@ export const usePaymentVoucherState = (
         saving,
         focusNonce,
         voucherNo,
+        isVoucherNoAuto,
         setVoucherNo,
         voucherDate,
         setVoucherDate,
@@ -2200,6 +3025,9 @@ export const usePaymentVoucherState = (
         refNoLabel,
         refNo,
         setRefNo,
+        refNoInputId,
+        refNoInputRef,
+        focusRefNoInput,
         refDateLabel,
         refDate,
         setRefDate,
@@ -2251,6 +3079,7 @@ export const usePaymentVoucherState = (
         syncLineEditorAmountInput,
         paymentAgainstAddressMap,
         ledgerGroupOptions,
+        ledgerGroupOptionsLoading,
         lineEditorAddress,
         lineEditorBalanceLabel,
         lineEditorBalanceClass,
@@ -2276,15 +3105,25 @@ export const usePaymentVoucherState = (
         setFormManagerId,
         chequeInFavour,
         setChequeInFavour,
+        chequeInFavourInputRef,
         openAdd,
         openEdit,
         openEditForRow,
+        addAnotherAfterSave,
+        setAddAnotherAfterSave,
         save,
         cancelForm,
         handleDelete,
+        handleCancelVoucherToggle,
         cancelledChecked,
         setCancelledChecked,
         editingId,
+        lastSavedVoucher,
+        showSavedStatusBar,
+        recentlySavedVouchers: recentlySavedVouchersForMode,
+        openRecentlySavedVoucher,
+        openLastSavedVoucherForEdit,
+        addButtonId,
         saveButtonId,
         voucherDateInputRef,
         toastRef,
@@ -2298,7 +3137,8 @@ export const usePaymentVoucherState = (
         setAppliedVariables,
         refetch,
         totalRecordsForTable,
-        loading,
+        loading: registerLoading,
+        registerQueryLoading,
         selectedRow,
         setSelectedRow,
         columnFilters,

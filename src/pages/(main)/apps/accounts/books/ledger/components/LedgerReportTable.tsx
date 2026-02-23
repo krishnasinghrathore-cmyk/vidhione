@@ -17,6 +17,12 @@ type LedgerReportTableProps = {
     headerLeft: React.ReactNode;
     headerRight: React.ReactNode;
     recordSummary: string;
+    globalSearchValue: string;
+    onGlobalSearchValueChange: (nextValue: string) => void;
+    globalSearchMatchCase: boolean;
+    onGlobalSearchMatchCaseChange: (nextValue: boolean) => void;
+    globalSearchWholeWord: boolean;
+    onGlobalSearchWholeWordChange: (nextValue: boolean) => void;
     columns: React.ReactNode;
 };
 
@@ -34,6 +40,12 @@ export function LedgerReportTable({
     headerLeft,
     headerRight,
     recordSummary,
+    globalSearchValue,
+    onGlobalSearchValueChange,
+    globalSearchMatchCase,
+    onGlobalSearchMatchCaseChange,
+    globalSearchWholeWord,
+    onGlobalSearchWholeWordChange,
     columns
 }: LedgerReportTableProps) {
     return (
@@ -57,6 +69,13 @@ export function LedgerReportTable({
             size="small"
             className="summary-table ledger-statement-table"
             emptyMessage={reportLoading ? '' : hasApplied ? 'No results found' : 'Press Refresh to load ledger statement'}
+            globalSearchRenderInTableHeader={false}
+            globalSearchValue={globalSearchValue}
+            onGlobalSearchValueChange={onGlobalSearchValueChange}
+            globalSearchMatchCase={globalSearchMatchCase}
+            onGlobalSearchMatchCaseChange={onGlobalSearchMatchCaseChange}
+            globalSearchWholeWord={globalSearchWholeWord}
+            onGlobalSearchWholeWordChange={onGlobalSearchWholeWordChange}
             headerLeft={headerLeft}
             headerRight={headerRight}
             recordSummary={recordSummary}

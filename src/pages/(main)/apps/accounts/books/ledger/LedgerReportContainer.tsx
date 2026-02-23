@@ -8,8 +8,11 @@ import { ReportPrintHeader } from '@/components/ReportPrintHeader';
 import { ReportPrintFooter } from '@/components/ReportPrintFooter';
 import { buildSkeletonRows } from '@/components/reportSkeleton';
 import AppReportActions from '@/components/AppReportActions';
+import { ReportHeader } from '@/components/ReportHeader';
+import { ReportRegisterSearch } from '@/components/ReportRegisterSearch';
 import { useLedgerGroupOptions } from '@/lib/accounts/ledgerGroups';
 import { resolveLedgerGroupFilter } from '@/lib/accounts/ledgerGroupFilter';
+import { ACCOUNT_MASTER_LAZY_QUERY_OPTIONS } from '@/lib/accounts/masterLookupCache';
 import { useVoucherTypeOptions } from '@/lib/accounts/voucherTypes';
 import { useAuth } from '@/lib/auth/context';
 import { validateDateRange, type DateRangeErrors } from '@/lib/reportDateValidation';
@@ -120,6 +123,9 @@ export function LedgerReportContainer() {
     const [printRows, setPrintRows] = useState<Array<LedgerReportRow & { running: number }> | null>(null);
     const [appliedFilters, setAppliedFilters] = useState<LedgerReportFilters | null>(null);
     const [columnFilters, setColumnFilters] = useState<DataTableFilterMeta>(() => buildDefaultColumnFilters());
+    const [globalSearchText, setGlobalSearchText] = useState('');
+    const [globalSearchMatchCase, setGlobalSearchMatchCase] = useState(false);
+    const [globalSearchWholeWord, setGlobalSearchWholeWord] = useState(false);
     const [searchParams] = useSearchParams();
 
     useEffect(() => {
@@ -147,6 +153,7 @@ export function LedgerReportContainer() {
     const toDateInputRef = useRef<HTMLInputElement>(null);
     const todayInputRef = useRef<HTMLInputElement>(null);
     const ledgerGroupInputRef = useRef<AutoComplete>(null);
+    const cityAutoCompleteRef = useRef<AutoComplete>(null);
     const cityInputRef = useRef<HTMLInputElement>(null);
     const ledgerInputRef = useRef<HTMLInputElement>(null);
     const voucherTypeInputRef = useRef<AutoComplete>(null);
@@ -192,15 +199,19 @@ export function LedgerReportContainer() {
     const { options: voucherTypeOptions, loading: voucherTypesLoading } = useVoucherTypeOptions();
 
     const [loadLedgerLookup, { error: ledgerError }] = useLazyQuery(LEDGER_LOOKUP, {
-        fetchPolicy: 'network-only'
+        ...ACCOUNT_MASTER_LAZY_QUERY_OPTIONS
     });
 
     const [loadLedgerReport, { data, loading, error }] = useLazyQuery(LEDGER_REPORT, {
-        fetchPolicy: 'network-only'
+        fetchPolicy: 'cache-and-network',
+        nextFetchPolicy: 'cache-first',
+        notifyOnNetworkStatusChange: true
     });
 
     const [loadOpeningBalance, { data: openingData, loading: openingLoading }] = useLazyQuery(LEDGER_OPENING_BALANCE, {
-        fetchPolicy: 'network-only'
+        fetchPolicy: 'cache-and-network',
+        nextFetchPolicy: 'cache-first',
+        notifyOnNetworkStatusChange: true
     });
 
     const balanceLedgerId = ledgerId;
@@ -598,8 +609,13 @@ export function LedgerReportContainer() {
             Number(displayLedger.ledgerId) === Number(selectedLedger.ledgerId)
     );
 
+    const rawRows: LedgerReportRow[] = useMemo(
+        () => (hasApplied ? data?.ledgerReport?.items ?? [] : []),
+        [data, hasApplied]
+    );
     const reportLoading = hasApplied && (loading || openingLoading);
-    const reportReady = hasApplied && !reportLoading;
+    const showSkeletonRows = reportLoading && rawRows.length === 0;
+    const reportReady = hasApplied && !showSkeletonRows;
     const skeletonRows = useMemo(
         () =>
             buildSkeletonRows(8, (idx) => ({
@@ -618,11 +634,6 @@ export function LedgerReportContainer() {
         if (Number.isNaN(amount)) return 0;
         return opening.drCr === 'Cr' ? -Math.abs(amount) : Math.abs(amount);
     }, [reportReady, openingData]);
-
-    const rawRows: LedgerReportRow[] = useMemo(
-        () => (reportReady ? data?.ledgerReport?.items ?? [] : []),
-        [data, reportReady]
-    );
 
     const totalRecords = useMemo(() => {
         const count = data?.ledgerReport?.totalCount;
@@ -696,9 +707,9 @@ export function LedgerReportContainer() {
 
     const recordSummary = useMemo(() => {
         if (!hasApplied) return 'Press Refresh to load ledger statement';
-        if (reportLoading) return 'Loading ledger statement...';
+        if (showSkeletonRows) return 'Loading ledger statement...';
         return `${totalRecords} posting${totalRecords === 1 ? '' : 's'} | Dr ${formatAmount(totals.debitTotal)} | Cr ${formatAmount(totals.creditTotal)}`;
-    }, [hasApplied, reportLoading, totalRecords, totals.creditTotal, totals.debitTotal]);
+    }, [hasApplied, showSkeletonRows, totalRecords, totals.creditTotal, totals.debitTotal]);
 
     useEffect(() => {
         if (!isPrinting || typeof window === 'undefined' || !printRows) return;
@@ -975,14 +986,14 @@ export function LedgerReportContainer() {
 
     const columns = useLedgerReportColumns({
         rows: rowsWithMeta,
-        reportLoading,
+        reportLoading: showSkeletonRows,
         totals,
         detailView,
         showNarration,
         isFormatTwo
     });
 
-    const tableRows = isPrinting && printRows ? printRows : reportLoading ? skeletonRows : filteredRows;
+    const tableRows = isPrinting && printRows ? printRows : showSkeletonRows ? skeletonRows : filteredRows;
     const tablePageSize = isPrinting ? Math.max(tableRows.length, 1) : tableRowsPerPage;
 
     const errorMessage = ledgerError?.message || error?.message || null;
@@ -1009,6 +1020,7 @@ export function LedgerReportContainer() {
             onLedgerGroupChange={handleLedgerGroupChange}
             focusCityInput={focusCityInput}
             ledgerGroupInputRef={ledgerGroupInputRef}
+            cityAutoCompleteRef={cityAutoCompleteRef}
             cityQuery={cityQuery}
             setCityQuery={setCityQuery}
             selectedCity={selectedCity}
@@ -1074,6 +1086,7 @@ export function LedgerReportContainer() {
             onExportCsv={handleExportCsv}
             onExportExcel={handleExportExcel}
             onExportPdf={handleExportPdf}
+            loadingState={reportLoading}
             refreshDisabled={!canQuery}
             exportDisabled={!reportReady || rowsWithBalance.length === 0}
         />
@@ -1089,6 +1102,21 @@ export function LedgerReportContainer() {
                 subtitle={filterSummary ?? undefined}
             />
             <ReportPrintFooter left={printFooterLeft} />
+            <ReportHeader
+                title="Ledger Statement"
+                subtitle="Ledger entries with running balance for the selected filters."
+                rightSlot={
+                    <ReportRegisterSearch
+                        value={globalSearchText}
+                        onValueChange={setGlobalSearchText}
+                        matchCase={globalSearchMatchCase}
+                        onMatchCaseChange={setGlobalSearchMatchCase}
+                        wholeWord={globalSearchWholeWord}
+                        onWholeWordChange={setGlobalSearchWholeWord}
+                    />
+                }
+                className="mb-3"
+            />
             <LedgerReportSummary errorMessage={errorMessage} />
 
             <LedgerReportTable
@@ -1098,13 +1126,19 @@ export function LedgerReportContainer() {
                 hasApplied={hasApplied}
                 totalRecords={totalRecords}
                 tableFirst={tableFirst}
-                reportLoading={reportLoading}
+                reportLoading={showSkeletonRows}
                 onPage={handleTablePage}
                 columnFilters={columnFilters}
                 onFilter={handleColumnFilter}
                 headerLeft={headerLeft}
                 headerRight={headerRight}
                 recordSummary={recordSummary}
+                globalSearchValue={globalSearchText}
+                onGlobalSearchValueChange={setGlobalSearchText}
+                globalSearchMatchCase={globalSearchMatchCase}
+                onGlobalSearchMatchCaseChange={setGlobalSearchMatchCase}
+                globalSearchWholeWord={globalSearchWholeWord}
+                onGlobalSearchWholeWordChange={setGlobalSearchWholeWord}
                 columns={columns}
             />
 

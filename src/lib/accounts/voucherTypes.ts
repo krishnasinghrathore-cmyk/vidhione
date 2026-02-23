@@ -1,5 +1,6 @@
 import { gql, useQuery } from '@apollo/client';
 import { apolloClient } from '@/lib/apolloClient';
+import { ACCOUNT_MASTER_QUERY_OPTIONS } from '@/lib/accounts/masterLookupCache';
 
 type VoucherTypeRow = {
     voucherTypeId: number;
@@ -31,7 +32,8 @@ const VOUCHER_TYPES = gql`
 export const useVoucherTypeOptions = (args: VoucherTypeOptionsArgs = {}) => {
     const { data, loading, error, refetch } = useQuery<{ voucherTypes: VoucherTypeRow[] }>(VOUCHER_TYPES, {
         client: apolloClient,
-        skip: args.skip
+        skip: args.skip,
+        ...ACCOUNT_MASTER_QUERY_OPTIONS
     });
 
     const rows = data?.voucherTypes ?? [];

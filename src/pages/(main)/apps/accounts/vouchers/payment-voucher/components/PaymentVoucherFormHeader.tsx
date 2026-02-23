@@ -9,11 +9,13 @@ type PaymentVoucherFormHeaderProps = {
 };
 
 export function PaymentVoucherFormHeader({ viewProps }: PaymentVoucherFormHeaderProps) {
-    const { cancelForm, paymentMode, saving } = viewProps;
+    const { cancelForm, paymentMode, saving, editingId, voucherNo } = viewProps;
     const modeLabel = paymentMode === 'bank' ? 'Bank' : 'Cash';
+    const trimmedVoucherNo = voucherNo?.trim() ?? '';
+    const formTitle = editingId ? (trimmedVoucherNo ? `Edit Voucher #${trimmedVoucherNo}` : 'Edit Voucher') : 'New Voucher';
 
     return (
-        <div className="app-entry-form-header">
+        <div className="app-entry-form-header app-entry-form-header--three-col">
             <div className="app-entry-form-header__left">
                 <Button
                     label="← Back to Register"
@@ -21,6 +23,11 @@ export function PaymentVoucherFormHeader({ viewProps }: PaymentVoucherFormHeader
                     onClick={cancelForm}
                     disabled={saving}
                 />
+            </div>
+            <div className="app-entry-form-header__center">
+                <span className="app-entry-form-title" title={formTitle}>
+                    {formTitle}
+                </span>
             </div>
             <div className="app-entry-form-header__right">
                 <span className="app-entry-form-header__mode">

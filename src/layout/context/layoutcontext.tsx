@@ -31,6 +31,7 @@ export const LayoutProvider = (props: PropsWithChildren) => {
     const lastSavedSnapshot = useRef<string | null>(null);
     const persistTimeout = useRef<number | null>(null);
     const [breadcrumbs, setBreadcrumbs] = useState<Breadcrumb[]>([]);
+    const [routeTitle, setRouteTitle] = useState<string | null>(null);
     const [pageTitle, setPageTitle] = useState<string | null>(null);
     const [layoutConfig, setLayoutConfig] = useState<LayoutConfig>(DEFAULT_LAYOUT_CONFIG);
 
@@ -195,6 +196,8 @@ export const LayoutProvider = (props: PropsWithChildren) => {
             isSidebarActive,
             breadcrumbs,
             setBreadcrumbs,
+            routeTitle,
+            setRouteTitle,
             pageTitle,
             setPageTitle,
             onMenuProfileToggle,
@@ -211,6 +214,7 @@ export const LayoutProvider = (props: PropsWithChildren) => {
             isDesktop,
             isSidebarActive,
             breadcrumbs,
+            routeTitle,
             pageTitle,
             onMenuProfileToggle,
             onTopbarMenuToggle,
@@ -237,10 +241,11 @@ export const LayoutProvider = (props: PropsWithChildren) => {
     const titleName = companyAlias || companyName;
     const contextLabel = titleName && yearLabel ? `${titleName} [${yearLabel}]` : titleName || (yearLabel ? `FY ${yearLabel}` : '');
     const baseTitle = contextLabel ? `Vidhione | ${contextLabel}` : 'Vidhione';
-    const resolvedPageTitle = pageTitle
+    const activePageTitle = pageTitle?.trim() || routeTitle?.trim() || null;
+    const resolvedPageTitle = activePageTitle
         ? contextLabel
-            ? `Vidhione | ${pageTitle} | ${contextLabel}`
-            : `Vidhione | ${pageTitle}`
+            ? `Vidhione | ${activePageTitle} | ${contextLabel}`
+            : `Vidhione | ${activePageTitle}`
         : baseTitle;
     const ogUrl = typeof window !== 'undefined' ? window.location.origin : '';
     const ogImage = ogUrl ? `${ogUrl}/layout/images/logo/vidhione-wordmark.svg` : '/layout/images/logo/vidhione-wordmark.svg';

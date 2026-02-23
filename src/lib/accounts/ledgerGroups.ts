@@ -1,6 +1,7 @@
 import { gql, useQuery } from '@apollo/client';
 import { useMemo } from 'react';
 import { apolloClient } from '@/lib/apolloClient';
+import { ACCOUNT_MASTER_QUERY_OPTIONS } from '@/lib/accounts/masterLookupCache';
 
 type LedgerGroupRow = {
     ledgerGroupId: number;
@@ -32,7 +33,8 @@ const LEDGER_GROUPS = gql`
 export const useLedgerGroupOptions = (args: LedgerGroupOptionsArgs = {}) => {
     const { data, loading, error, refetch } = useQuery<{ ledgerGroups: LedgerGroupRow[] }>(LEDGER_GROUPS, {
         client: apolloClient,
-        skip: args.skip
+        skip: args.skip,
+        ...ACCOUNT_MASTER_QUERY_OPTIONS
     });
 
     const rows = useMemo(() => data?.ledgerGroups ?? [], [data]);

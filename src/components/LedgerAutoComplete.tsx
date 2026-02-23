@@ -1,5 +1,6 @@
 import React, {
     forwardRef,
+    useCallback,
     useEffect,
     useImperativeHandle,
     useMemo,
@@ -64,7 +65,9 @@ type LedgerByPurposeAutoCompleteProps = Omit<
     options?: LedgerOption[];
     loading?: boolean;
     loadingPlaceholder?: string;
+    loadingWhenPanelOpenOnly?: boolean;
     onSelectNext?: () => void;
+    onPreviewOptionChange?: (option: LedgerOption | null) => void;
     skip?: boolean;
 };
 
@@ -90,6 +93,82 @@ const areOptionArraysEqual = (left: OptionComparable[], right: OptionComparable[
         if (leftItem?.address !== rightItem?.address) return false;
     }
     return true;
+};
+
+const normalizeLabel = (value: string | null | undefined) => value?.trim().toLowerCase() ?? '';
+
+const findExactLabelMatch = <T extends OptionComparable>(
+    primary: T[],
+    secondary: T[],
+    input: string
+): T | null => {
+    const needle = normalizeLabel(input);
+    if (!needle) return null;
+    const findIn = (items: T[]) =>
+        items.find((option) => normalizeLabel(option?.label ?? null) === needle) ?? null;
+    return findIn(primary) ?? findIn(secondary);
+};
+
+const findPrefixLabelMatch = <T extends OptionComparable>(
+    primary: T[],
+    secondary: T[],
+    input: string
+): T | null => {
+    const needle = input.toLowerCase();
+    if (!needle) return null;
+    const findIn = (items: T[]) =>
+        items.find((option) => {
+            const label = option?.label;
+            return typeof label === 'string' && label.toLowerCase().startsWith(needle);
+        }) ?? null;
+    return findIn(primary) ?? findIn(secondary);
+};
+
+const filterAndRankOptions = <T extends OptionComparable>(options: T[], input: string): T[] => {
+    const needle = normalizeLabel(input);
+    if (!needle) return options;
+    const prefixMatches: T[] = [];
+    const containsMatches: T[] = [];
+    options.forEach((option) => {
+        const label = normalizeLabel(option?.label ?? null);
+        if (!label.includes(needle)) return;
+        if (label.startsWith(needle)) {
+            prefixMatches.push(option);
+            return;
+        }
+        containsMatches.push(option);
+    });
+    return [...prefixMatches, ...containsMatches];
+};
+
+function findHighlightedSuggestion<T>(
+    overlay: Element | null | undefined,
+    suggestions: T[]
+): T | null {
+    if (!overlay || suggestions.length === 0) return null;
+    const highlighted =
+        (overlay.querySelector('li[data-p-highlight="true"]') as HTMLElement | null) ??
+        (overlay.querySelector('li.p-highlight') as HTMLElement | null) ??
+        (overlay.querySelector('li[aria-selected="true"]') as HTMLElement | null);
+    if (!highlighted) return null;
+    const indexAttr = highlighted.getAttribute('data-index') ?? highlighted.getAttribute('index');
+    let index = indexAttr ? Number(indexAttr) : NaN;
+    if (!Number.isFinite(index)) {
+        const items = Array.from(overlay.querySelectorAll('li.p-autocomplete-item'));
+        index = items.indexOf(highlighted);
+    }
+    return Number.isFinite(index) ? suggestions[index] ?? null : null;
+}
+
+const resolveFieldData = (source: Record<string, unknown>, fieldPath: string): unknown => {
+    if (!fieldPath) return undefined;
+    const segments = fieldPath.split('.');
+    let current: unknown = source;
+    for (const segment of segments) {
+        if (!current || typeof current !== 'object') return undefined;
+        current = (current as Record<string, unknown>)[segment];
+    }
+    return current;
 };
 
 const PartyLedgerAutoCompleteImpl = forwardRef<AutoComplete, PartyLedgerAutoCompleteProps>((
@@ -142,8 +221,10 @@ const PartyLedgerAutoCompleteImpl = forwardRef<AutoComplete, PartyLedgerAutoComp
     const loading = loadingProp ?? queryLoading;
     const showLoading = loadingProp !== undefined ? loadingProp : loading && resolvedOptions.length === 0;
     const [query, setQuery] = useState('');
+    const [displayQuery, setDisplayQuery] = useState('');
     const [suggestions, setSuggestions] = useState<PartyLedgerOption[]>([]);
     const pendingOpenRef = useRef(false);
+    const pendingInlineSelectionRef = useRef<{ start: number; end: number } | null>(null);
     const resolvedOpenOnFocus = openOnFocus ?? true;
 
     const selectedOption = useMemo(
@@ -162,6 +243,33 @@ const PartyLedgerAutoCompleteImpl = forwardRef<AutoComplete, PartyLedgerAutoComp
         }
     }, [resolvedOptions, query]);
 
+    const applyPendingInlineSelection = useCallback(() => {
+        if (typeof window === 'undefined') return;
+        const pending = pendingInlineSelectionRef.current;
+        if (!pending) return;
+        const input = autoCompleteRef.current?.getInput?.();
+        if (!input || document.activeElement !== input) {
+            pendingInlineSelectionRef.current = null;
+            return;
+        }
+        window.requestAnimationFrame(() => {
+            const nextPending = pendingInlineSelectionRef.current;
+            const nextInput = autoCompleteRef.current?.getInput?.();
+            if (!nextPending || !nextInput || document.activeElement !== nextInput) {
+                pendingInlineSelectionRef.current = null;
+                return;
+            }
+            const safeStart = Math.max(0, Math.min(nextPending.start, nextInput.value.length));
+            const safeEnd = Math.max(safeStart, Math.min(nextPending.end, nextInput.value.length));
+            nextInput.setSelectionRange(safeStart, safeEnd);
+            pendingInlineSelectionRef.current = null;
+        });
+    }, []);
+
+    useEffect(() => {
+        applyPendingInlineSelection();
+    }, [applyPendingInlineSelection, displayQuery]);
+
     useEffect(() => {
         if (loading) return;
         if (!pendingOpenRef.current) return;
@@ -171,22 +279,63 @@ const PartyLedgerAutoCompleteImpl = forwardRef<AutoComplete, PartyLedgerAutoComp
         }, 0);
     }, [loading, resolvedOptions]);
 
-    const filterOptions = (input: string) => {
-        const needle = input.trim().toLowerCase();
-        if (!needle) return resolvedOptions;
-        return resolvedOptions.filter((option) => option.label.toLowerCase().includes(needle));
-    };
+    const filterOptions = (input: string) => filterAndRankOptions(resolvedOptions, input);
+
+    const commitSelection = useCallback(
+        (option: PartyLedgerOption, advanceToNext = true) => {
+            setQuery('');
+            setDisplayQuery('');
+            pendingInlineSelectionRef.current = null;
+            onChange(option.value ?? null, option);
+            if (advanceToNext && onSelectNext) {
+                window.setTimeout(onSelectNext, 0);
+            }
+        },
+        [onChange, onSelectNext]
+    );
+
+    const resolveEnterSelection = useCallback(
+        (overlay: Element | null | undefined) => {
+            const highlightedOption = findHighlightedSuggestion(overlay, suggestions);
+            if (highlightedOption) return highlightedOption;
+            const inlineMatch = findExactLabelMatch(suggestions, resolvedOptions, displayQuery);
+            if (inlineMatch) return inlineMatch;
+            const typedMatch = findExactLabelMatch(suggestions, resolvedOptions, query);
+            return typedMatch ?? (suggestions.length > 0 ? suggestions[0] : null);
+        },
+        [displayQuery, query, resolvedOptions, suggestions]
+    );
 
     const handleComplete = (event: AutoCompleteCompleteEvent) => {
         const nextQuery = event.query ?? '';
+        const filtered = filterOptions(nextQuery);
         setQuery(nextQuery);
-        setSuggestions(filterOptions(nextQuery));
+        setSuggestions(filtered);
+        if (!nextQuery) {
+            pendingInlineSelectionRef.current = null;
+            setDisplayQuery('');
+            return;
+        }
+        const prefixMatch = findPrefixLabelMatch(filtered, resolvedOptions, nextQuery);
+        const matchedLabel = typeof prefixMatch?.label === 'string' ? prefixMatch.label : null;
+        if (matchedLabel && matchedLabel.length > nextQuery.length) {
+            setDisplayQuery(matchedLabel);
+            pendingInlineSelectionRef.current = {
+                start: nextQuery.length,
+                end: matchedLabel.length
+            };
+            return;
+        }
+        pendingInlineSelectionRef.current = null;
+        setDisplayQuery(nextQuery);
     };
 
     const handleChange = (event: AutoCompleteChangeEvent) => {
         const nextValue = event.value as PartyLedgerOption | string | null;
         if (nextValue == null) {
             setQuery('');
+            setDisplayQuery('');
+            pendingInlineSelectionRef.current = null;
             onChange(null, null);
             return;
         }
@@ -194,35 +343,30 @@ const PartyLedgerAutoCompleteImpl = forwardRef<AutoComplete, PartyLedgerAutoComp
             const trimmed = nextValue.trim();
             if (!trimmed) {
                 setQuery('');
+                setDisplayQuery('');
+                pendingInlineSelectionRef.current = null;
                 onChange(null, null);
                 return;
             }
-            const match =
-                suggestions.find((option) => option.label.toLowerCase() === trimmed.toLowerCase()) ??
-                options.find((option) => option.label.toLowerCase() === trimmed.toLowerCase()) ??
-                null;
+            const match = findExactLabelMatch(suggestions, options, trimmed);
             if (match) {
-                setQuery('');
-                onChange(match.value ?? null, match);
-                if (onSelectNext) {
-                    window.setTimeout(onSelectNext, 0);
-                }
+                commitSelection(match);
                 return;
             }
             setQuery(nextValue);
+            setDisplayQuery(nextValue);
+            pendingInlineSelectionRef.current = null;
             return;
         }
-        setQuery('');
-        onChange(nextValue.value ?? null, nextValue);
-        if (onSelectNext) {
-            window.setTimeout(onSelectNext, 0);
-        }
+        commitSelection(nextValue);
     };
 
     const handleBlur = (event: React.FocusEvent<HTMLSpanElement>) => {
         onBlur?.(event);
         pendingOpenRef.current = false;
         setQuery('');
+        setDisplayQuery('');
+        pendingInlineSelectionRef.current = null;
     };
 
     const handleFocus = (event: React.FocusEvent<HTMLSpanElement>) => {
@@ -240,29 +384,19 @@ const PartyLedgerAutoCompleteImpl = forwardRef<AutoComplete, PartyLedgerAutoComp
         const overlay = autoCompleteRef.current?.getOverlay?.();
         const overlayVisible = Boolean(overlay && overlay.offsetParent !== null);
         if (overlayVisible) {
-            const highlighted = overlay?.querySelector('li[data-p-highlight="true"]') as HTMLElement | null;
-            const indexAttr = highlighted?.getAttribute('data-index') ?? highlighted?.getAttribute('index');
-            const index = indexAttr ? Number(indexAttr) : NaN;
-            const highlightedOption = Number.isFinite(index) ? suggestions[index] : null;
-            const fallbackOption = !highlightedOption && suggestions.length > 0 ? suggestions[0] : null;
-            const optionToSelect = highlightedOption ?? fallbackOption;
+            const optionToSelect = resolveEnterSelection(overlay);
             if (optionToSelect) {
                 event.preventDefault();
                 event.stopPropagation();
-                setQuery('');
-                onChange(optionToSelect.value ?? null, optionToSelect);
+                commitSelection(optionToSelect);
                 autoCompleteRef.current?.hide?.();
-                if (onSelectNext) {
-                    window.setTimeout(onSelectNext, 0);
-                }
                 return;
             }
         }
         if (!query.trim() && selectedOption) {
             event.preventDefault();
             event.stopPropagation();
-            setQuery('');
-            onChange(selectedOption.value ?? null, selectedOption);
+            commitSelection(selectedOption, false);
             return;
         }
         if (onSelectNext) {
@@ -277,32 +411,20 @@ const PartyLedgerAutoCompleteImpl = forwardRef<AutoComplete, PartyLedgerAutoComp
         const overlay = autoCompleteRef.current?.getOverlay?.();
         const overlayVisible = Boolean(overlay && overlay.offsetParent !== null);
         if (overlayVisible) {
-            const highlighted = overlay?.querySelector('li[data-p-highlight="true"]') as HTMLElement | null;
-            const indexAttr = highlighted?.getAttribute('data-index') ?? highlighted?.getAttribute('index');
-            const index = indexAttr ? Number(indexAttr) : NaN;
-            const highlightedOption = Number.isFinite(index) ? suggestions[index] : null;
-            const fallbackOption = !highlightedOption && suggestions.length > 0 ? suggestions[0] : null;
-            const optionToSelect = highlightedOption ?? fallbackOption;
+            const optionToSelect = resolveEnterSelection(overlay);
             if (optionToSelect) {
                 event.preventDefault();
                 event.stopPropagation();
-                setQuery('');
-                onChange(optionToSelect.value ?? null, optionToSelect);
+                commitSelection(optionToSelect);
                 autoCompleteRef.current?.hide?.();
-                if (onSelectNext) {
-                    window.setTimeout(onSelectNext, 0);
-                }
                 return;
             }
         } else if (query.trim() && suggestions.length > 0) {
+            const optionToSelect = resolveEnterSelection(null);
+            if (!optionToSelect) return;
             event.preventDefault();
             event.stopPropagation();
-            const optionToSelect = suggestions[0];
-            setQuery('');
-            onChange(optionToSelect.value ?? null, optionToSelect);
-            if (onSelectNext) {
-                window.setTimeout(onSelectNext, 0);
-            }
+            commitSelection(optionToSelect);
         }
     };
 
@@ -321,45 +443,38 @@ const PartyLedgerAutoCompleteImpl = forwardRef<AutoComplete, PartyLedgerAutoComp
                 });
             }
             if (!overlayVisible) return;
-            const highlighted = overlay?.querySelector('li[data-p-highlight="true"]') as HTMLElement | null;
-            const indexAttr = highlighted?.getAttribute('data-index') ?? highlighted?.getAttribute('index');
-            const index = indexAttr ? Number(indexAttr) : NaN;
-            const highlightedOption = Number.isFinite(index) ? suggestions[index] : null;
+            const optionToSelect = resolveEnterSelection(overlay);
             if (process.env.NODE_ENV !== 'production') {
                 console.debug('[LedgerAutoComplete] highlighted', {
-                    index,
-                    hasHighlighted: Boolean(highlighted),
-                    label: highlightedOption?.label,
-                    value: highlightedOption?.value
+                    label: optionToSelect?.label,
+                    value: optionToSelect?.value
                 });
             }
-            if (!highlightedOption) return;
+            if (!optionToSelect) return;
             event.preventDefault();
             event.stopPropagation();
-            setQuery('');
-            onChange(highlightedOption.value ?? null, highlightedOption);
+            commitSelection(optionToSelect);
             autoCompleteRef.current?.hide?.();
-            if (onSelectNext) {
-                window.setTimeout(onSelectNext, 0);
-            }
         };
         input.addEventListener('keydown', handleInputKeyDown, true);
         return () => {
             input.removeEventListener('keydown', handleInputKeyDown, true);
         };
-    }, [onChange, onSelectNext, suggestions]);
+    }, [commitSelection, query, resolveEnterSelection, suggestions]);
 
     const handleDropdownClick = (event: any) => {
         onDropdownClick?.(event);
         pendingOpenRef.current = true;
         setQuery('');
+        setDisplayQuery('');
+        pendingInlineSelectionRef.current = null;
         setSuggestions(resolvedOptions);
         if (!loading && resolvedOptions.length === 0) {
             refetch?.();
         }
     };
 
-    const displayValue = query.length ? query : selectedOption;
+    const displayValue = displayQuery.length ? displayQuery : selectedOption;
     const resolvedPlaceholder = showLoading
         ? loadingPlaceholder ?? 'Loading parties...'
         : placeholder ?? 'Select party';
@@ -383,6 +498,8 @@ const PartyLedgerAutoCompleteImpl = forwardRef<AutoComplete, PartyLedgerAutoComp
             placeholder={resolvedPlaceholder}
             disabled={disabled}
             readOnly={readOnly}
+            inlineTypeahead={false}
+            autoHighlight
         />
     );
 });
@@ -404,13 +521,17 @@ const LedgerByPurposeAutoCompleteImpl = forwardRef<AutoComplete, LedgerByPurpose
         options: optionsProp,
         loading: loadingProp,
         loadingPlaceholder,
+        loadingWhenPanelOpenOnly,
         onSelectNext,
         placeholder,
         onBlur,
         onFocus,
         onKeyDown,
         onDropdownClick,
+        onShow,
+        onHide,
         selectedOption: selectedOptionProp,
+        onPreviewOptionChange,
         disabled,
         readOnly,
         skip,
@@ -423,9 +544,12 @@ const LedgerByPurposeAutoCompleteImpl = forwardRef<AutoComplete, LedgerByPurpose
     useImperativeHandle(ref, () => autoCompleteRef.current as AutoComplete);
 
     const [query, setQuery] = useState('');
+    const [displayQuery, setDisplayQuery] = useState('');
     const [suggestions, setSuggestions] = useState<LedgerOption[]>([]);
     const [selectedFallback, setSelectedFallback] = useState<LedgerOption | null>(null);
+    const [isPanelOpen, setIsPanelOpen] = useState(false);
     const suppressStringChangeRef = useRef(false);
+    const advanceOnSelectionRef = useRef(false);
     const { options: queryOptions, loading: queryLoading } = useLedgerOptionsByPurpose({
         purpose,
         ledgerGroupId,
@@ -440,6 +564,9 @@ const LedgerByPurposeAutoCompleteImpl = forwardRef<AutoComplete, LedgerByPurpose
 
     const options = optionsProp ?? queryOptions;
     const loading = loadingProp ?? queryLoading;
+    const hasVisibleSuggestions = suggestions.length > 0;
+    const resolvedLoading =
+        (loadingWhenPanelOpenOnly ? loading && isPanelOpen : loading) && !hasVisibleSuggestions;
 
     const selectedOption = useMemo(() => {
         if (value == null) return null;
@@ -454,9 +581,7 @@ const LedgerByPurposeAutoCompleteImpl = forwardRef<AutoComplete, LedgerByPurpose
             setSuggestions((prev) => (areOptionArraysEqual(prev, options) ? prev : options));
             return;
         }
-        const filtered = options.filter((option) =>
-            option.label.toLowerCase().includes(query.trim().toLowerCase())
-        );
+        const filtered = filterAndRankOptions(options, query);
         setSuggestions((prev) => (areOptionArraysEqual(prev, filtered) ? prev : filtered));
     }, [options, query]);
 
@@ -466,13 +591,51 @@ const LedgerByPurposeAutoCompleteImpl = forwardRef<AutoComplete, LedgerByPurpose
         setSelectedFallback(selectedOptionProp);
     }, [selectedOptionProp, value]);
 
+    const resolveEnterSelection = useCallback(
+        (overlay: Element | null | undefined) => {
+            const highlightedOption = findHighlightedSuggestion(overlay, suggestions);
+            if (highlightedOption) return highlightedOption;
+            return (
+                findExactLabelMatch(suggestions, options, displayQuery) ??
+                findExactLabelMatch(suggestions, options, query) ??
+                (suggestions.length > 0 ? suggestions[0] : null)
+            );
+        },
+        [displayQuery, options, query, suggestions]
+    );
+
+    const syncPreviewFromHighlight = useCallback(() => {
+        if (!onPreviewOptionChange) return;
+        const overlay = autoCompleteRef.current?.getOverlay?.();
+        const overlayVisible = Boolean(overlay && overlay.offsetParent !== null);
+        if (!overlayVisible) {
+            onPreviewOptionChange(null);
+            return;
+        }
+        const highlightedOption = findHighlightedSuggestion(overlay, suggestions);
+        onPreviewOptionChange(highlightedOption ?? selectedOption ?? null);
+    }, [onPreviewOptionChange, selectedOption, suggestions]);
+
+    useEffect(() => {
+        if (!onPreviewOptionChange) return;
+        const overlay = autoCompleteRef.current?.getOverlay?.();
+        const overlayVisible = Boolean(overlay && overlay.offsetParent !== null);
+        if (!overlayVisible) return;
+        if (typeof window !== 'undefined') {
+            window.requestAnimationFrame(syncPreviewFromHighlight);
+        }
+    }, [onPreviewOptionChange, suggestions, selectedOption, syncPreviewFromHighlight]);
+
     const handleComplete = (event: AutoCompleteCompleteEvent) => {
         const nextQuery = event.query ?? '';
         setQuery(nextQuery);
+        setDisplayQuery(nextQuery);
     };
 
     const handleChange = (event: AutoCompleteChangeEvent) => {
         const nextValue = event.value as LedgerOption | string | null;
+        const shouldAdvanceOnSelection = advanceOnSelectionRef.current;
+        advanceOnSelectionRef.current = false;
         if (process.env.NODE_ENV !== 'production') {
             console.debug('[LedgerAutoComplete] onChange', {
                 type: typeof nextValue,
@@ -482,6 +645,7 @@ const LedgerByPurposeAutoCompleteImpl = forwardRef<AutoComplete, LedgerByPurpose
         }
         if (nextValue == null) {
             setQuery('');
+            setDisplayQuery('');
             setSelectedFallback(null);
             onChange(null, null);
             return;
@@ -493,18 +657,34 @@ const LedgerByPurposeAutoCompleteImpl = forwardRef<AutoComplete, LedgerByPurpose
                 }
                 suppressStringChangeRef.current = false;
                 setQuery('');
+                setDisplayQuery('');
                 return;
             }
+            const trimmed = nextValue.trim();
             setQuery(nextValue);
-            if (!nextValue.trim()) {
+            setDisplayQuery(nextValue);
+            if (!trimmed) {
                 onChange(null, null);
+                setSelectedFallback(null);
+                return;
+            }
+            const match = findExactLabelMatch(suggestions, options, trimmed);
+            if (match) {
+                setQuery('');
+                setDisplayQuery('');
+                setSelectedFallback(match);
+                onChange(match.value ?? null, match);
+                if (shouldAdvanceOnSelection && onSelectNext) {
+                    window.setTimeout(onSelectNext, 0);
+                }
             }
             return;
         }
         setQuery('');
+        setDisplayQuery('');
         setSelectedFallback(nextValue);
         onChange(nextValue.value ?? null, nextValue);
-        if (onSelectNext) {
+        if (shouldAdvanceOnSelection && onSelectNext) {
             window.setTimeout(onSelectNext, 0);
         }
     };
@@ -518,7 +698,10 @@ const LedgerByPurposeAutoCompleteImpl = forwardRef<AutoComplete, LedgerByPurpose
 
     const handleBlur = (event: React.FocusEvent<HTMLSpanElement>) => {
         onBlur?.(event);
+        setIsPanelOpen(false);
         setQuery('');
+        setDisplayQuery('');
+        advanceOnSelectionRef.current = false;
     };
 
     const handleKeyDown = (event: React.KeyboardEvent<HTMLSpanElement>) => {
@@ -530,6 +713,9 @@ const LedgerByPurposeAutoCompleteImpl = forwardRef<AutoComplete, LedgerByPurpose
             });
         }
         onKeyDown?.(event);
+        if ((event.key === 'ArrowDown' || event.key === 'ArrowUp') && onPreviewOptionChange && typeof window !== 'undefined') {
+            window.requestAnimationFrame(syncPreviewFromHighlight);
+        }
         if (event.defaultPrevented || event.key !== 'Enter' || !onSelectNext) return;
         const overlay = autoCompleteRef.current?.getOverlay?.();
         const overlayVisible = Boolean(overlay && overlay.offsetParent !== null);
@@ -540,6 +726,17 @@ const LedgerByPurposeAutoCompleteImpl = forwardRef<AutoComplete, LedgerByPurpose
             event.stopPropagation();
             autoCompleteRef.current?.hide?.();
             window.setTimeout(onSelectNext, 0);
+            return;
+        }
+        if (!selectedOption) {
+            const optionToSelect = query.trim().length > 0 ? resolveEnterSelection(null) : null;
+            if (!optionToSelect) return;
+            event.preventDefault();
+            event.stopPropagation();
+            suppressStringChangeRef.current = true;
+            advanceOnSelectionRef.current = true;
+            handleChange({ value: optionToSelect } as AutoCompleteChangeEvent);
+            autoCompleteRef.current?.hide?.();
             return;
         }
         event.preventDefault();
@@ -559,42 +756,43 @@ const LedgerByPurposeAutoCompleteImpl = forwardRef<AutoComplete, LedgerByPurpose
         const overlay = autoCompleteRef.current?.getOverlay?.();
         const overlayVisible = Boolean(overlay && overlay.offsetParent !== null);
         if (overlayVisible) {
-            const highlighted =
-                (overlay?.querySelector('li[data-p-highlight="true"]') as HTMLElement | null) ??
-                (overlay?.querySelector('li.p-highlight') as HTMLElement | null) ??
-                (overlay?.querySelector('li[aria-selected="true"]') as HTMLElement | null);
-            let index = NaN;
-            const indexAttr = highlighted?.getAttribute('data-index') ?? highlighted?.getAttribute('index');
-            if (indexAttr) {
-                index = Number(indexAttr);
-            } else if (highlighted) {
-                const items = Array.from(overlay?.querySelectorAll('li.p-autocomplete-item') ?? []);
-                index = items.indexOf(highlighted);
+            const hasTypedQuery = query.trim().length > 0;
+            const highlightedOption = findHighlightedSuggestion(overlay, suggestions);
+            if (!hasTypedQuery && selectedOption) {
+                event.preventDefault();
+                event.stopPropagation();
+                autoCompleteRef.current?.hide?.();
+                if (onSelectNext) {
+                    window.setTimeout(onSelectNext, 0);
+                }
+                return;
             }
-            const highlightedOption = Number.isFinite(index) ? suggestions[index] : null;
-            const optionToSelect = highlightedOption ?? (suggestions.length > 0 ? suggestions[0] : null);
+
+            const optionToSelect = resolveEnterSelection(overlay);
             if (process.env.NODE_ENV !== 'production') {
                 console.debug('[LedgerAutoComplete] enter selection', {
                     overlayVisible,
-                    highlightedFound: Boolean(highlighted),
-                    index,
-                    label: highlightedOption?.label,
-                    value: highlightedOption?.value
+                    highlightedFound: Boolean(highlightedOption),
+                    label: optionToSelect?.label,
+                    value: optionToSelect?.value
                 });
             }
             if (optionToSelect) {
                 event.preventDefault();
                 event.stopPropagation();
                 suppressStringChangeRef.current = true;
+                advanceOnSelectionRef.current = true;
                 handleChange({ value: optionToSelect } as AutoCompleteChangeEvent);
                 autoCompleteRef.current?.hide?.();
                 return;
             }
         } else if (query.trim() && suggestions.length > 0) {
+            const optionToSelect = resolveEnterSelection(null);
+            if (!optionToSelect) return;
             event.preventDefault();
             event.stopPropagation();
-            const optionToSelect = suggestions[0];
             suppressStringChangeRef.current = true;
+            advanceOnSelectionRef.current = true;
             handleChange({ value: optionToSelect } as AutoCompleteChangeEvent);
             autoCompleteRef.current?.hide?.();
         }
@@ -603,11 +801,28 @@ const LedgerByPurposeAutoCompleteImpl = forwardRef<AutoComplete, LedgerByPurpose
     const handleDropdownClick = (event: any) => {
         onDropdownClick?.(event);
         setQuery('');
+        setDisplayQuery('');
         setSuggestions(options);
     };
 
-    const displayValue = query.length ? query : selectedOption;
-    const resolvedPlaceholder = loading
+    const handleShow = () => {
+        setIsPanelOpen(true);
+        onShow?.();
+        if (!onPreviewOptionChange) return;
+        onPreviewOptionChange(selectedOption ?? null);
+        if (typeof window !== 'undefined') {
+            window.requestAnimationFrame(syncPreviewFromHighlight);
+        }
+    };
+
+    const handleHide = () => {
+        setIsPanelOpen(false);
+        onHide?.();
+        onPreviewOptionChange?.(null);
+    };
+
+    const displayValue = displayQuery.length ? displayQuery : selectedOption;
+    const resolvedPlaceholder = resolvedLoading
         ? loadingPlaceholder ?? 'Loading ledgers...'
         : placeholder ?? 'Select ledger';
 
@@ -625,13 +840,18 @@ const LedgerByPurposeAutoCompleteImpl = forwardRef<AutoComplete, LedgerByPurpose
             onKeyDown={handleKeyDown}
             onKeyDownCapture={handleKeyDownCapture}
             onDropdownClick={handleDropdownClick}
+            onShow={handleShow}
+            onHide={handleHide}
             field="label"
-            loading={loading}
+            loading={resolvedLoading}
             showLoadingIcon
             showEmptyMessage
             placeholder={resolvedPlaceholder}
             disabled={disabled}
             readOnly={readOnly}
+            inlineTypeahead={false}
+            autoHighlight
+            highlightSelectedOnShow={false}
         />
     );
 });
@@ -650,7 +870,9 @@ const LedgerAutoComplete = forwardRef<AutoComplete, LedgerAutoCompleteProps>((pr
     const {
         onSelectNext,
         onChange,
+        completeMethod,
         onKeyDown,
+        onBlur,
         onDropdownClick,
         onShow,
         ledgerGroupId,
@@ -663,7 +885,12 @@ const LedgerAutoComplete = forwardRef<AutoComplete, LedgerAutoCompleteProps>((pr
         value,
         ...rest
     } = props as ManualLedgerAutoCompleteProps;
+    const autoCompleteRef = useRef<AutoComplete | null>(null);
+    useImperativeHandle(ref, () => autoCompleteRef.current as AutoComplete);
     const resolvedDebugLabel = debugLabel ?? 'LedgerAutoComplete';
+    const [manualQuery, setManualQuery] = useState('');
+    const [manualDisplayValue, setManualDisplayValue] = useState('');
+    const pendingInlineSelectionRef = useRef<{ start: number; end: number } | null>(null);
     const resolvedGroupIds = useMemo(() => {
         if (Array.isArray(ledgerGroupIds) && ledgerGroupIds.length > 0) {
             const unique = Array.from(
@@ -723,6 +950,48 @@ const LedgerAutoComplete = forwardRef<AutoComplete, LedgerAutoCompleteProps>((pr
         return field;
     }, [displaySuggestions, field]);
 
+    const applyPendingInlineSelection = useCallback(() => {
+        if (typeof window === 'undefined') return;
+        const pending = pendingInlineSelectionRef.current;
+        if (!pending) return;
+        const input = autoCompleteRef.current?.getInput?.();
+        if (!input || document.activeElement !== input) {
+            pendingInlineSelectionRef.current = null;
+            return;
+        }
+        window.requestAnimationFrame(() => {
+            const nextPending = pendingInlineSelectionRef.current;
+            const nextInput = autoCompleteRef.current?.getInput?.();
+            if (!nextPending || !nextInput || document.activeElement !== nextInput) {
+                pendingInlineSelectionRef.current = null;
+                return;
+            }
+            const safeStart = Math.max(0, Math.min(nextPending.start, nextInput.value.length));
+            const safeEnd = Math.max(safeStart, Math.min(nextPending.end, nextInput.value.length));
+            nextInput.setSelectionRange(safeStart, safeEnd);
+            pendingInlineSelectionRef.current = null;
+        });
+    }, []);
+
+    useEffect(() => {
+        applyPendingInlineSelection();
+    }, [applyPendingInlineSelection, manualDisplayValue]);
+
+    const syncManualInlineCompletion = useCallback(
+        (rawInput: string) => {
+            const nextQuery = rawInput ?? '';
+            setManualDisplayValue(nextQuery);
+            pendingInlineSelectionRef.current = null;
+        },
+        []
+    );
+
+    useEffect(() => {
+        if (typeof value !== 'string') return;
+        if (!manualQuery) return;
+        syncManualInlineCompletion(manualQuery);
+    }, [manualQuery, syncManualInlineCompletion, value]);
+
     useEffect(() => {
         if (!debug) return;
         if (typeof window === 'undefined') return;
@@ -748,12 +1017,27 @@ const LedgerAutoComplete = forwardRef<AutoComplete, LedgerAutoCompleteProps>((pr
                 suggestionsCount: Array.isArray(resolvedSuggestions) ? resolvedSuggestions.length : 0
             });
         }
-        onChange?.(event);
         const nextValue = event.value as unknown;
+        if (typeof nextValue === 'string') {
+            setManualQuery(nextValue);
+            syncManualInlineCompletion(nextValue);
+        } else {
+            setManualQuery('');
+            setManualDisplayValue('');
+            pendingInlineSelectionRef.current = null;
+        }
+        onChange?.(event);
         if (!onSelectNext) return;
         if (nextValue && typeof nextValue !== 'string') {
             window.setTimeout(onSelectNext, 0);
         }
+    };
+
+    const handleComplete = (event: AutoCompleteCompleteEvent) => {
+        completeMethod?.(event);
+        const nextQuery = event.query ?? '';
+        setManualQuery(nextQuery);
+        syncManualInlineCompletion(nextQuery);
     };
 
     const handleKeyDown = (event: React.KeyboardEvent<HTMLSpanElement>) => {
@@ -773,7 +1057,17 @@ const LedgerAutoComplete = forwardRef<AutoComplete, LedgerAutoCompleteProps>((pr
                 suggestionsCount: Array.isArray(resolvedSuggestions) ? resolvedSuggestions.length : 0
             });
         }
+        setManualQuery('');
+        setManualDisplayValue('');
+        pendingInlineSelectionRef.current = null;
         onDropdownClick?.(event);
+    };
+
+    const handleBlur = (event: React.FocusEvent<HTMLSpanElement>) => {
+        onBlur?.(event);
+        setManualQuery('');
+        setManualDisplayValue('');
+        pendingInlineSelectionRef.current = null;
     };
 
     const handleShow = () => {
@@ -788,14 +1082,18 @@ const LedgerAutoComplete = forwardRef<AutoComplete, LedgerAutoCompleteProps>((pr
     return (
         <AppAutoComplete
             {...rest}
-            ref={ref}
+            ref={autoCompleteRef}
             suggestions={displaySuggestions}
-            value={value}
+            value={manualDisplayValue.length ? manualDisplayValue : value}
             field={resolvedField}
+            completeMethod={completeMethod ? handleComplete : undefined}
             onChange={handleChange}
+            onBlur={handleBlur}
             onKeyDown={handleKeyDown}
             onDropdownClick={handleDropdownClick}
             onShow={handleShow}
+            inlineTypeahead={false}
+            autoHighlight
         />
     );
 });

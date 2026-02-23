@@ -7,6 +7,7 @@ export const INVOICE_PRODUCTS_QUERY = gql`
             name
             code
             hsnCodeId
+            productAttributeTypeId
             units {
                 unitId
             }
@@ -14,6 +15,7 @@ export const INVOICE_PRODUCTS_QUERY = gql`
                 ledgerTaxId
                 ledgerTax2Id
                 ledgerTax3Id
+                mrp
                 sellingRate
                 beforeVatRate
                 isActiveFlag
@@ -30,6 +32,7 @@ export const INVOICE_PRODUCT_BY_ID_QUERY = gql`
             name
             code
             hsnCodeId
+            productAttributeTypeId
             units {
                 unitId
             }
@@ -37,10 +40,23 @@ export const INVOICE_PRODUCT_BY_ID_QUERY = gql`
                 ledgerTaxId
                 ledgerTax2Id
                 ledgerTax3Id
+                mrp
                 sellingRate
                 beforeVatRate
                 isActiveFlag
                 effectiveDateText
+            }
+        }
+    }
+`;
+
+export const INVOICE_PRODUCT_ATTRIBUTE_TYPE_BY_ID_QUERY = gql`
+    query InvoiceProductAttributeTypeById($productAttributeTypeId: Int!) {
+        productAttributeTypeById(productAttributeTypeId: $productAttributeTypeId) {
+            productAttributeTypeId
+            productAttributes {
+                productAttributeId
+                detail
             }
         }
     }

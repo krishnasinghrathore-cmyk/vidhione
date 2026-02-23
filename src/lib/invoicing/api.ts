@@ -106,6 +106,13 @@ export type SaleInvoiceLine = {
     isManualQpsDiscount: boolean | null;
     tmpTypeId: number | null;
     estimateLineId: number | null;
+    inventoryWarehouseId: number | null;
+    inventoryBatchNo: string | null;
+    inventoryExpiryDateText: string | null;
+    inventorySerialsText: string | null;
+    inventoryRequiresBatch: boolean | null;
+    inventoryRequiresExpiry: boolean | null;
+    inventoryRequiresSerial: boolean | null;
 };
 
 export type SaleInvoiceTaxLine = {
@@ -244,6 +251,13 @@ export type SaleInvoiceLineInput = {
     tmpTypeId?: number | null;
     estimateLineId?: number | null;
     remarks?: string | null;
+    inventoryWarehouseId?: number | null;
+    inventoryBatchNo?: string | null;
+    inventoryExpiryDateText?: string | null;
+    inventorySerialsText?: string | null;
+    inventoryRequiresBatch?: boolean | null;
+    inventoryRequiresExpiry?: boolean | null;
+    inventoryRequiresSerial?: boolean | null;
 };
 
 export type SaleInvoiceTaxLineInput = {
@@ -331,6 +345,11 @@ export type CreateSaleInvoiceInput = {
     typeDetails?: SaleInvoiceTypeDetailInput[] | null;
     creditNotes?: SaleInvoiceCreditNoteInput[] | null;
     debitNotes?: SaleInvoiceDebitNoteInput[] | null;
+};
+
+export type UpdateSaleInvoiceInput = CreateSaleInvoiceInput & {
+    saleInvoiceId: number;
+    isCancelled?: boolean | null;
 };
 
 export type CreateSaleInvoicesBatchInput = {
@@ -1033,6 +1052,13 @@ export const getSaleInvoice = async (saleInvoiceId: number) => {
                         isManualQpsDiscount
                         tmpTypeId
                         estimateLineId
+                        inventoryWarehouseId
+                        inventoryBatchNo
+                        inventoryExpiryDateText
+                        inventorySerialsText
+                        inventoryRequiresBatch
+                        inventoryRequiresExpiry
+                        inventoryRequiresSerial
                     }
                     taxLines {
                         saleInvoiceTaxLineId
@@ -1088,6 +1114,29 @@ export const createSaleInvoice = async (input: CreateSaleInvoiceInput) => {
         { input }
     );
     return data.createSaleInvoice;
+};
+
+export const updateSaleInvoice = async (input: UpdateSaleInvoiceInput) => {
+    const data = await requestInvoicingGraphql<{ updateSaleInvoice: { saleInvoiceId: number } }>(
+        `mutation UpdateSaleInvoice($input: UpdateSaleInvoiceInput!) {
+            updateSaleInvoice(input: $input) { saleInvoiceId }
+        }`,
+        { input }
+    );
+    return data.updateSaleInvoice;
+};
+
+export const setSaleInvoiceCancelled = async (input: { saleInvoiceId: number; cancelled?: boolean | null }) => {
+    const data = await requestInvoicingGraphql<{ setSaleInvoiceCancelled: boolean }>(
+        `mutation SetSaleInvoiceCancelled($saleInvoiceId: Int!, $cancelled: Boolean) {
+            setSaleInvoiceCancelled(saleInvoiceId: $saleInvoiceId, cancelled: $cancelled)
+        }`,
+        {
+            saleInvoiceId: Number(input.saleInvoiceId),
+            cancelled: input.cancelled ?? true
+        }
+    );
+    return Boolean(data.setSaleInvoiceCancelled);
 };
 
 export const createSaleInvoicesBatch = async (input: CreateSaleInvoicesBatchInput) => {

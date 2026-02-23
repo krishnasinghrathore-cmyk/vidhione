@@ -15,6 +15,7 @@ import AppMultiSelect from '@/components/AppMultiSelect';
 import LedgerGroupAutoComplete from '@/components/LedgerGroupAutoComplete';
 import VoucherTypeAutoComplete from '@/components/VoucherTypeAutoComplete';
 import { LayoutContext } from '@/layout/context/layoutcontext';
+import { ACCOUNT_MASTER_QUERY_OPTIONS } from '@/lib/accounts/masterLookupCache';
 import { useLedgerGroupOptions } from '@/lib/accounts/ledgerGroups';
 import { useVoucherTypeOptions } from '@/lib/accounts/voucherTypes';
 import { useAuth } from '@/lib/auth/context';
@@ -236,7 +237,8 @@ export default function AccountsBookPrintingPage() {
 
     const { options: ledgerGroupOptions, loading: ledgerGroupLoading } = useLedgerGroupOptions();
     const { data: ledgerData, loading: ledgerLoading } = useQuery(LEDGER_LOOKUP, {
-        variables: { search: null, limit: 5000 }
+        variables: { search: null, limit: 5000 },
+        ...ACCOUNT_MASTER_QUERY_OPTIONS
     });
     const { options: voucherTypeOptions, loading: voucherTypesLoading } = useVoucherTypeOptions();
 

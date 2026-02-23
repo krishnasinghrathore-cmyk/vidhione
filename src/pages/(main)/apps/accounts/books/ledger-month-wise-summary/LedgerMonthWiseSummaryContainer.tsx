@@ -7,10 +7,13 @@ import { useLazyQuery, useQuery } from '@apollo/client';
 import { ReportPrintHeader } from '@/components/ReportPrintHeader';
 import { ReportPrintFooter } from '@/components/ReportPrintFooter';
 import { ReportDataTable } from '@/components/ReportDataTable';
+import { ReportHeader } from '@/components/ReportHeader';
+import { ReportRegisterSearch } from '@/components/ReportRegisterSearch';
 import { buildSkeletonRows } from '@/components/reportSkeleton';
 import AppReportActions from '@/components/AppReportActions';
 import { useLedgerGroupOptions } from '@/lib/accounts/ledgerGroups';
 import { resolveLedgerGroupFilter } from '@/lib/accounts/ledgerGroupFilter';
+import { ACCOUNT_MASTER_LAZY_QUERY_OPTIONS } from '@/lib/accounts/masterLookupCache';
 import { useAuth } from '@/lib/auth/context';
 import { validateDateRange, type DateRangeErrors } from '@/lib/reportDateValidation';
 import { formatReportTimestamp, useReportPrint } from '@/lib/reportPrint';
@@ -59,6 +62,9 @@ export function LedgerMonthWiseSummaryContainer() {
     const [isLedgerLoading, setIsLedgerLoading] = useState(false);
     const [selectedLedger, setSelectedLedger] = useState<LedgerLookupOption | null>(null);
     const [previewLedger, setPreviewLedger] = useState<LedgerLookupOption | null>(null);
+    const [globalSearchText, setGlobalSearchText] = useState('');
+    const [globalSearchMatchCase, setGlobalSearchMatchCase] = useState(false);
+    const [globalSearchWholeWord, setGlobalSearchWholeWord] = useState(false);
     const initialRangeRef = useRef<ReturnType<typeof resolveFiscalRange> | null>(null);
     if (!initialRangeRef.current) {
         initialRangeRef.current = resolveFiscalRange(
@@ -93,7 +99,9 @@ export function LedgerMonthWiseSummaryContainer() {
         () => resolveLedgerGroupFilter(ledgerGroupId, ledgerGroupOptions),
         [ledgerGroupId, ledgerGroupOptions]
     );
-    const [loadLedgerLookup, { error: ledgerError }] = useLazyQuery(LEDGER_LOOKUP, { fetchPolicy: 'network-only' });
+    const [loadLedgerLookup, { error: ledgerError }] = useLazyQuery(LEDGER_LOOKUP, {
+        ...ACCOUNT_MASTER_LAZY_QUERY_OPTIONS
+    });
 
     const fetchLedgers = async (args?: { search?: string | null; groupId?: number | null; mode?: 'all' | 'search' }) => {
         const trimmed = args?.search?.trim() ?? '';
@@ -156,7 +164,11 @@ export function LedgerMonthWiseSummaryContainer() {
 
     const [loadSummary, { data: summaryData, loading: summaryLoading, error: summaryError }] = useLazyQuery(
         LEDGER_MONTH_SUMMARY,
-        { fetchPolicy: 'network-only' }
+        {
+            fetchPolicy: 'cache-and-network',
+            nextFetchPolicy: 'cache-first',
+            notifyOnNetworkStatusChange: true
+        }
     );
 
     const todayText = useMemo(() => toDateText(new Date()), []);
@@ -425,11 +437,10 @@ export function LedgerMonthWiseSummaryContainer() {
             };
         });
     }, [hasApplied, rawRows]);
+    const showSkeletonRows = summaryLoadingApplied && displayRows.length === 0;
 
-    const rowsPerPage = 12;
     const { isPrinting, printRows, triggerPrint } = useReportPrint<MonthDisplayRow>({ rows: displayRows });
-    const tableRows = isPrinting && printRows ? printRows : summaryLoadingApplied ? skeletonRows : displayRows;
-    const tablePageSize = isPrinting ? Math.max(tableRows.length, 1) : rowsPerPage;
+    const tableRows = isPrinting && printRows ? printRows : showSkeletonRows ? skeletonRows : displayRows;
 
     const totals = useMemo(() => {
         if (!hasApplied) return { debit: 0, credit: 0, closing: 0 };
@@ -639,7 +650,7 @@ export function LedgerMonthWiseSummaryContainer() {
 
     const columns = useLedgerMonthWiseSummaryColumns({
         rows: displayRows,
-        summaryLoadingApplied,
+        summaryLoadingApplied: showSkeletonRows,
         totals
     });
 
@@ -653,25 +664,29 @@ export function LedgerMonthWiseSummaryContainer() {
                 subtitle={filterSummary ?? undefined}
             />
             <ReportPrintFooter left={printFooterLeft} />
-            <div className="flex flex-column gap-2 mb-3 report-screen-header">
-                <div className="flex flex-column md:flex-row md:align-items-start md:justify-content-between gap-3">
-                    <div>
-                        <h2 className="m-0">Ledger Month-wise Summary</h2>
-                        <p className="mt-2 mb-0 text-600">Month-wise debit/credit totals for the selected ledger or group.</p>
-                    </div>
-                </div>
-                {(ledgerError || summaryError) && (
-                    <p className="text-red-500 m-0">
-                        Error loading month summary: {ledgerError?.message || summaryError?.message}
-                    </p>
-                )}
-            </div>
+            <ReportHeader
+                title="Ledger Month-wise Summary"
+                subtitle="Month-wise debit/credit totals for the selected ledger or group."
+                rightSlot={
+                    <ReportRegisterSearch
+                        value={globalSearchText}
+                        onValueChange={setGlobalSearchText}
+                        matchCase={globalSearchMatchCase}
+                        onMatchCaseChange={setGlobalSearchMatchCase}
+                        wholeWord={globalSearchWholeWord}
+                        onWholeWordChange={setGlobalSearchWholeWord}
+                    />
+                }
+                className="mb-3"
+            />
+            {(ledgerError || summaryError) && (
+                <p className="text-red-500 m-0 mb-3">
+                    Error loading month summary: {ledgerError?.message || summaryError?.message}
+                </p>
+            )}
 
             <ReportDataTable
                 value={tableRows}
-                paginator={!isPrinting}
-                rows={tablePageSize}
-                rowsPerPageOptions={isPrinting ? undefined : [10, 12, 24, 50]}
                 filters={columnFilters}
                 onFilter={handleColumnFilter}
                 filterDisplay="menu"
@@ -681,6 +696,13 @@ export function LedgerMonthWiseSummaryContainer() {
                 size="small"
                 loadingState={summaryLoadingApplied}
                 loadingSummaryEnabled={hasApplied}
+                globalSearchRenderInTableHeader={false}
+                globalSearchValue={globalSearchText}
+                onGlobalSearchValueChange={setGlobalSearchText}
+                globalSearchMatchCase={globalSearchMatchCase}
+                onGlobalSearchMatchCaseChange={setGlobalSearchMatchCase}
+                globalSearchWholeWord={globalSearchWholeWord}
+                onGlobalSearchWholeWordChange={setGlobalSearchWholeWord}
                 emptyMessage={
                     summaryLoadingApplied ? '' : hasApplied ? 'No results found' : 'Press Refresh to load summary'
                 }
@@ -730,6 +752,7 @@ export function LedgerMonthWiseSummaryContainer() {
                         onExportCsv={handleExportCsv}
                         onExportExcel={handleExportExcel}
                         onExportPdf={handleExportPdf}
+                        loadingState={summaryLoadingApplied}
                         refreshDisabled={!canQuery}
                         exportDisabled={!hasApplied || summaryLoading || displayRows.length === 0}
                         refreshButtonId={refreshButtonId}

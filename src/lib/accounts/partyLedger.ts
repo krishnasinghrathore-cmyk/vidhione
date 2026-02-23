@@ -1,6 +1,7 @@
 import { gql, useQuery } from '@apollo/client';
 import { apolloClient } from '@/lib/apolloClient';
 import { useMemo } from 'react';
+import { ACCOUNT_MASTER_QUERY_OPTIONS } from '@/lib/accounts/masterLookupCache';
 
 export const PARTY_LEDGER_OPTIONS = gql`
     query PartyLedgerOptions(
@@ -60,7 +61,8 @@ export const usePartyLedgerOptions = (args: PartyLedgerOptionsArgs = {}) => {
     const { data, loading, error, refetch } = useQuery(PARTY_LEDGER_OPTIONS, {
         client: apolloClient,
         variables,
-        skip: args.skip
+        skip: args.skip,
+        ...ACCOUNT_MASTER_QUERY_OPTIONS
     });
 
     const rows = useMemo(() => {

@@ -12,11 +12,14 @@ import type { AutoComplete } from 'primereact/autocomplete';
 import AppDataTable from '@/components/AppDataTable';
 import AppDateInput from '@/components/AppDateInput';
 import AppDropdown from '@/components/AppDropdown';
+import AppInput from '@/components/AppInput';
 import LedgerAutoComplete from '@/components/LedgerAutoComplete';
+import { useLedgerOptionsByPurpose } from '@/lib/accounts/ledgerOptions';
 import { useAuth } from '@/lib/auth/context';
 import { resolveFiscalRange } from '@/lib/fiscalRange';
 import { validateDateRange, validateSingleDate } from '@/lib/reportDateValidation';
 import { VoucherTypeIds } from '@/lib/accounts/voucherTypeIds';
+import { deriveVoucherUiState, getVoucherActionsConfig } from '@/lib/accounts/voucherActionsState';
 
 interface VoucherRow {
     voucherId: number;
@@ -61,16 +64,7 @@ const VOUCHER_TYPES = gql`
             voucherTypeCode
             displayName
             voucherTypeName
-        }
-    }
-`;
-
-const LEDGER_OPTIONS_BY_PURPOSE = gql`
-    query LedgerOptionsByPurpose($purpose: String!, $limit: Int) {
-        ledgerOptionsByPurpose(purpose: $purpose, limit: $limit) {
-            ledgerId
-            name
-            address
+            isVoucherNoAutoFlag
         }
     }
 `;
@@ -265,6 +259,20 @@ const formatAmount = (value: number) =>
 
 const round2 = (value: number) => Math.round(value * 100) / 100;
 
+const resolveBooleanFlag = (value: unknown): boolean => {
+    if (value == null) return false;
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'number') return value !== 0;
+    if (typeof value === 'string') {
+        const normalized = value.trim().toLowerCase();
+        if (!normalized) return false;
+        if (normalized === 'true' || normalized === 'yes' || normalized === 'y') return true;
+        const numeric = Number(normalized);
+        return Number.isFinite(numeric) ? numeric !== 0 : false;
+    }
+    return false;
+};
+
 const makeKey = () => `${Date.now()}_${Math.random().toString(16).slice(2)}`;
 
 export default function AccountsBankCashDepositPage() {
@@ -302,19 +310,28 @@ export default function AccountsBankCashDepositPage() {
     const [saving, setSaving] = useState(false);
 
     const { data: voucherTypesData } = useQuery(VOUCHER_TYPES);
-    const { data: bankLedgerData } = useQuery(LEDGER_OPTIONS_BY_PURPOSE, {
-        variables: { purpose: 'CONTRA-BANK', limit: 2000 }
+    const { options: bankPurposeLedgers } = useLedgerOptionsByPurpose({
+        purpose: 'CONTRA-BANK',
+        limit: 2000
     });
-    const { data: cashLedgerData } = useQuery(LEDGER_OPTIONS_BY_PURPOSE, {
-        variables: { purpose: 'CONTRA-CASH', limit: 2000 }
+    const { options: cashPurposeLedgers } = useLedgerOptionsByPurpose({
+        purpose: 'CONTRA-CASH',
+        limit: 2000
     });
     const { data: managersData } = useQuery(MANAGERS, { variables: { search: null, limit: 5000 } });
 
-    const voucherTypeId = useMemo(() => {
+    const voucherType = useMemo(() => {
         const rows = voucherTypesData?.voucherTypes ?? [];
-        const match = rows.find((v: any) => Number(v.voucherTypeId) === VoucherTypeIds.Contra);
-        return match ? Number(match.voucherTypeId) : null;
+        return rows.find((v: any) => Number(v.voucherTypeId) === VoucherTypeIds.Contra) ?? null;
     }, [voucherTypesData]);
+    const voucherTypeId = useMemo(
+        () => (voucherType ? Number(voucherType.voucherTypeId) : null),
+        [voucherType]
+    );
+    const isVoucherNoAuto = useMemo(
+        () => resolveBooleanFlag(voucherType?.isVoucherNoAutoFlag),
+        [voucherType]
+    );
 
     const companyFiscalYearId = companyContext?.companyFiscalYearId ?? null;
     const fiscalYearStart = companyContext?.fiscalYearStart ?? null;
@@ -408,22 +425,24 @@ export default function AccountsBankCashDepositPage() {
     const [setCancelledMutation] = useMutation(SET_CANCELLED);
 
     const bankLedgerOptions = useMemo(() => {
-        const rows = (bankLedgerData?.ledgerOptionsByPurpose ?? []) as Array<{ ledgerId: number; name: string | null }>;
-        const options = rows.map((l) => ({
-            label: l.name ?? `Ledger ${l.ledgerId}`,
-            value: Number(l.ledgerId)
-        }));
+        const options = bankPurposeLedgers
+            .map((ledger) => ({
+                label: ledger.label,
+                value: Number(ledger.value)
+            }))
+            .filter((option) => Number.isFinite(option.value) && option.value > 0);
         return [{ label: 'All bank ledgers', value: null }].concat(options);
-    }, [bankLedgerData]);
+    }, [bankPurposeLedgers]);
 
     const cashLedgerOptions = useMemo(() => {
-        const rows = (cashLedgerData?.ledgerOptionsByPurpose ?? []) as Array<{ ledgerId: number; name: string | null }>;
-        const options = rows.map((l) => ({
-            label: l.name ?? `Ledger ${l.ledgerId}`,
-            value: Number(l.ledgerId)
-        }));
+        const options = cashPurposeLedgers
+            .map((ledger) => ({
+                label: ledger.label,
+                value: Number(ledger.value)
+            }))
+            .filter((option) => Number.isFinite(option.value) && option.value > 0);
         return [{ label: 'All cash ledgers', value: null }].concat(options);
-    }, [cashLedgerData]);
+    }, [cashPurposeLedgers]);
 
     const managerOptions = useMemo(() => {
         const rows = (managersData?.managers ?? []) as ManagerRow[];
@@ -437,6 +456,21 @@ export default function AccountsBankCashDepositPage() {
         [data, hasApplied]
     );
     const totalCount = hasApplied ? data?.bankCashDepositRegister?.totalCount ?? rows.length ?? 0 : 0;
+    const { uiState: voucherUiState, baseUiState: voucherBaseUiState } = useMemo(
+        () => deriveVoucherUiState(dialogVisible, editingId != null, saving),
+        [dialogVisible, editingId, saving]
+    );
+    const voucherActions = useMemo(
+        () =>
+            getVoucherActionsConfig({
+                uiState: voucherUiState,
+                baseUiState: voucherBaseUiState,
+                hasVoucherId: editingId != null,
+                canRefresh,
+                hasRegisterRows: totalCount > 0
+            }),
+        [canRefresh, editingId, totalCount, voucherBaseUiState, voucherUiState]
+    );
 
     const allocationTotal = useMemo(
         () => round2(allocations.reduce((sum, a) => sum + Number(a.allocationAmount || 0), 0)),
@@ -481,8 +515,11 @@ export default function AccountsBankCashDepositPage() {
         setManagerId(header.managerId != null ? Number(header.managerId) : null);
 
         const lines = editData?.voucherEntryById?.lines ?? [];
-        const debitLine = lines.find((l: any) => Number(l.drCrFlag) === 1);
-        const creditLine = lines.find((l: any) => Number(l.drCrFlag) === 2);
+        const usesTwoFlag = lines.some((l: any) => Number(l.drCrFlag) === 2);
+        const isDebitFlag = (drCrFlag: number) => (usesTwoFlag ? drCrFlag === 1 : drCrFlag === 0);
+        const isCreditFlag = (drCrFlag: number) => (usesTwoFlag ? drCrFlag === 2 : drCrFlag === 1);
+        const debitLine = lines.find((l: any) => isDebitFlag(Number(l.drCrFlag)));
+        const creditLine = lines.find((l: any) => isCreditFlag(Number(l.drCrFlag)));
         setBankLedgerId(debitLine?.ledgerId != null ? Number(debitLine.ledgerId) : bankLedgerId);
         setCashLedgerId(creditLine?.ledgerId != null ? Number(creditLine.ledgerId) : cashLedgerId);
         setAmount(debitLine?.amount != null ? Number(debitLine.amount) : null);
@@ -611,8 +648,8 @@ export default function AccountsBankCashDepositPage() {
         setSaving(true);
         try {
             const lines = [
-                { ledgerId: bankLedgerId, drCrFlag: 1, amount: Number(amount), narrationText: narration?.trim() ? narration.trim() : null },
-                { ledgerId: cashLedgerId, drCrFlag: 2, amount: Number(amount), narrationText: narration?.trim() ? narration.trim() : null }
+                { ledgerId: bankLedgerId, drCrFlag: 0, amount: Number(amount), narrationText: narration?.trim() ? narration.trim() : null },
+                { ledgerId: cashLedgerId, drCrFlag: 1, amount: Number(amount), narrationText: narration?.trim() ? narration.trim() : null }
             ];
 
             const vars = {
@@ -653,12 +690,16 @@ export default function AccountsBankCashDepositPage() {
             });
             return;
         }
+        if (voucherActions.rowDelete.disabled) return;
+        setSaving(true);
         try {
             const next = row.isCancelledFlag ? 0 : 1;
             await setCancelledMutation({ variables: { voucherId: row.voucherId, isCancelledFlag: next } });
             await refetch(registerVariables);
         } catch (e: any) {
             toastRef.current?.show({ severity: 'error', summary: 'Error', detail: e?.message ?? 'Failed to update status.' });
+        } finally {
+            setSaving(false);
         }
     };
 
@@ -671,7 +712,7 @@ export default function AccountsBankCashDepositPage() {
                     icon="pi pi-pencil"
                     className="p-button-text"
                     onClick={() => openEdit(row)}
-                    disabled={!editable}
+                    disabled={!editable || voucherActions.rowEdit.disabled}
                     title={editable ? undefined : restrictedTitle}
                 />
                 <Button
@@ -679,7 +720,7 @@ export default function AccountsBankCashDepositPage() {
                     className="p-button-text"
                     onClick={() => toggleCancelled(row)}
                     severity={row.isCancelledFlag ? 'secondary' : 'danger'}
-                    disabled={!editable}
+                    disabled={!editable || voucherActions.rowDelete.disabled}
                     title={editable ? undefined : restrictedTitle}
                 />
             </div>
@@ -701,8 +742,23 @@ export default function AccountsBankCashDepositPage() {
                             Allocations: <strong>{formatAmount(allocationTotal)}</strong>
                         </div>
                         <div className="flex gap-2">
-                            <Button label="Cancel" className="p-button-text" onClick={() => setDialogVisible(false)} disabled={saving} />
-                            <Button label={saving ? 'Saving...' : 'Save'} icon="pi pi-check" onClick={save} disabled={saving} />
+                            {voucherActions.cancelForm.visible ? (
+                                <Button
+                                    label="Cancel"
+                                    className="p-button-text"
+                                    onClick={() => setDialogVisible(false)}
+                                    disabled={voucherActions.cancelForm.disabled}
+                                />
+                            ) : null}
+                            {voucherActions.saveForm.visible ? (
+                                <Button
+                                    label={saving ? 'Saving...' : 'Save'}
+                                    icon="pi pi-check"
+                                    onClick={save}
+                                    disabled={voucherActions.saveForm.disabled}
+                                    loading={saving}
+                                />
+                            ) : null}
                         </div>
                     </div>
                 }
@@ -710,7 +766,12 @@ export default function AccountsBankCashDepositPage() {
                 <div className="grid">
                     <div className="col-12 md:col-3">
                         <label className="block text-600 mb-1">Voucher No</label>
-                        <InputText value={voucherNo} onChange={(e) => setVoucherNo(e.target.value)} />
+                        <AppInput
+                            value={voucherNo}
+                            onChange={(e) => setVoucherNo(e.target.value)}
+                            className={!isVoucherNoAuto ? 'app-field-noneditable' : undefined}
+                            readOnly={!isVoucherNoAuto}
+                        />
                     </div>
                     <div className="col-12 md:col-3">
                         <label className="block text-600 mb-1">Voucher Date</label>
@@ -792,7 +853,13 @@ export default function AccountsBankCashDepositPage() {
                     <div className="col-12">
                         <div className="flex align-items-center justify-content-between">
                             <div className="text-700 font-medium">Manager Allocations</div>
-                            <Button label="Add Allocation" icon="pi pi-plus" className="p-button-text" onClick={addAllocation} />
+                            <Button
+                                label="Add Allocation"
+                                icon="pi pi-plus"
+                                className="p-button-text"
+                                onClick={addAllocation}
+                                disabled={voucherActions.uiState === 'SAVING'}
+                            />
                         </div>
                         <div className="mt-2 flex flex-column gap-2">
                             {allocations.length === 0 && (
@@ -830,7 +897,12 @@ export default function AccountsBankCashDepositPage() {
                                         />
                                     </div>
                                     <div className="col-12 md:col-1 flex justify-content-end">
-                                        <Button icon="pi pi-trash" className="p-button-text p-button-danger" onClick={() => removeAllocation(a.key)} />
+                                        <Button
+                                            icon="pi pi-trash"
+                                            className="p-button-text p-button-danger"
+                                            onClick={() => removeAllocation(a.key)}
+                                            disabled={voucherActions.uiState === 'SAVING'}
+                                        />
                                     </div>
                                 </div>
                             ))}
@@ -846,7 +918,14 @@ export default function AccountsBankCashDepositPage() {
                         <p className="mt-2 mb-0 text-600">Contra vouchers where a Bank ledger is debited and Cash is credited.</p>
                     </div>
                     <div className="flex gap-2 flex-wrap">
-                        <Button label="Add" icon="pi pi-plus" onClick={openAdd} />
+                        {voucherActions.addVoucher.visible ? (
+                            <Button
+                                label="Add"
+                                icon="pi pi-plus"
+                                onClick={openAdd}
+                                disabled={voucherActions.addVoucher.disabled}
+                            />
+                        ) : null}
                         <Link to="/apps/accounts/voucher-entry?voucherTypeCode=1">
                             <Button label="Voucher Entry" icon="pi pi-pencil" className="p-button-outlined" />
                         </Link>
@@ -960,15 +1039,25 @@ export default function AccountsBankCashDepositPage() {
                 }
                 headerRight={
                     <>
-                        <Button
-                            label="Refresh"
-                            icon="pi pi-refresh"
-                            className="p-button-text"
-                            id={refreshButtonId}
-                            onClick={handleRefresh}
-                            disabled={!canRefresh}
-                        />
-                        <Button label="Print" icon="pi pi-print" className="p-button-text" onClick={() => window.print()} />
+                        {voucherActions.refresh.visible ? (
+                            <Button
+                                label="Refresh"
+                                icon="pi pi-refresh"
+                                className="p-button-text"
+                                id={refreshButtonId}
+                                onClick={handleRefresh}
+                                disabled={voucherActions.refresh.disabled}
+                            />
+                        ) : null}
+                        {voucherActions.printRegister.visible ? (
+                            <Button
+                                label="Print Register"
+                                icon="pi pi-print"
+                                className="p-button-text"
+                                onClick={() => window.print()}
+                                disabled={voucherActions.printRegister.disabled}
+                            />
+                        ) : null}
                     </>
                 }
                 recordSummary={`${totalCount} voucher${totalCount === 1 ? '' : 's'}`}

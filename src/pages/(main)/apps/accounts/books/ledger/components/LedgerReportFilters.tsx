@@ -40,6 +40,7 @@ type LedgerReportFiltersProps = {
     onLedgerGroupChange: (value: number | null) => void;
     focusCityInput: () => void;
     ledgerGroupInputRef: React.RefObject<AutoComplete>;
+    cityAutoCompleteRef: React.RefObject<AutoComplete>;
     cityQuery: string;
     setCityQuery: React.Dispatch<React.SetStateAction<string>>;
     selectedCity: SelectOption | null;
@@ -117,6 +118,7 @@ export function LedgerReportFilters({
     onLedgerGroupChange,
     focusCityInput,
     ledgerGroupInputRef,
+    cityAutoCompleteRef,
     cityQuery,
     setCityQuery,
     selectedCity,
@@ -229,6 +231,7 @@ export function LedgerReportFilters({
                     style={{ minWidth: '220px' }}
                 />
                 <AppAutoComplete
+                    ref={cityAutoCompleteRef}
                     value={cityQuery.length ? cityQuery : selectedCity}
                     suggestions={citySuggestions}
                     completeMethod={(event: AutoCompleteCompleteEvent) => {
@@ -277,7 +280,26 @@ export function LedgerReportFilters({
                             focusLedgerInput();
                         }
                     }}
+                    onKeyDownCapture={(event) => {
+                        if (event.key !== 'Enter') return;
+                        if (!cityPanelOpen) return;
+                        if (cityQuery.trim().length > 0) return;
+                        if (typeof document === 'undefined') return;
+                        const panelId = cityInputRef.current?.getAttribute('aria-controls');
+                        if (!panelId) return;
+                        const panel = document.getElementById(panelId);
+                        const highlighted = panel?.querySelector(
+                            'li[data-p-highlight="true"], li.p-highlight, li[aria-selected="true"]'
+                        );
+                        if (highlighted) return;
+                        event.preventDefault();
+                        event.stopPropagation();
+                        cityAutoCompleteRef.current?.hide?.();
+                        cityEnterRef.current = false;
+                        focusLedgerInput();
+                    }}
                     onKeyDown={(event) => {
+                        if (event.defaultPrevented) return;
                         if (event.key !== 'Enter') return;
                         event.preventDefault();
                         event.stopPropagation();
@@ -308,6 +330,7 @@ export function LedgerReportFilters({
                     placeholder={citiesLoading ? 'Loading cities...' : 'City'}
                     inputId="ledger-city-autocomplete"
                     inputRef={cityInputRef}
+                    autoHighlight={cityQuery.trim().length > 0}
                     style={{ minWidth: '220px' }}
                 />
                 <div className="flex align-items-center gap-2 ledger-ledger-meta">
@@ -399,6 +422,7 @@ export function LedgerReportFilters({
                             }
                         }}
                         virtualScrollerOptions={{ itemSize: 36 }}
+                        autoHighlight={ledgerQuery.trim().length > 0}
                         inputRef={ledgerInputRef}
                         style={{ minWidth: '260px' }}
                     />

@@ -5,6 +5,12 @@ import { OverlayPanel } from 'primereact/overlaypanel';
 import { Button } from 'primereact/button';
 import { classNames } from 'primereact/utils';
 import { validateSingleDate } from '@/lib/reportDateValidation';
+import {
+    focusNextElement,
+    markEnterNavAutoOpenIntent,
+    queueAutoOpenFocusedOverlayControl,
+    resolveEnterScope
+} from '@/lib/enterNavigation';
 
 type AppDateInputProps = Omit<CalendarProps, 'value' | 'onChange' | 'inline'> & {
     value: Date | null;
@@ -12,11 +18,12 @@ type AppDateInputProps = Omit<CalendarProps, 'value' | 'onChange' | 'inline'> & 
     fiscalYearStart?: Date | null;
     fiscalYearEnd?: Date | null;
     enforceFiscalRange?: boolean;
-    onEnterNext?: () => void;
+    onEnterNext?: () => boolean | void;
     onCommit?: (value: Date | null, raw: string) => void;
     focusSignal?: number;
     autoFocus?: boolean;
     selectOnFocus?: boolean;
+    compact?: boolean;
 };
 
 const buildDateFromInput = (
@@ -102,6 +109,7 @@ const AppDateInput = ({
     focusSignal,
     autoFocus,
     selectOnFocus,
+    compact = true,
     ...calendarProps
 }: AppDateInputProps) => {
     const overlayRef = useRef<OverlayPanel | null>(null);
@@ -208,31 +216,6 @@ const AppDateInput = ({
         return rejectDate(raw, 'Enter date in DD/MM/YYYY format');
     };
 
-    const focusNextControl = (current: HTMLElement | null) => {
-        if (!current || typeof document === 'undefined') return;
-        const focusables = Array.from(
-            document.querySelectorAll<HTMLElement>(
-                'input, select, textarea, button, [tabindex]:not([tabindex="-1"])'
-            )
-        ).filter((element) => {
-            if (element.hasAttribute('disabled')) return false;
-            if (element.getAttribute('aria-disabled') === 'true') return false;
-            const style = window.getComputedStyle(element);
-            if (style.visibility === 'hidden' || style.display === 'none') return false;
-            if (!element.getClientRects().length) return false;
-            return true;
-        });
-        const startIndex = focusables.indexOf(current);
-        if (startIndex < 0) return;
-        for (let i = startIndex + 1; i < focusables.length; i += 1) {
-            const candidate = focusables[i];
-            if (candidate) {
-                candidate.focus();
-                break;
-            }
-        }
-    };
-
     const handleInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
         if (event.key === 'Tab') {
             const isCommitted = commitFromInput(event.currentTarget.value);
@@ -245,13 +228,42 @@ const AppDateInput = ({
 
         if (event.key === 'Enter') {
             event.preventDefault();
+            markEnterNavAutoOpenIntent();
             const isCommitted = commitFromInput(event.currentTarget.value);
             if (!isCommitted) return;
-            if (onEnterNext) {
-                window.setTimeout(onEnterNext, 0);
-            } else {
-                window.setTimeout(() => focusNextControl(event.currentTarget), 0);
-            }
+            const currentInput = event.currentTarget;
+            window.setTimeout(() => {
+                if (!onEnterNext) {
+                    focusNextElement(currentInput, resolveEnterScope(currentInput));
+                    return;
+                }
+                const activeBefore = typeof document !== 'undefined' ? document.activeElement : null;
+                const runFallbackIfNeeded = () => {
+                    const activeAfter = typeof document !== 'undefined' ? document.activeElement : null;
+                    if (activeAfter && activeAfter !== activeBefore && activeAfter !== currentInput) {
+                        return;
+                    }
+                    focusNextElement(currentInput, resolveEnterScope(currentInput));
+                };
+                const handled = onEnterNext();
+                if (handled === true) {
+                    if (typeof window !== 'undefined') {
+                        window.requestAnimationFrame(() => {
+                            const activeAfter = document.activeElement as HTMLElement | null;
+                            if (!activeAfter || activeAfter === activeBefore || activeAfter === currentInput) return;
+                            queueAutoOpenFocusedOverlayControl(activeAfter);
+                        });
+                    }
+                    return;
+                }
+                if (typeof window !== 'undefined') {
+                    window.requestAnimationFrame(() => {
+                        window.requestAnimationFrame(runFallbackIfNeeded);
+                    });
+                    return;
+                }
+                runFallbackIfNeeded();
+            }, 0);
             return;
         }
 
@@ -277,7 +289,7 @@ const AppDateInput = ({
     };
 
     return (
-        <span className={classNames('app-date-input p-inputgroup', className)} style={style}>
+        <span className={classNames('app-date-input p-inputgroup', compact && 'app-date-input--compact', className)} style={style}>
             <InputMask
                 ref={inputMaskRef}
                 id={inputId}
@@ -329,12 +341,12 @@ const AppDateInput = ({
                         }
                     }
                 }}
-                className={classNames('app-date-input-field', inputClassName, inputError && 'p-invalid')}
+                className={classNames('app-date-input-field', compact && 'app-date-input-field--compact p-inputtext-sm', inputClassName, inputError && 'p-invalid')}
             />
             <Button
                 type="button"
                 icon="pi pi-calendar"
-                className="app-date-input-button p-button-icon-only"
+                className={classNames('app-date-input-button p-button-icon-only', compact && 'app-date-input-button--compact')}
                 onClick={handleOverlayToggle}
                 disabled={resolvedDisabled}
                 tabIndex={-1}

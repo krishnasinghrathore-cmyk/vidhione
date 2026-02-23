@@ -4,8 +4,12 @@
     "private": true,
     "scripts": {
         "dev": "vite",
+        "dev:ssr": "node server/ssr-server.mjs",
         "build": "vite build",
+        "build:ssr": "vite build --outDir dist/client && vite build --ssr src/entry-server.tsx --outDir dist/server",
+        "start:ssr": "node server/ssr-server.mjs --prod",
         "preview": "vite preview",
+        "check:enter-nav-vouchers": "bash scripts/check-enter-navigation-voucher-usage.sh",
         "lint": "eslint --ext .js,.jsx,.ts,.tsx src/",
         "format": "prettier --write \"{src,demo,layout,types}/**/*.{js,ts,tsx,d.ts}\""
     },

@@ -5,10 +5,12 @@ import { ConfirmPopup, confirmPopup } from 'primereact/confirmpopup';
 import { InputText } from 'primereact/inputtext';
 import { Toast } from 'primereact/toast';
 import { Button } from 'primereact/button';
-import { gql, useMutation, useQuery } from '@apollo/client';
+import { gql, useMutation } from '@apollo/client';
 import AppDataTable from '@/components/AppDataTable';
 import AppDropdown from '@/components/AppDropdown';
 import { apolloClient } from '@/lib/apolloClient';
+import { useGeoCityOptions } from '@/lib/accounts/cities';
+import { invalidateAccountMasterLookups } from '@/lib/accounts/masterLookupCache';
 import GeoImportDialog from '@/components/GeoImportDialog';
 
 interface CityRow {
@@ -21,21 +23,6 @@ interface CityRow {
     countryId: number | null;
     countryName: string | null;
 }
-
-const GEO_CITIES = gql`
-    query GeoCities($search: String, $limit: Int) {
-        geoCities(search: $search, limit: $limit) {
-            cityId
-            name
-            districtId
-            districtName
-            stateId
-            stateName
-            countryId
-            countryName
-        }
-    }
-`;
 
 const DELETE_CITY = gql`
     mutation DeleteCity($cityId: Int!) {
@@ -56,12 +43,11 @@ export default function AccountsCitiesPage() {
     const [limit, setLimit] = useState(2000);
     const [geoImportVisible, setGeoImportVisible] = useState(false);
 
-    const { data, loading, error, refetch } = useQuery(GEO_CITIES, {
-        client: apolloClient,
-        variables: { search: search.trim() || null, limit }
+    const { rows, loading, error, refetch } = useGeoCityOptions({
+        search: search.trim() || null,
+        limit
     });
     const [deleteCity] = useMutation(DELETE_CITY, { client: apolloClient });
-    const rows: CityRow[] = useMemo(() => data?.geoCities ?? [], [data]);
 
     const filteredRows = useMemo(() => {
         const term = search.trim().toLowerCase();
@@ -83,6 +69,7 @@ export default function AccountsCitiesPage() {
     const handleDelete = async (cityId: number) => {
         try {
             await deleteCity({ variables: { cityId } });
+            invalidateAccountMasterLookups(apolloClient);
             await refetch();
             toastRef.current?.show({
                 severity: 'success',
@@ -205,7 +192,10 @@ export default function AccountsCitiesPage() {
             <GeoImportDialog
                 visible={geoImportVisible}
                 onHide={() => setGeoImportVisible(false)}
-                onApply={() => refetch()}
+                onApply={() => {
+                    invalidateAccountMasterLookups(apolloClient);
+                    refetch();
+                }}
                 title="Import location from master"
             />
         </div>

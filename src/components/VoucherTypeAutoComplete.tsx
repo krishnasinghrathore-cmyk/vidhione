@@ -39,7 +39,9 @@ const VoucherTypeAutoComplete = forwardRef<AutoComplete, VoucherTypeAutoComplete
         onBlur,
         onFocus,
         onKeyDown,
+        onKeyDownCapture,
         onDropdownClick,
+        autoHighlight,
         disabled,
         readOnly,
         skip,
@@ -119,6 +121,23 @@ const VoucherTypeAutoComplete = forwardRef<AutoComplete, VoucherTypeAutoComplete
         window.setTimeout(onSelectNext, 0);
     };
 
+    const handleKeyDownCapture = (event: React.KeyboardEvent<HTMLSpanElement>) => {
+        onKeyDownCapture?.(event);
+        if (event.defaultPrevented || event.key !== 'Enter' || !onSelectNext) return;
+        const overlay = autoCompleteRef.current?.getOverlay?.();
+        const overlayVisible = Boolean(overlay && overlay.offsetParent !== null);
+        if (!overlayVisible) return;
+        if (query.trim().length > 0) return;
+        const highlighted = overlay?.querySelector(
+            'li[data-p-highlight="true"], li.p-highlight, li[aria-selected="true"]'
+        );
+        if (highlighted) return;
+        event.preventDefault();
+        event.stopPropagation();
+        autoCompleteRef.current?.hide?.();
+        window.setTimeout(onSelectNext, 0);
+    };
+
     const handleDropdownClick = (event: any) => {
         onDropdownClick?.(event);
         setQuery('');
@@ -141,6 +160,7 @@ const VoucherTypeAutoComplete = forwardRef<AutoComplete, VoucherTypeAutoComplete
             onBlur={handleBlur}
             onFocus={onFocus}
             onKeyDown={handleKeyDown}
+            onKeyDownCapture={handleKeyDownCapture}
             onDropdownClick={handleDropdownClick}
             field="label"
             loading={loading}
@@ -149,6 +169,7 @@ const VoucherTypeAutoComplete = forwardRef<AutoComplete, VoucherTypeAutoComplete
             placeholder={resolvedPlaceholder}
             disabled={disabled}
             readOnly={readOnly}
+            autoHighlight={autoHighlight ?? query.trim().length > 0}
         />
     );
 });

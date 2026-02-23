@@ -7,6 +7,7 @@ export const VOUCHER_TYPES = gql`
             voucherTypeCode
             displayName
             voucherTypeName
+            isVoucherNoAutoFlag
         }
     }
 `;
@@ -59,6 +60,12 @@ export const NEXT_VOUCHER_NUMBER = gql`
             fiscalYearStart: $fiscalYearStart
             fiscalYearEnd: $fiscalYearEnd
         )
+    }
+`;
+
+export const NEXT_CHEQUE_NUMBER_FOR_BOOK = gql`
+    query NextChequeNumberForBook($chequeIssueBookId: Int!) {
+        nextChequeNumberForBook(chequeIssueBookId: $chequeIssueBookId)
     }
 `;
 
@@ -166,6 +173,8 @@ export const VOUCHER_ENTRY_BY_ID = gql`
             lines {
                 ledgerId
                 ledgerName
+                ledgerGroupId
+                ledgerGroupName
                 amount
                 drCrFlag
             }
@@ -174,36 +183,40 @@ export const VOUCHER_ENTRY_BY_ID = gql`
 `;
 
 export const CREATE_VOUCHER = gql`
-    mutation CreateVoucherEntry(
+    mutation CreateVoucher(
         $voucherTypeId: Int!
-        $voucherNumber: String!
-        $voucherDate: String!
-        $postingDate: String
-        $refNo: String
-        $refDate: String
-        $narration: String
+        $voucherDateText: String!
+        $postingDateText: String
+        $voucherNumber: String
+        $narrationText: String
+        $purchaseVoucherNumber: String
+        $purchaseVoucherDateText: String
         $managerId: Int
+        $chequeInFavourText: String
         $chequeIssueBookId: Int
         $paymentViaId: Int
         $primaryLedgerId: Int
         $isCancelledFlag: Int
         $lines: [VoucherLineInput!]!
     ) {
-        createVoucherEntry(
+        createVoucher(
             voucherTypeId: $voucherTypeId
+            voucherDateText: $voucherDateText
+            postingDateText: $postingDateText
             voucherNumber: $voucherNumber
-            voucherDate: $voucherDate
-            postingDate: $postingDate
-            refNo: $refNo
-            refDate: $refDate
-            narration: $narration
+            narrationText: $narrationText
+            purchaseVoucherNumber: $purchaseVoucherNumber
+            purchaseVoucherDateText: $purchaseVoucherDateText
             managerId: $managerId
+            chequeInFavourText: $chequeInFavourText
             chequeIssueBookId: $chequeIssueBookId
             paymentViaId: $paymentViaId
             primaryLedgerId: $primaryLedgerId
             isCancelledFlag: $isCancelledFlag
             lines: $lines
-        )
+        ) {
+            voucherId
+        }
     }
 `;
 
@@ -211,13 +224,14 @@ export const UPDATE_VOUCHER = gql`
     mutation UpdateVoucherEntry(
         $voucherId: Int!
         $voucherTypeId: Int!
-        $voucherNumber: String!
-        $voucherDate: String!
-        $postingDate: String
-        $refNo: String
-        $refDate: String
-        $narration: String
+        $voucherDateText: String!
+        $postingDateText: String
+        $voucherNumber: String
+        $narrationText: String
+        $purchaseVoucherNumber: String
+        $purchaseVoucherDateText: String
         $managerId: Int
+        $chequeInFavourText: String
         $chequeIssueBookId: Int
         $paymentViaId: Int
         $primaryLedgerId: Int
@@ -227,13 +241,14 @@ export const UPDATE_VOUCHER = gql`
         updateVoucherEntry(
             voucherId: $voucherId
             voucherTypeId: $voucherTypeId
+            voucherDateText: $voucherDateText
+            postingDateText: $postingDateText
             voucherNumber: $voucherNumber
-            voucherDate: $voucherDate
-            postingDate: $postingDate
-            refNo: $refNo
-            refDate: $refDate
-            narration: $narration
+            narrationText: $narrationText
+            purchaseVoucherNumber: $purchaseVoucherNumber
+            purchaseVoucherDateText: $purchaseVoucherDateText
             managerId: $managerId
+            chequeInFavourText: $chequeInFavourText
             chequeIssueBookId: $chequeIssueBookId
             paymentViaId: $paymentViaId
             primaryLedgerId: $primaryLedgerId

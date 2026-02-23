@@ -4,7 +4,6 @@ import { Button } from 'primereact/button';
 import type { DataTableFilterEvent, DataTableFilterMeta } from 'primereact/datatable';
 import type { MenuItem } from 'primereact/menuitem';
 import AppReportActions from '@/components/AppReportActions';
-import { ReportHeader } from '@/components/ReportHeader';
 import { ReportDataTable } from '@/components/ReportDataTable';
 
 import { MULTISELECT_COLUMN_PROPS } from '../utils';
@@ -119,10 +118,7 @@ export function TrialBalanceReportTable({
     closingDrCrFilterElement,
     transferToFilterElement
 }: TrialBalanceReportTableProps) {
-    const headerSubtitle = appliedFilters
-        ? 'Group-wise and ledger-wise balances'
-        : 'Use filters and click Refresh to load trial balance';
-    const headerActions = (
+    const headerRight = (
         <div className="flex align-items-center gap-2">
             {canToggleExpand && (
                 <div className="flex align-items-center gap-2">
@@ -151,6 +147,7 @@ export function TrialBalanceReportTable({
                 onExportCsv={onExportCsv}
                 onExportExcel={onExportExcel}
                 onExportPdf={onExportPdf}
+                loadingState={loadingApplied}
                 refreshDisabled={refreshDisabled}
                 printDisabled={printDisabled}
                 exportDisabled={exportDisabled}
@@ -160,40 +157,35 @@ export function TrialBalanceReportTable({
     );
 
     return (
-        <div className="flex flex-column gap-2">
-            <ReportHeader
-                title="Trial Balance Register"
-                subtitle={headerSubtitle}
-                rightSlot={headerActions}
-            />
-            <ReportDataTable
-                value={tableRows}
-                paginator={!isPrinting}
-                rows={tablePageSize}
-                rowsPerPageOptions={isPrinting ? undefined : [10, 15, 30, 50, 100]}
-                dataKey="rowKey"
-                size="small"
-                stripedRows
-                className="summary-table trial-balance-table"
-                rowClassName={(row: TrialBalanceDisplayRow) =>
-                    row.rowType === 'group-summary' || row.isGroupTotal ? 'font-bold' : ''
-                }
-                loadingState={loadingApplied}
-                loadingSummaryEnabled={Boolean(appliedFilters)}
-                filters={columnFilters}
-                onFilter={onColumnFilter}
-                filterDisplay="menu"
-                filterDelay={400}
-                emptyMessage={reportLoading ? '' : appliedFilters ? 'No results found' : 'Press Refresh to load trial balance'}
-                headerLeft={headerLeft}
-                recordSummary={
-                    appliedFilters
-                        ? reportLoading
-                            ? 'Loading trial balance...'
-                            : `${baseRowsCount} row${baseRowsCount === 1 ? '' : 's'}`
-                        : 'Press Refresh to load trial balance'
-                }
-            >
+        <ReportDataTable
+            value={tableRows}
+            paginator={!isPrinting}
+            rows={tablePageSize}
+            rowsPerPageOptions={isPrinting ? undefined : [10, 15, 30, 50, 100]}
+            dataKey="rowKey"
+            size="small"
+            stripedRows
+            className="summary-table trial-balance-table"
+            rowClassName={(row: TrialBalanceDisplayRow) =>
+                row.rowType === 'group-summary' || row.isGroupTotal ? 'font-bold' : ''
+            }
+            loadingState={loadingApplied}
+            loadingSummaryEnabled={Boolean(appliedFilters)}
+            filters={columnFilters}
+            onFilter={onColumnFilter}
+            filterDisplay="menu"
+            filterDelay={400}
+            emptyMessage={reportLoading ? '' : appliedFilters ? 'No results found' : 'Press Refresh to load trial balance'}
+            headerLeft={headerLeft}
+            headerRight={headerRight}
+            recordSummary={
+                appliedFilters
+                    ? reportLoading
+                        ? 'Loading trial balance...'
+                        : `${baseRowsCount} row${baseRowsCount === 1 ? '' : 's'}`
+                    : 'Press Refresh to load trial balance'
+            }
+        >
             <Column
                 field="ledgerGroupFilter"
                 header="Ledger Group"
@@ -308,7 +300,6 @@ export function TrialBalanceReportTable({
                     {...MULTISELECT_COLUMN_PROPS}
                 />
             )}
-            </ReportDataTable>
-        </div>
+        </ReportDataTable>
     );
 }

@@ -137,6 +137,7 @@ export function BalanceSheetReportTable({
                         onExportCsv={onExportCsv}
                         onExportExcel={onExportExcel}
                         onExportPdf={onExportPdf}
+                        loadingState={reportLoadingApplied}
                         refreshDisabled={refreshDisabled}
                         printDisabled={printDisabled}
                         exportDisabled={exportDisabled}

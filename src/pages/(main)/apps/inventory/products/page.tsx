@@ -5,18 +5,28 @@ import { Checkbox } from 'primereact/checkbox';
 import { ConfirmPopup, confirmPopup } from 'primereact/confirmpopup';
 import { Dialog } from 'primereact/dialog';
 import { DataTable } from 'primereact/datatable';
-import { Dropdown } from 'primereact/dropdown';
 import { InputNumber } from 'primereact/inputnumber';
-import { InputText } from 'primereact/inputtext';
 import { Tag } from 'primereact/tag';
 import { TabPanel, TabView } from 'primereact/tabview';
 import { Toast } from 'primereact/toast';
 import { Button } from 'primereact/button';
 import { gql, useLazyQuery, useMutation, useQuery } from '@apollo/client';
 import AppDataTable from '@/components/AppDataTable';
+import AppDropdown from '@/components/AppDropdown';
+import AppInput from '@/components/AppInput';
 import { z } from 'zod';
 import { inventoryApolloClient } from '@/lib/inventoryApolloClient';
 import { apolloClient } from '@/lib/apolloClient';
+import { ACCOUNT_MASTER_QUERY_OPTIONS } from '@/lib/accounts/masterLookupCache';
+import { getDeleteConfirmMessage, getDeleteFailureMessage } from '@/lib/deleteGuardrails';
+import { fetchInventoryMasterDeleteImpact, getDeleteBlockedMessage } from '@/lib/masterDeleteImpact';
+import {
+    getMasterActionDeniedDetail,
+    isMasterActionAllowed,
+    type MasterAction,
+    useMasterActionPermissions
+} from '@/lib/masterActionPermissions';
+import { ensureDryEditCheck } from '@/lib/masterDryRun';
 
 interface ProductRow {
     productId: number;
@@ -69,15 +79,38 @@ interface ProductAttributeOption {
     detail: string | null;
 }
 
+type ProductStatusFilter = 'all' | 'active' | 'inactive';
+type ProductSearchTypeFilter = 0 | 1;
+
 const STATUS_OPTIONS = [
     { label: 'All', value: 'all' },
     { label: 'Active', value: 'active' },
     { label: 'Inactive', value: 'inactive' }
-] as const;
+] as { label: string; value: ProductStatusFilter }[];
+const SEARCH_TYPE_OPTIONS = [
+    { label: 'Name / Id', value: 0 },
+    { label: 'Detailed', value: 1 }
+] as { label: string; value: ProductSearchTypeFilter }[];
+const LIMIT_OPTIONS = [100, 250, 500, 1000, 2000].map((value) => ({ label: String(value), value }));
+const MASTER_LOOKUP_LIMIT = 10000;
 
 const PRODUCTS = gql`
-    query Products {
-        products {
+    query Products(
+        $search: String
+        $limit: Int
+        $productBrandId: Int
+        $mrp: Float
+        $searchType: Int
+        $isActiveFlag: Int
+    ) {
+        products(
+            search: $search
+            limit: $limit
+            productBrandId: $productBrandId
+            mrp: $mrp
+            searchType: $searchType
+            isActiveFlag: $isActiveFlag
+        ) {
             productId
             name
             code
@@ -397,13 +430,21 @@ export default function InventoryProductsPage() {
     const taxKeyRef = useRef(1);
 
     const [search, setSearch] = useState('');
-    const [statusFilter, setStatusFilter] = useState<(typeof STATUS_OPTIONS)[number]['value']>('active');
+    const [searchType, setSearchType] = useState<ProductSearchTypeFilter>(1);
+    const [statusFilter, setStatusFilter] = useState<ProductStatusFilter>('active');
+    const [productBrandFilterId, setProductBrandFilterId] = useState<number | null>(null);
+    const [mrpFilter, setMrpFilter] = useState<number | null>(null);
+    const [limit, setLimit] = useState(2000);
     const [dialogVisible, setDialogVisible] = useState(false);
     const [saving, setSaving] = useState(false);
     const [editing, setEditing] = useState<ProductRow | null>(null);
+    const [detailVisible, setDetailVisible] = useState(false);
+    const [detailRow, setDetailRow] = useState<ProductRow | null>(null);
     const [detailsLoaded, setDetailsLoaded] = useState(true);
     const [form, setForm] = useState<FormState>(DEFAULT_FORM);
     const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
+    const [dryEditDigest, setDryEditDigest] = useState('');
     const [productAttributeOptions, setProductAttributeOptions] = useState<ProductAttributeOption[]>([]);
     const [productAttributeSelections, setProductAttributeSelections] = useState<ProductAttributeSelectionDraft[]>([]);
     const [attributeToAdd, setAttributeToAdd] = useState<number | null>(null);
@@ -417,7 +458,17 @@ export default function InventoryProductsPage() {
         });
     };
 
-    const { data, loading, error, refetch } = useQuery(PRODUCTS, { client: inventoryApolloClient });
+    const { data, loading, error, refetch } = useQuery(PRODUCTS, {
+        client: inventoryApolloClient,
+        variables: {
+            search: search.trim() || null,
+            limit,
+            productBrandId: productBrandFilterId,
+            mrp: mrpFilter,
+            searchType,
+            isActiveFlag: statusFilter === 'all' ? null : statusFilter === 'active' ? 1 : 0
+        }
+    });
     const [loadProduct, { data: productData, loading: productLoading, error: productError }] = useLazyQuery(
         PRODUCT_BY_ID,
         { client: inventoryApolloClient, fetchPolicy: 'network-only', notifyOnNetworkStatusChange: true }
@@ -432,6 +483,7 @@ export default function InventoryProductsPage() {
     const [createProduct] = useMutation(CREATE_PRODUCT, { client: inventoryApolloClient });
     const [updateProduct] = useMutation(UPDATE_PRODUCT, { client: inventoryApolloClient });
     const [deleteProduct] = useMutation(DELETE_PRODUCT, { client: inventoryApolloClient });
+    const { permissions: masterPermissions } = useMasterActionPermissions(inventoryApolloClient);
 
     const { data: productGroupsData } = useQuery(PRODUCT_GROUPS, { client: inventoryApolloClient });
     const { data: productBrandsData } = useQuery(PRODUCT_BRANDS, { client: inventoryApolloClient });
@@ -440,16 +492,48 @@ export default function InventoryProductsPage() {
     const { data: hsnCodesData } = useQuery(HSN_CODES, { client: inventoryApolloClient });
     const { data: ledgerOptionsData, error: ledgerOptionsError } = useQuery(LEDGER_OPTIONS, {
         client: apolloClient,
-        variables: { limit: 2000 }
+        variables: { limit: MASTER_LOOKUP_LIMIT },
+        ...ACCOUNT_MASTER_QUERY_OPTIONS
     });
 
     const rows: ProductRow[] = useMemo(() => data?.products ?? [], [data]);
+
+    const assertActionAllowed = (action: MasterAction) => {
+        if (isMasterActionAllowed(masterPermissions, action)) return true;
+        toastRef.current?.show({
+            severity: 'warn',
+            summary: 'Permission Denied',
+            detail: getMasterActionDeniedDetail(action)
+        });
+        return false;
+    };
+
     const productGroups = useMemo(() => productGroupsData?.productGroups ?? [], [productGroupsData]);
     const productBrands = useMemo(() => productBrandsData?.productBrands ?? [], [productBrandsData]);
     const productAttributeTypes = useMemo(() => productAttributeTypesData?.productAttributeTypes ?? [], [productAttributeTypesData]);
     const units = useMemo(() => unitsData?.units ?? [], [unitsData]);
     const hsnCodes = useMemo(() => hsnCodesData?.hsnCodes ?? [], [hsnCodesData]);
     const ledgerOptions = useMemo(() => ledgerOptionsData?.ledgerOptions ?? [], [ledgerOptionsData]);
+    const unitDropdownOptions = useMemo(
+        () =>
+            units.map((unit: { unitId: number; name: string | null }) => ({
+                label: unit.name?.trim() || `#${unit.unitId}`,
+                value: unit.unitId
+            })),
+        [units]
+    );
+    const ledgerDropdownOptions = useMemo(
+        () =>
+            ledgerOptions.map((ledger: { ledgerId: number; name: string | null }) => ({
+                label: ledger.name?.trim() || `Ledger #${ledger.ledgerId}`,
+                value: ledger.ledgerId
+            })),
+        [ledgerOptions]
+    );
+    const gridDropdownAppendTo = useMemo<HTMLElement | 'self'>(
+        () => (typeof document !== 'undefined' ? document.body : 'self'),
+        []
+    );
 
     const productGroupMap = useMemo(() => {
         const map = new Map<number, string>();
@@ -465,6 +549,14 @@ export default function InventoryProductsPage() {
         });
         return map;
     }, [productBrands]);
+    const productBrandFilterOptions = useMemo(
+        () =>
+            productBrands.map((brand: { productBrandId: number; name: string | null }) => ({
+                label: brand.name?.trim() || `#${brand.productBrandId}`,
+                value: brand.productBrandId
+            })),
+        [productBrands]
+    );
     const productAttributeTypeMap = useMemo(() => {
         const map = new Map<number, string>();
         productAttributeTypes.forEach((type: { productAttributeTypeId: number; name: string | null }) => {
@@ -502,31 +594,6 @@ export default function InventoryProductsPage() {
         if (!stillAvailable) setAttributeToAdd(null);
     }, [attributeToAdd, availableAttributeOptions]);
 
-    const filteredRows = useMemo(() => {
-        const term = search.trim().toLowerCase();
-        const matchesStatus = (row: ProductRow) => {
-            if (statusFilter === 'all') return true;
-            const isActive = flagToBool(row.isActiveFlag, true);
-            return statusFilter === 'active' ? isActive : !isActive;
-        };
-        if (!term) return rows.filter(matchesStatus);
-        return rows.filter((row) =>
-            matchesStatus(row) &&
-            [
-                row.productId,
-                row.name,
-                row.code,
-                row.productGroupId ? productGroupMap.get(row.productGroupId) : null,
-                row.productBrandId ? productBrandMap.get(row.productBrandId) : null,
-                row.productAttributeTypeId ? productAttributeTypeMap.get(row.productAttributeTypeId) : null,
-                row.hsnCodeId ? hsnMap.get(row.hsnCodeId) : null
-            ]
-                .map((value) => String(value ?? '').toLowerCase())
-                .join(' ')
-                .includes(term)
-        );
-    }, [rows, search, productGroupMap, productBrandMap, productAttributeTypeMap, hsnMap, statusFilter]);
-
     const productAttributeRows = useMemo<ProductAttributeSelectionDraft[]>(() => {
         return productAttributeSelections;
     }, [productAttributeSelections]);
@@ -560,6 +627,8 @@ export default function InventoryProductsPage() {
     };
 
     const openNew = () => {
+        setDryEditDigest('');
+        if (!assertActionAllowed('add')) return;
         setEditing(null);
         setForm(DEFAULT_FORM);
         setFormErrors({});
@@ -571,6 +640,8 @@ export default function InventoryProductsPage() {
     };
 
     const openEdit = (row: ProductRow) => {
+        setDryEditDigest('');
+        if (!assertActionAllowed('edit')) return;
         setEditing(row);
         setDetailsLoaded(false);
         setForm({
@@ -593,6 +664,12 @@ export default function InventoryProductsPage() {
         setProductAttributeSelections([]);
         setAttributeToAdd(null);
         setDialogVisible(true);
+    };
+
+    const openView = (row: ProductRow) => {
+        if (!assertActionAllowed('view')) return;
+        setDetailRow(row);
+        setDetailVisible(true);
     };
 
     useEffect(() => {
@@ -738,6 +815,7 @@ export default function InventoryProductsPage() {
     };
 
     const save = async () => {
+        if (!assertActionAllowed(editing ? 'edit' : 'add')) return;
         if (editing && !detailsLoaded) {
             toastRef.current?.show({
                 severity: 'warn',
@@ -770,6 +848,15 @@ export default function InventoryProductsPage() {
             toastRef.current?.show({ severity: 'warn', summary: 'Please fix validation errors' });
             return;
         }
+
+        if (!ensureDryEditCheck({
+            isEditing: Boolean(editing),
+            lastDigest: dryEditDigest,
+            currentDigest: JSON.stringify(form),
+            setLastDigest: setDryEditDigest,
+            toastRef,
+            entityLabel: 'record'
+        })) return;
 
         setSaving(true);
         try {
@@ -868,15 +955,27 @@ export default function InventoryProductsPage() {
             toastRef.current?.show({
                 severity: 'error',
                 summary: 'Error',
-                detail: e?.message ?? 'Delete failed.'
+                detail: getDeleteFailureMessage(e, 'product')
             });
         }
     };
 
-    const confirmDelete = (event: React.MouseEvent<HTMLButtonElement>, row: ProductRow) => {
+    const confirmDelete = async (event: React.MouseEvent<HTMLButtonElement>, row: ProductRow) => {
+        if (!assertActionAllowed('delete')) return;
+        const impact = await fetchInventoryMasterDeleteImpact('PRODUCT', row.productId);
+        if (!impact.canDelete) {
+            toastRef.current?.show({
+                severity: 'warn',
+                summary: 'Cannot Delete',
+                detail: getDeleteBlockedMessage('product', impact),
+                life: 7000
+            });
+            return;
+        }
+
         confirmPopup({
             target: event.currentTarget,
-            message: 'Delete this product?',
+            message: `Dry Delete Check passed. ${getDeleteConfirmMessage('product')}`,
             icon: 'pi pi-exclamation-triangle',
             acceptClassName: 'p-button-danger',
             acceptLabel: 'Delete',
@@ -914,8 +1013,9 @@ export default function InventoryProductsPage() {
 
     const actionsBody = (row: ProductRow) => (
         <div className="flex gap-2">
-            <Button icon="pi pi-pencil" className="p-button-text" onClick={() => openEdit(row)} />
-            <Button icon="pi pi-trash" className="p-button-text" severity="danger" onClick={(e) => confirmDelete(e, row)} />
+            <Button icon="pi pi-eye" className="p-button-text" onClick={() => openView(row)} disabled={!masterPermissions.canView} />
+            <Button icon="pi pi-pencil" className="p-button-text" onClick={() => openEdit(row)} disabled={!masterPermissions.canEdit} />
+            <Button icon="pi pi-trash" className="p-button-text" severity="danger" onClick={(e) => { void confirmDelete(e, row); }} disabled={!masterPermissions.canDelete} />
         </div>
     );
 
@@ -940,7 +1040,7 @@ export default function InventoryProductsPage() {
                         </p>
                     </div>
                     <div className="flex gap-2 flex-wrap">
-                        <Button label="New Product" icon="pi pi-plus" onClick={openNew} />
+                        <Button label="New Product" icon="pi pi-plus" onClick={openNew} disabled={!masterPermissions.canAdd} />
                     </div>
                 </div>
                 {error && <p className="text-red-500 m-0">Error loading products: {error.message}</p>}
@@ -948,7 +1048,7 @@ export default function InventoryProductsPage() {
 
             <AppDataTable
                 ref={dtRef}
-                value={filteredRows}
+                value={rows}
                 paginator
                 rows={12}
                 rowsPerPageOptions={[12, 24, 50, 100]}
@@ -956,19 +1056,19 @@ export default function InventoryProductsPage() {
                 stripedRows
                 size="small"
                 loading={loading}
-                onRowDoubleClick={(e) => openEdit(e.data as ProductRow)}
+                onRowDoubleClick={(e) => (masterPermissions.canEdit ? openEdit(e.data as ProductRow) : openView(e.data as ProductRow))}
                 headerLeft={
-                    <>
+                    <div className="flex flex-wrap gap-2 align-items-center">
                         <span className="p-input-icon-left" style={{ minWidth: '320px' }}>
                             <i className="pi pi-search" />
-                            <InputText
+                            <AppInput
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
                                 placeholder="Search product"
                                 style={{ width: '100%' }}
                             />
                         </span>
-                        <Dropdown
+                        <AppDropdown
                             value={statusFilter}
                             options={STATUS_OPTIONS}
                             optionLabel="label"
@@ -976,7 +1076,36 @@ export default function InventoryProductsPage() {
                             onChange={(e) => setStatusFilter(e.value)}
                             style={{ minWidth: '160px' }}
                         />
-                    </>
+                        <AppDropdown
+                            value={productBrandFilterId}
+                            options={productBrandFilterOptions}
+                            optionLabel="label"
+                            optionValue="value"
+                            onChange={(e) => setProductBrandFilterId(e.value ?? null)}
+                            placeholder="All brands"
+                            showClear
+                            filter
+                            style={{ minWidth: '200px' }}
+                        />
+                        <InputNumber
+                            value={mrpFilter}
+                            onValueChange={(e) =>
+                                setMrpFilter(typeof e.value === 'number' ? e.value : null)
+                            }
+                            placeholder="MRP"
+                            useGrouping={false}
+                            maxFractionDigits={2}
+                            style={{ width: '8rem' }}
+                        />
+                        <AppDropdown
+                            value={searchType}
+                            options={SEARCH_TYPE_OPTIONS}
+                            optionLabel="label"
+                            optionValue="value"
+                            onChange={(e) => setSearchType((e.value ?? 1) as ProductSearchTypeFilter)}
+                            style={{ minWidth: '120px' }}
+                        />
+                    </div>
                 }
                 headerRight={
                     <>
@@ -985,7 +1114,7 @@ export default function InventoryProductsPage() {
                             icon="pi pi-download"
                             className="p-button-info"
                             onClick={() => dtRef.current?.exportCSV()}
-                            disabled={filteredRows.length === 0}
+                            disabled={rows.length === 0}
                         />
                         <Button
                             label="Print"
@@ -999,21 +1128,33 @@ export default function InventoryProductsPage() {
                             className="p-button-text"
                             onClick={() => refetch()}
                         />
+                        <span className="flex align-items-center gap-2">
+                            <span className="text-600 text-sm">Limit</span>
+                            <AppDropdown
+                                value={limit}
+                                options={LIMIT_OPTIONS}
+                                optionLabel="label"
+                                optionValue="value"
+                                onChange={(e) => setLimit(e.value ?? 2000)}
+                                style={{ width: '6rem' }}
+                            />
+                        </span>
                         <span className="text-600 text-sm">
-                            Showing {filteredRows.length} product{filteredRows.length === 1 ? '' : 's'}
+                            Showing {rows.length} product{rows.length === 1 ? '' : 's'}
                         </span>
                     </>
                 }
-                recordSummary={`${filteredRows.length} product${filteredRows.length === 1 ? '' : 's'}`}
+                recordSummary={`${rows.length} product${rows.length === 1 ? '' : 's'}`}
             >
+                <Column field="productId" header="Id" sortable style={{ width: '6rem' }} />
                 <Column field="name" header="Name" sortable />
-                <Column field="code" header="Code" sortable />
-                <Column header="Group" body={groupBody} />
-                <Column header="Brand" body={brandBody} />
-                <Column header="Type" body={typeBody} />
-                <Column header="HSN" body={hsnBody} />
+                {searchType === 1 && <Column field="code" header="Code" sortable />}
+                {searchType === 1 && <Column header="Group" body={groupBody} />}
+                {searchType === 1 && <Column header="Brand" body={brandBody} />}
+                {searchType === 1 && <Column header="Type" body={typeBody} />}
+                {searchType === 1 && <Column header="HSN" body={hsnBody} />}
                 <Column header="Status" body={statusBody} />
-                <Column header="Actions" body={actionsBody} style={{ width: '8rem' }} />
+                <Column header="Actions" body={actionsBody} style={{ width: '11rem' }} />
             </AppDataTable>
 
             <Dialog
@@ -1033,7 +1174,7 @@ export default function InventoryProductsPage() {
                             label={saving ? 'Saving...' : 'Save'}
                             icon="pi pi-check"
                             onClick={save}
-                            disabled={saving || (editing && !detailsLoaded)}
+                            disabled={saving || Boolean(editing && !detailsLoaded)}
                         />
                     </div>
                 }
@@ -1048,7 +1189,7 @@ export default function InventoryProductsPage() {
                                     <div className="grid">
                                         <div className="col-12">
                                             <label className="block text-600 mb-1">Product Group</label>
-                                            <Dropdown
+                                            <AppDropdown
                                                 value={form.productGroupId}
                                                 options={productGroups}
                                                 optionLabel="name"
@@ -1062,7 +1203,7 @@ export default function InventoryProductsPage() {
                                         </div>
                                         <div className="col-12">
                                             <label className="block text-600 mb-1">Product Brand</label>
-                                            <Dropdown
+                                            <AppDropdown
                                                 value={form.productBrandId}
                                                 options={productBrands}
                                                 optionLabel="name"
@@ -1076,7 +1217,7 @@ export default function InventoryProductsPage() {
                                         </div>
                                         <div className="col-12">
                                             <label className="block text-600 mb-1">Code</label>
-                                            <InputText
+                                            <AppInput
                                                 value={form.code}
                                                 onChange={(e) => setForm((s) => ({ ...s, code: e.target.value }))}
                                                 style={{ width: '100%' }}
@@ -1084,7 +1225,7 @@ export default function InventoryProductsPage() {
                                         </div>
                                         <div className="col-12">
                                             <label className="block text-600 mb-1">Name</label>
-                                            <InputText
+                                            <AppInput
                                                 value={form.name}
                                                 onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))}
                                                 style={{ width: '100%' }}
@@ -1094,7 +1235,7 @@ export default function InventoryProductsPage() {
                                         </div>
                                         <div className="col-12">
                                             <label className="block text-600 mb-1">HSN Code</label>
-                                            <Dropdown
+                                            <AppDropdown
                                                 value={form.hsnCodeId}
                                                 options={hsnCodes}
                                                 optionLabel="name"
@@ -1114,7 +1255,7 @@ export default function InventoryProductsPage() {
                                         </div>
                                         <div className="col-12">
                                             <label className="block text-600 mb-1">Remarks</label>
-                                            <InputText
+                                            <AppInput
                                                 value={form.remarks}
                                                 onChange={(e) => setForm((s) => ({ ...s, remarks: e.target.value }))}
                                                 style={{ width: '100%' }}
@@ -1152,7 +1293,7 @@ export default function InventoryProductsPage() {
                                     <div className="grid">
                                         <div className="col-12">
                                             <label className="block text-600 mb-1">Product Attribute Type</label>
-                                            <Dropdown
+                                            <AppDropdown
                                                 value={form.productAttributeTypeId}
                                                 options={productAttributeTypes}
                                                 optionLabel="name"
@@ -1177,7 +1318,7 @@ export default function InventoryProductsPage() {
                                             ) : (
                                                 <>
                                                     <div className="flex flex-column sm:flex-row align-items-stretch gap-2 mb-2">
-                                                        <Dropdown
+                                                        <AppDropdown
                                                             value={attributeToAdd}
                                                             options={availableAttributeOptions}
                                                             optionLabel="detail"
@@ -1284,15 +1425,17 @@ export default function InventoryProductsPage() {
                                         <Column
                                             header="Unit"
                                             body={(row: UnitDraft) => (
-                                            <Dropdown
+                                            <AppDropdown
                                                 value={row.unitId}
-                                                options={units}
-                                                optionLabel="name"
-                                                optionValue="unitId"
+                                                options={unitDropdownOptions}
+                                                optionLabel="label"
+                                                optionValue="value"
+                                                appendTo={gridDropdownAppendTo}
                                                 onChange={(e) => updateUnit(row.key, { unitId: e.value ?? null })}
                                                 placeholder="Select unit"
                                                 showClear
                                                 filter
+                                                filterBy="label"
                                                 className="p-inputtext-sm"
                                                 style={{ width: '100%' }}
                                             />
@@ -1302,15 +1445,17 @@ export default function InventoryProductsPage() {
                                         <Column
                                             header="Equal Unit"
                                             body={(row: UnitDraft) => (
-                                                <Dropdown
+                                                <AppDropdown
                                                     value={row.equalUnitId}
-                                                    options={units}
-                                                    optionLabel="name"
-                                                    optionValue="unitId"
+                                                    options={unitDropdownOptions}
+                                                    optionLabel="label"
+                                                    optionValue="value"
+                                                    appendTo={gridDropdownAppendTo}
                                                     onChange={(e) => updateUnit(row.key, { equalUnitId: e.value ?? null })}
                                                     placeholder="Select equal unit"
                                                     showClear
                                                     filter
+                                                    filterBy="label"
                                                     className="p-inputtext-sm"
                                                     style={{ width: '100%' }}
                                                 />
@@ -1341,7 +1486,7 @@ export default function InventoryProductsPage() {
                                                 const error = formErrors[errorKey];
                                                 return (
                                                     <div className="flex flex-column gap-1">
-                                                        <InputText
+                                                        <AppInput
                                                             value={row.effectiveDateText}
                                                             onChange={(e) => {
                                                                 updateUnit(row.key, { effectiveDateText: e.target.value });
@@ -1407,15 +1552,17 @@ export default function InventoryProductsPage() {
                                         <Column
                                             header="Tax Ledger"
                                             body={(row: SalesTaxDraft) => (
-                                                <Dropdown
+                                                <AppDropdown
                                                     value={row.ledgerTaxId}
-                                                    options={ledgerOptions}
-                                                    optionLabel="name"
-                                                    optionValue="ledgerId"
+                                                    options={ledgerDropdownOptions}
+                                                    optionLabel="label"
+                                                    optionValue="value"
+                                                    appendTo={gridDropdownAppendTo}
                                                     onChange={(e) => updateTax(row.key, { ledgerTaxId: e.value ?? null })}
                                                     placeholder="Select ledger"
                                                     showClear
                                                     filter
+                                                    filterBy="label"
                                                     className="p-inputtext-sm"
                                                     style={{ width: '100%' }}
                                                 />
@@ -1425,15 +1572,17 @@ export default function InventoryProductsPage() {
                                         <Column
                                             header="Tax Ledger 2"
                                             body={(row: SalesTaxDraft) => (
-                                                <Dropdown
+                                                <AppDropdown
                                                     value={row.ledgerTax2Id}
-                                                    options={ledgerOptions}
-                                                    optionLabel="name"
-                                                    optionValue="ledgerId"
+                                                    options={ledgerDropdownOptions}
+                                                    optionLabel="label"
+                                                    optionValue="value"
+                                                    appendTo={gridDropdownAppendTo}
                                                     onChange={(e) => updateTax(row.key, { ledgerTax2Id: e.value ?? null })}
                                                     placeholder="Select ledger"
                                                     showClear
                                                     filter
+                                                    filterBy="label"
                                                     className="p-inputtext-sm"
                                                     style={{ width: '100%' }}
                                                 />
@@ -1443,15 +1592,17 @@ export default function InventoryProductsPage() {
                                         <Column
                                             header="Tax Ledger 3"
                                             body={(row: SalesTaxDraft) => (
-                                                <Dropdown
+                                                <AppDropdown
                                                     value={row.ledgerTax3Id}
-                                                    options={ledgerOptions}
-                                                    optionLabel="name"
-                                                    optionValue="ledgerId"
+                                                    options={ledgerDropdownOptions}
+                                                    optionLabel="label"
+                                                    optionValue="value"
+                                                    appendTo={gridDropdownAppendTo}
                                                     onChange={(e) => updateTax(row.key, { ledgerTax3Id: e.value ?? null })}
                                                     placeholder="Select ledger"
                                                     showClear
                                                     filter
+                                                    filterBy="label"
                                                     className="p-inputtext-sm"
                                                     style={{ width: '100%' }}
                                                 />
@@ -1550,7 +1701,7 @@ export default function InventoryProductsPage() {
                                                 const error = formErrors[errorKey];
                                                 return (
                                                     <div className="flex flex-column gap-1">
-                                                        <InputText
+                                                        <AppInput
                                                             value={row.effectiveDateText}
                                                             onChange={(e) => {
                                                                 updateTax(row.key, { effectiveDateText: e.target.value });
@@ -1599,6 +1750,34 @@ export default function InventoryProductsPage() {
                         </TabPanel>
                     </TabView>
                 </div>
+            </Dialog>
+
+            <Dialog
+                header="Product Details"
+                visible={detailVisible}
+                style={{ width: 'min(760px, 96vw)' }}
+                onHide={() => setDetailVisible(false)}
+                footer={
+                    <div className="flex justify-content-end w-full">
+                        <Button label="Close" className="p-button-text" onClick={() => setDetailVisible(false)} />
+                    </div>
+                }
+            >
+                {detailRow && (
+                    <div className="flex flex-column gap-2">
+                        <div><strong>Name:</strong> {detailRow.name ?? '-'}</div>
+                        <div><strong>Code:</strong> {detailRow.code ?? '-'}</div>
+                        <div><strong>Group:</strong> {groupBody(detailRow)}</div>
+                        <div><strong>Brand:</strong> {brandBody(detailRow)}</div>
+                        <div><strong>Type:</strong> {typeBody(detailRow)}</div>
+                        <div><strong>HSN:</strong> {hsnBody(detailRow)}</div>
+                        <div><strong>Opening Qty:</strong> {detailRow.openingQty ?? '-'}</div>
+                        <div><strong>Landing Cost:</strong> {detailRow.landingCost ?? '-'}</div>
+                        <div><strong>Remarks:</strong> {detailRow.remarks || '-'}</div>
+                        <div><strong>Show Only In Transport:</strong> {flagToBool(detailRow.showOnlyInTransportFlag, false) ? 'Yes' : 'No'}</div>
+                        <div><strong>Status:</strong> {flagToBool(detailRow.isActiveFlag, true) ? 'Active' : 'Inactive'}</div>
+                    </div>
+                )}
             </Dialog>
         </div>
     );

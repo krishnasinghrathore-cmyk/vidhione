@@ -19,6 +19,7 @@ import LedgerGroupAutoComplete from '@/components/LedgerGroupAutoComplete';
 import LedgerMetaPanel from '@/components/LedgerMetaPanel';
 import { LayoutContext } from '@/layout/context/layoutcontext';
 import { apolloClient } from '@/lib/apolloClient';
+import { ACCOUNT_MASTER_LAZY_QUERY_OPTIONS } from '@/lib/accounts/masterLookupCache';
 import { useAuth } from '@/lib/auth/context';
 import { useLedgerGroupOptions } from '@/lib/accounts/ledgerGroups';
 import { isBankAccountsLabel, resolveLedgerGroupFilter } from '@/lib/accounts/ledgerGroupFilter';
@@ -199,10 +200,15 @@ export default function AccountsBankReconciliationPage() {
 
     const { data, loading, error, refetch } = useQuery(BANK_RECONCILIATION, {
         variables: appliedVariables ?? registerVariables,
-        skip: !appliedVariables
+        skip: !appliedVariables,
+        fetchPolicy: 'cache-and-network',
+        nextFetchPolicy: 'cache-first',
+        notifyOnNetworkStatusChange: true
     });
 
-    const [loadLedgerLookup] = useLazyQuery(LEDGER_LOOKUP, { fetchPolicy: 'network-only' });
+    const [loadLedgerLookup] = useLazyQuery(LEDGER_LOOKUP, {
+        ...ACCOUNT_MASTER_LAZY_QUERY_OPTIONS
+    });
     const [uploadStatementImport] = useMutation(UPLOAD_LEDGER_RECON_STATEMENT_IMPORT);
     const { data: lastImportData, refetch: refetchLastImport } = useQuery(LEDGER_RECON_STATEMENT_IMPORT, {
         variables: {
@@ -416,7 +422,40 @@ export default function AccountsBankReconciliationPage() {
     }, [ledgerId, ledgerOptions, selectedBankLedger]);
 
     const showLedgerSpinner = isLedgerLoading && ledgerPanelOpen;
-    const hasVoucherRows = rows.some((row) => row.postingId > 0 && !row.isOpening);
+    const rowFilterSource = useMemo(() => {
+        const next = {
+            hasVoucherRows: false,
+            voucherNumbers: [] as Array<string | null | undefined>,
+            chequeNos: [] as Array<string | null | undefined>,
+            voucherDates: [] as Array<string | null | undefined>,
+            voucherTypes: [] as Array<string | null | undefined>,
+            counterLedgerNames: [] as Array<string | null | undefined>,
+            narrations: [] as Array<string | null | undefined>,
+            debits: [] as Array<number | null | undefined>,
+            credits: [] as Array<number | null | undefined>,
+            balances: [] as Array<number | null | undefined>,
+            discounts: [] as Array<number | null | undefined>,
+            chequeCharges: [] as Array<number | null | undefined>
+        };
+        rows.forEach((row) => {
+            if (!next.hasVoucherRows && row.postingId > 0 && !row.isOpening) {
+                next.hasVoucherRows = true;
+            }
+            next.voucherNumbers.push(row.voucherNumber);
+            next.chequeNos.push(row.chequeNo);
+            next.voucherDates.push(row.voucherDate);
+            next.voucherTypes.push(row.voucherType);
+            next.counterLedgerNames.push(row.counterLedgerName);
+            next.narrations.push(row.narration);
+            next.debits.push(row.debit);
+            next.credits.push(row.credit);
+            next.balances.push(row.balance);
+            next.discounts.push(resolveAmountValue(row.discountAmount, 0));
+            next.chequeCharges.push(resolveAmountValue(row.chequeCancelCharges, 0));
+        });
+        return next;
+    }, [rows]);
+    const hasVoucherRows = rowFilterSource.hasVoucherRows;
     const lastStatementImport = lastImportData?.ledgerReconciliationStatementImport ?? null;
     const statementSummary = useMemo(() => {
         if (!statementEntries.length) return '';
@@ -455,101 +494,139 @@ export default function AccountsBankReconciliationPage() {
         return [meta.value];
     };
 
-    const matchesInText = (value: string | null | undefined, filterValues: unknown[]) => {
-        if (!filterValues.length) return true;
-        const hay = String(value ?? '').toLowerCase();
-        return filterValues.some((item) => String(item ?? '').toLowerCase() === hay);
+    const toTextFilterSet = (filters: DataTableFilterMeta, field: string) => {
+        const values = getFilterValues(filters, field);
+        const next = new Set<string>();
+        values.forEach((item) => {
+            const normalized = String(item ?? '').toLowerCase().trim();
+            if (normalized.length > 0) {
+                next.add(normalized);
+            }
+        });
+        return next;
     };
 
-    const matchesInNumber = (value: number | null | undefined, filterValues: unknown[]) => {
-        if (!filterValues.length) return true;
-        const actual = value != null ? Number(value) : 0;
-        return filterValues.some((item) => {
+    const toNumberFilterSet = (filters: DataTableFilterMeta, field: string) => {
+        const values = getFilterValues(filters, field);
+        const next = new Set<number>();
+        values.forEach((item) => {
             const numeric = typeof item === 'number' ? item : Number(String(item).replace(/,/g, ''));
-            return Number.isFinite(numeric) && Number(numeric) === Number(actual);
+            if (Number.isFinite(numeric)) {
+                next.add(Number(numeric));
+            }
         });
+        return next;
+    };
+
+    const activeFilterValues = useMemo(() => {
+        const voucherNumber = toTextFilterSet(columnFilters, 'voucherNumber');
+        const chequeNo = toTextFilterSet(columnFilters, 'chequeNo');
+        const voucherDate = toTextFilterSet(columnFilters, 'voucherDate');
+        const voucherType = toTextFilterSet(columnFilters, 'voucherType');
+        const counterLedgerName = toTextFilterSet(columnFilters, 'counterLedgerName');
+        const narration = toTextFilterSet(columnFilters, 'narration');
+        const debit = toNumberFilterSet(columnFilters, 'debit');
+        const credit = toNumberFilterSet(columnFilters, 'credit');
+        const balance = toNumberFilterSet(columnFilters, 'balance');
+        const discountAmount = toNumberFilterSet(columnFilters, 'discountAmount');
+        const chequeCancelCharges = toNumberFilterSet(columnFilters, 'chequeCancelCharges');
+        const hasFilters =
+            voucherNumber.size > 0 ||
+            chequeNo.size > 0 ||
+            voucherDate.size > 0 ||
+            voucherType.size > 0 ||
+            counterLedgerName.size > 0 ||
+            narration.size > 0 ||
+            debit.size > 0 ||
+            credit.size > 0 ||
+            balance.size > 0 ||
+            discountAmount.size > 0 ||
+            chequeCancelCharges.size > 0;
+        return {
+            hasFilters,
+            voucherNumber,
+            chequeNo,
+            voucherDate,
+            voucherType,
+            counterLedgerName,
+            narration,
+            debit,
+            credit,
+            balance,
+            discountAmount,
+            chequeCancelCharges
+        };
+    }, [columnFilters]);
+
+    const matchesInText = (value: string | null | undefined, filterValues: Set<string>) => {
+        if (filterValues.size === 0) return true;
+        const hay = String(value ?? '').toLowerCase().trim();
+        return filterValues.has(hay);
+    };
+
+    const matchesInNumber = (value: number | null | undefined, filterValues: Set<number>) => {
+        if (filterValues.size === 0) return true;
+        const actual = value != null ? Number(value) : 0;
+        return filterValues.has(Number(actual));
     };
 
     const displayRows = useMemo(() => {
-        const voucherNumberFilters = getFilterValues(columnFilters, 'voucherNumber');
-        const chequeNoFilters = getFilterValues(columnFilters, 'chequeNo');
-        const voucherDateFilters = getFilterValues(columnFilters, 'voucherDate');
-        const voucherTypeFilters = getFilterValues(columnFilters, 'voucherType');
-        const ledgerFilters = getFilterValues(columnFilters, 'counterLedgerName');
-        const narrationFilters = getFilterValues(columnFilters, 'narration');
-        const debitFilters = getFilterValues(columnFilters, 'debit');
-        const creditFilters = getFilterValues(columnFilters, 'credit');
-        const balanceFilters = getFilterValues(columnFilters, 'balance');
-        const discountFilters = getFilterValues(columnFilters, 'discountAmount');
-        const chequeChargesFilters = getFilterValues(columnFilters, 'chequeCancelCharges');
-        const hasFilters =
-            voucherNumberFilters.length ||
-            chequeNoFilters.length ||
-            voucherDateFilters.length ||
-            voucherTypeFilters.length ||
-            ledgerFilters.length ||
-            narrationFilters.length ||
-            debitFilters.length ||
-            creditFilters.length ||
-            balanceFilters.length ||
-            discountFilters.length ||
-            chequeChargesFilters.length;
-        if (!hasFilters) return rows;
+        if (!activeFilterValues.hasFilters) return rows;
         return rows.filter((row) => {
-            if (!matchesInText(row.voucherNumber, voucherNumberFilters)) return false;
-            if (!matchesInText(row.chequeNo, chequeNoFilters)) return false;
-            if (!matchesInText(row.voucherDate, voucherDateFilters)) return false;
-            if (!matchesInText(row.voucherType, voucherTypeFilters)) return false;
-            if (!matchesInText(row.counterLedgerName, ledgerFilters)) return false;
-            if (!matchesInText(row.narration, narrationFilters)) return false;
-            if (!matchesInNumber(row.debit, debitFilters)) return false;
-            if (!matchesInNumber(row.credit, creditFilters)) return false;
-            if (!matchesInNumber(row.balance, balanceFilters)) return false;
-            if (!matchesInNumber(row.discountAmount, discountFilters)) return false;
-            if (!matchesInNumber(row.chequeCancelCharges, chequeChargesFilters)) return false;
+            if (!matchesInText(row.voucherNumber, activeFilterValues.voucherNumber)) return false;
+            if (!matchesInText(row.chequeNo, activeFilterValues.chequeNo)) return false;
+            if (!matchesInText(row.voucherDate, activeFilterValues.voucherDate)) return false;
+            if (!matchesInText(row.voucherType, activeFilterValues.voucherType)) return false;
+            if (!matchesInText(row.counterLedgerName, activeFilterValues.counterLedgerName)) return false;
+            if (!matchesInText(row.narration, activeFilterValues.narration)) return false;
+            if (!matchesInNumber(row.debit, activeFilterValues.debit)) return false;
+            if (!matchesInNumber(row.credit, activeFilterValues.credit)) return false;
+            if (!matchesInNumber(row.balance, activeFilterValues.balance)) return false;
+            if (!matchesInNumber(row.discountAmount, activeFilterValues.discountAmount)) return false;
+            if (!matchesInNumber(row.chequeCancelCharges, activeFilterValues.chequeCancelCharges)) return false;
             return true;
         });
-    }, [columnFilters, rows]);
+    }, [activeFilterValues, rows]);
 
     const handleColumnFilter = (event: DataTableFilterEvent) => {
         setColumnFilters(event.filters);
     };
 
     const voucherNumberFilterOptions = useMemo(
-        () => buildTextFilterOptions(rows.map((row) => row.voucherNumber)),
-        [rows]
+        () => buildTextFilterOptions(rowFilterSource.voucherNumbers),
+        [rowFilterSource.voucherNumbers]
     );
     const chequeNoFilterOptions = useMemo(
-        () => buildTextFilterOptions(rows.map((row) => row.chequeNo)),
-        [rows]
+        () => buildTextFilterOptions(rowFilterSource.chequeNos),
+        [rowFilterSource.chequeNos]
     );
     const voucherDateFilterOptions = useMemo(
-        () => buildDateFilterOptions(rows.map((row) => row.voucherDate)),
-        [rows]
+        () => buildDateFilterOptions(rowFilterSource.voucherDates),
+        [rowFilterSource.voucherDates]
     );
     const voucherTypeFilterOptions = useMemo(
-        () => buildTextFilterOptions(rows.map((row) => row.voucherType)),
-        [rows]
+        () => buildTextFilterOptions(rowFilterSource.voucherTypes),
+        [rowFilterSource.voucherTypes]
     );
     const ledgerFilterOptions = useMemo(
-        () => buildTextFilterOptions(rows.map((row) => row.counterLedgerName)),
-        [rows]
+        () => buildTextFilterOptions(rowFilterSource.counterLedgerNames),
+        [rowFilterSource.counterLedgerNames]
     );
     const narrationFilterOptions = useMemo(
-        () => buildTextFilterOptions(rows.map((row) => row.narration)),
-        [rows]
+        () => buildTextFilterOptions(rowFilterSource.narrations),
+        [rowFilterSource.narrations]
     );
 
-    const debitFilterOptions = useMemo(() => buildNumberFilterOptions(rows.map((row) => row.debit)), [rows]);
-    const creditFilterOptions = useMemo(() => buildNumberFilterOptions(rows.map((row) => row.credit)), [rows]);
-    const balanceFilterOptions = useMemo(() => buildNumberFilterOptions(rows.map((row) => row.balance)), [rows]);
+    const debitFilterOptions = useMemo(() => buildNumberFilterOptions(rowFilterSource.debits), [rowFilterSource.debits]);
+    const creditFilterOptions = useMemo(() => buildNumberFilterOptions(rowFilterSource.credits), [rowFilterSource.credits]);
+    const balanceFilterOptions = useMemo(() => buildNumberFilterOptions(rowFilterSource.balances), [rowFilterSource.balances]);
     const discountFilterOptions = useMemo(
-        () => buildNumberFilterOptions(rows.map((row) => resolveAmountValue(row.discountAmount, 0))),
-        [rows]
+        () => buildNumberFilterOptions(rowFilterSource.discounts),
+        [rowFilterSource.discounts]
     );
     const chequeChargesFilterOptions = useMemo(
-        () => buildNumberFilterOptions(rows.map((row) => resolveAmountValue(row.chequeCancelCharges, 0))),
-        [rows]
+        () => buildNumberFilterOptions(rowFilterSource.chequeCharges),
+        [rowFilterSource.chequeCharges]
     );
 
     const voucherNumberFilterElement = useMemo(
