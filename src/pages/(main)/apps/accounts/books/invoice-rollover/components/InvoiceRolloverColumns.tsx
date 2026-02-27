@@ -2,8 +2,10 @@ import React, { useMemo } from 'react';
 import { FilterMatchMode, FilterOperator } from 'primereact/api';
 import { Column, type ColumnFilterElementTemplateOptions } from 'primereact/column';
 import type { DataTableFilterMeta } from 'primereact/datatable';
+import { Tag } from 'primereact/tag';
 import AppMultiSelect from '@/components/AppMultiSelect';
 import { isSkeletonRow, skeletonCell } from '@/components/reportSkeleton';
+import { resolveVoucherThemeClass } from '@/lib/accounts/voucherThemeClass';
 import { formatAmount, formatDate } from '../utils';
 import type { FilterOption, InvoiceRolloverRow } from '../types';
 
@@ -76,6 +78,49 @@ const buildMultiSelectFilterElement =
             style={{ minWidth: '20rem' }}
         />
     );
+
+const normalizeReceiptTypeCode = (value: string | null | undefined): string => {
+    if (!value) return '';
+    return value.replace(/[()]/g, '').trim().toUpperCase();
+};
+
+const resolveReceiptTypeThemeClass = (code: string): string | null => {
+    switch (code) {
+        case 'B':
+            return resolveVoucherThemeClass('receipt', 'bank');
+        case 'C':
+            return resolveVoucherThemeClass('receipt', 'cash');
+        case 'CN':
+            return resolveVoucherThemeClass('credit-note', 'cash');
+        case 'SR':
+            return resolveVoucherThemeClass('debit-note', 'cash');
+        case 'DN':
+            return resolveVoucherThemeClass('debit-note', 'cash');
+        case 'J':
+            return resolveVoucherThemeClass('journal', 'cash');
+        default:
+            return null;
+    }
+};
+
+const resolveReceiptTypeDetail = (code: string): string => {
+    switch (code) {
+        case 'B':
+            return 'Bank Receipt';
+        case 'C':
+            return 'Cash Receipt';
+        case 'CN':
+            return 'Credit Note';
+        case 'SR':
+            return 'Sales Return';
+        case 'DN':
+            return 'Debit Note';
+        case 'J':
+            return 'Journal';
+        default:
+            return code;
+    }
+};
 
 export const buildDefaultColumnFilters = (): DataTableFilterMeta => ({
     ledgerName: {
@@ -273,7 +318,18 @@ export const useInvoiceRolloverColumns = ({ rows, reportLoading, totals }: Invoi
 
     const receiptTypeBody = (row: InvoiceRolloverRow) => {
         if (isSkeletonRow(row)) return skeletonCell('2.5rem');
-        return row.receiptType ?? '';
+        const code = normalizeReceiptTypeCode(row.receiptType);
+        if (!code) return '';
+        const themeClass = resolveReceiptTypeThemeClass(code);
+        const detail = resolveReceiptTypeDetail(code);
+        return (
+            <span title={`${code}: ${detail}`}>
+                <Tag
+                    value={code}
+                    className={`invoice-rollover-receipt-type-chip${themeClass ? ` ${themeClass}` : ''}`}
+                />
+            </span>
+        );
     };
 
     const receiptVoucherBody = (row: InvoiceRolloverRow) => {

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useLazyQuery, useQuery } from '@apollo/client';
+import { gql, useLazyQuery, useQuery } from '@apollo/client';
 import { useNavigate } from 'react-router-dom';
+import { ACCOUNT_MASTER_QUERY_OPTIONS } from '@/lib/accounts/masterLookupCache';
 import { useLedgerGroupOptions } from '@/lib/accounts/ledgerGroups';
 import { useAuth } from '@/lib/auth/context';
 import { resolveFiscalRange } from '@/lib/fiscalRange';
@@ -76,6 +77,14 @@ type GodownRow = {
 type UnitRow = {
     unitId: number;
     name: string | null;
+};
+
+type InvoiceRegisterVoucherTypeMasterRow = {
+    voucherTypeId: number;
+    voucherTypeCode: number | null;
+    voucherTypeName: string | null;
+    displayName: string | null;
+    defaultReportLookbackDays: number | null;
 };
 
 type ProductOption = {
@@ -277,6 +286,71 @@ const INVOICE_REGISTER_ROUTE = '/apps/billing/invoice-form';
 const INVOICE_NEW_ROUTE = `${INVOICE_REGISTER_ROUTE}/new`;
 const INVOICE_EDIT_ROUTE = `${INVOICE_REGISTER_ROUTE}/edit`;
 const DUTIES_AND_TAXES_GROUP_TYPE_CODE = 12;
+const INVOICE_REGISTER_LOOKBACK_VOUCHER_CODE_PRIORITY = [9, 5] as const;
+
+const INVOICE_REGISTER_VOUCHER_TYPE_MASTERS_QUERY = gql`
+    query InvoiceRegisterVoucherTypeMasters {
+        voucherTypeMasters {
+            voucherTypeId
+            voucherTypeCode
+            voucherTypeName
+            displayName
+            defaultReportLookbackDays
+        }
+    }
+`;
+
+const normalizeVoucherTypeName = (row: Pick<InvoiceRegisterVoucherTypeMasterRow, 'voucherTypeName' | 'displayName'>) =>
+    `${row.displayName ?? ''} ${row.voucherTypeName ?? ''}`.toLowerCase();
+
+const toPositiveIntegerOrNull = (value: number | null | undefined) => {
+    if (typeof value !== 'number' || !Number.isFinite(value)) return null;
+    const integer = Math.trunc(value);
+    return integer > 0 ? integer : null;
+};
+
+const resolveInvoiceRegisterDefaultLookbackDays = (rows: InvoiceRegisterVoucherTypeMasterRow[]) => {
+    if (!rows.length) return null;
+    const withDays = rows
+        .map((row) => ({
+            ...row,
+            resolvedDays: toPositiveIntegerOrNull(row.defaultReportLookbackDays)
+        }))
+        .filter((row) => row.resolvedDays != null);
+    if (!withDays.length) return null;
+
+    for (const code of INVOICE_REGISTER_LOOKBACK_VOUCHER_CODE_PRIORITY) {
+        const match = withDays.find((row) => Number(row.voucherTypeCode ?? 0) === code);
+        if (match?.resolvedDays != null) return match.resolvedDays;
+    }
+
+    const invoiceNamed = withDays.find((row) => /\bsale(?:s)?\s+invoice\b/.test(normalizeVoucherTypeName(row)));
+    if (invoiceNamed?.resolvedDays != null) return invoiceNamed.resolvedDays;
+
+    const salesNamed = withDays.find((row) => /\bsale(?:s)?\b/.test(normalizeVoucherTypeName(row)));
+    if (salesNamed?.resolvedDays != null) return salesNamed.resolvedDays;
+
+    return withDays[0]?.resolvedDays ?? null;
+};
+
+type InvoiceLegacyAction = 'estimate' | 'creditNote' | 'debitNote';
+
+const INVOICE_LEGACY_ACTION_FLAGS: Record<InvoiceLegacyAction, boolean> = {
+    estimate: true,
+    creditNote: true,
+    debitNote: true
+};
+
+type CreditNoteDraftRow = {
+    key: string;
+    voucherId: number | null;
+    saleReturnId: number | null;
+};
+
+type DebitNoteDraftRow = {
+    key: string;
+    voucherId: number | null;
+};
 
 type InvoiceFormContainerProps = {
     routeView: InvoiceFormRouteView;
@@ -294,12 +368,36 @@ export function InvoiceFormContainer({ routeView, routeSaleInvoiceId }: InvoiceF
         () => resolveFiscalRange(companyContext?.fiscalYearStart ?? null, companyContext?.fiscalYearEnd ?? null),
         [companyContext?.fiscalYearStart, companyContext?.fiscalYearEnd]
     );
+    const { data: voucherTypeMasterData } = useQuery<{
+        voucherTypeMasters: InvoiceRegisterVoucherTypeMasterRow[];
+    }>(INVOICE_REGISTER_VOUCHER_TYPE_MASTERS_QUERY, {
+        ...ACCOUNT_MASTER_QUERY_OPTIONS
+    });
+    const registerDefaultLookbackDays = useMemo(
+        () => resolveInvoiceRegisterDefaultLookbackDays(voucherTypeMasterData?.voucherTypeMasters ?? []),
+        [voucherTypeMasterData]
+    );
 
     const [loading, setLoading] = useState(false);
     const [loadingInvoice, setLoadingInvoice] = useState(false);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [legacyActionNotice, setLegacyActionNotice] = useState<string | null>(null);
     const [saleInvoices, setSaleInvoices] = useState<invoicingApi.SaleInvoiceListItem[]>([]);
+    const [estimateLookupDialogVisible, setEstimateLookupDialogVisible] = useState(false);
+    const [estimateLookupLoading, setEstimateLookupLoading] = useState(false);
+    const [estimateLookupError, setEstimateLookupError] = useState<string | null>(null);
+    const [estimateLookups, setEstimateLookups] = useState<invoicingApi.EstimateLookupItem[]>([]);
+    const [creditNoteDialogVisible, setCreditNoteDialogVisible] = useState(false);
+    const [debitNoteDialogVisible, setDebitNoteDialogVisible] = useState(false);
+    const [creditNoteDraftRows, setCreditNoteDraftRows] = useState<CreditNoteDraftRow[]>([]);
+    const [debitNoteDraftRows, setDebitNoteDraftRows] = useState<DebitNoteDraftRow[]>([]);
+    const [creditNoteLookupLoading, setCreditNoteLookupLoading] = useState(false);
+    const [creditNoteLookupError, setCreditNoteLookupError] = useState<string | null>(null);
+    const [creditNoteLookups, setCreditNoteLookups] = useState<invoicingApi.SalesReturnBookRow[]>([]);
+    const [debitNoteLookupLoading, setDebitNoteLookupLoading] = useState(false);
+    const [debitNoteLookupError, setDebitNoteLookupError] = useState<string | null>(null);
+    const [debitNoteLookups, setDebitNoteLookups] = useState<invoicingApi.DebitNoteLookupItem[]>([]);
 
     const [editingSaleInvoiceId, setEditingSaleInvoiceId] = useState<number | null>(null);
     const [header, setHeader] = useState<InvoiceHeaderDraft>(createDefaultHeader);
@@ -320,6 +418,25 @@ export function InvoiceFormContainer({ routeView, routeSaleInvoiceId }: InvoiceF
     const [phaseOneWarningVisible, setPhaseOneWarningVisible] = useState(false);
     const [phaseOneWarningAcknowledged, setPhaseOneWarningAcknowledged] = useState(false);
     const pendingSaveModeRef = useRef<'default' | 'and_new'>('default');
+    const [hasUnsavedEntryChanges, setHasUnsavedEntryChanges] = useState(false);
+
+    const isEntryRoute = routeView === 'new' || routeView === 'edit';
+
+    const markEntryDirty = useCallback(() => {
+        if (!isEntryRoute) return;
+        setHasUnsavedEntryChanges(true);
+    }, [isEntryRoute]);
+
+    const confirmDiscardUnsavedChanges = useCallback(
+        (nextTargetLabel: string) => {
+            if (!isEntryRoute || !hasUnsavedEntryChanges) return true;
+            if (typeof window === 'undefined') return true;
+            return window.confirm(
+                `You have unsaved changes in this invoice. Discard them and continue to ${nextTargetLabel}?`
+            );
+        },
+        [hasUnsavedEntryChanges, isEntryRoute]
+    );
 
     const [productOverrides, setProductOverrides] = useState<Record<number, ProductRow>>({});
 
@@ -704,6 +821,417 @@ export function InvoiceFormContainer({ routeView, routeSaleInvoiceId }: InvoiceF
         }
     }, []);
 
+    const loadEstimateLookups = useCallback(async (search?: string) => {
+        setEstimateLookupLoading(true);
+        setEstimateLookupError(null);
+        try {
+            const result = await invoicingApi.listEstimateLookups({
+                search: search?.trim() || null,
+                limit: 250,
+                includeCancelled: false
+            });
+            setEstimateLookups(result.items);
+        } catch (nextError) {
+            setEstimateLookups([]);
+            setEstimateLookupError(nextError instanceof Error ? nextError.message : 'Failed to load estimates');
+        } finally {
+            setEstimateLookupLoading(false);
+        }
+    }, []);
+
+    const openEstimateLookupDialog = useCallback(() => {
+        if (saving || loadingInvoice) return;
+        setLegacyActionNotice(null);
+        setEstimateLookupDialogVisible(true);
+        void loadEstimateLookups();
+    }, [loadEstimateLookups, loadingInvoice, saving]);
+
+    const closeEstimateLookupDialog = useCallback(() => {
+        setEstimateLookupDialogVisible(false);
+        setEstimateLookupError(null);
+    }, []);
+
+    const clearEstimateLink = useCallback(() => {
+        markEntryDirty();
+        setHeader((previous) => ({
+            ...previous,
+            estimateId: null
+        }));
+        setEstimateLookupDialogVisible(false);
+        setLegacyActionNotice('Estimate linkage cleared for this invoice draft.');
+    }, [markEntryDirty]);
+
+    const loadCreditNoteLookups = useCallback(async () => {
+        setCreditNoteLookupLoading(true);
+        setCreditNoteLookupError(null);
+        try {
+            const response = await invoicingApi.fetchSalesReturnBook({
+                ledgerId: header.partyLedgerId ?? null,
+                cancelled: 0,
+                limit: 200,
+                offset: 0
+            });
+            setCreditNoteLookups(response.items ?? []);
+        } catch (nextError) {
+            setCreditNoteLookups([]);
+            setCreditNoteLookupError(nextError instanceof Error ? nextError.message : 'Failed to load credit note lookups');
+        } finally {
+            setCreditNoteLookupLoading(false);
+        }
+    }, [header.partyLedgerId]);
+
+    const loadDebitNoteLookups = useCallback(async (search?: string) => {
+        setDebitNoteLookupLoading(true);
+        setDebitNoteLookupError(null);
+        try {
+            const response = await invoicingApi.listDebitNoteLookups({
+                search: search?.trim() || null,
+                includeCancelled: false,
+                limit: 200
+            });
+            setDebitNoteLookups(response.items);
+        } catch (nextError) {
+            setDebitNoteLookups([]);
+            setDebitNoteLookupError(nextError instanceof Error ? nextError.message : 'Failed to load debit note lookups');
+        } finally {
+            setDebitNoteLookupLoading(false);
+        }
+    }, []);
+
+    const openCreditNoteDialog = useCallback(() => {
+        if (saving || loadingInvoice) return;
+        setLegacyActionNotice(null);
+        setCreditNoteDialogVisible(true);
+        setCreditNoteDraftRows(
+            preservedDetails.creditNotes.length > 0
+                ? preservedDetails.creditNotes.map((note) => ({
+                      key: makeKey(),
+                      voucherId: note.voucherId ?? null,
+                      saleReturnId: note.saleReturnId ?? null
+                  }))
+                : [{ key: makeKey(), voucherId: null, saleReturnId: null }]
+        );
+        void loadCreditNoteLookups();
+    }, [loadCreditNoteLookups, loadingInvoice, preservedDetails.creditNotes, saving]);
+
+    const closeCreditNoteDialog = useCallback(() => {
+        setCreditNoteDialogVisible(false);
+    }, []);
+
+    const addCreditNoteDraftRow = useCallback(() => {
+        setCreditNoteDraftRows((previous) => [...previous, { key: makeKey(), voucherId: null, saleReturnId: null }]);
+    }, []);
+
+    const updateCreditNoteDraftRow = useCallback(
+        (rowKey: string, patch: { voucherId?: number | null; saleReturnId?: number | null }) => {
+            setCreditNoteDraftRows((previous) =>
+                previous.map((row) => (row.key === rowKey ? { ...row, ...patch } : row))
+            );
+        },
+        []
+    );
+
+    const deleteCreditNoteDraftRow = useCallback((rowKey: string) => {
+        setCreditNoteDraftRows((previous) => previous.filter((row) => row.key !== rowKey));
+    }, []);
+
+    const applyCreditNotes = useCallback(() => {
+        const normalized = creditNoteDraftRows
+            .map((row) => ({
+                voucherId: row.voucherId != null && Number.isFinite(row.voucherId) ? Number(row.voucherId) : null,
+                saleReturnId: row.saleReturnId != null && Number.isFinite(row.saleReturnId) ? Number(row.saleReturnId) : null
+            }))
+            .filter((row) => row.voucherId != null || row.saleReturnId != null);
+
+        markEntryDirty();
+        setPreservedDetails((previous) => ({
+            ...previous,
+            creditNotes: normalized
+        }));
+        setCreditNoteDialogVisible(false);
+        setLegacyActionNotice(
+            normalized.length > 0
+                ? `${normalized.length} credit note link(s) set for save.`
+                : 'Credit note links cleared.'
+        );
+    }, [creditNoteDraftRows, markEntryDirty]);
+
+    const appendCreditNoteFromLookup = useCallback((saleReturnId: number) => {
+        setCreditNoteDraftRows((previous) => [
+            ...previous,
+            {
+                key: makeKey(),
+                voucherId: null,
+                saleReturnId: Number(saleReturnId)
+            }
+        ]);
+    }, []);
+
+    const openDebitNoteDialog = useCallback(() => {
+        if (saving || loadingInvoice) return;
+        setLegacyActionNotice(null);
+        setDebitNoteDialogVisible(true);
+        setDebitNoteDraftRows(
+            preservedDetails.debitNotes.length > 0
+                ? preservedDetails.debitNotes.map((note) => ({
+                      key: makeKey(),
+                      voucherId: note.voucherId ?? null
+                  }))
+                : [{ key: makeKey(), voucherId: null }]
+        );
+        void loadDebitNoteLookups();
+    }, [loadDebitNoteLookups, loadingInvoice, preservedDetails.debitNotes, saving]);
+
+    const closeDebitNoteDialog = useCallback(() => {
+        setDebitNoteDialogVisible(false);
+    }, []);
+
+    const addDebitNoteDraftRow = useCallback(() => {
+        setDebitNoteDraftRows((previous) => [...previous, { key: makeKey(), voucherId: null }]);
+    }, []);
+
+    const updateDebitNoteDraftRow = useCallback((rowKey: string, patch: { voucherId?: number | null }) => {
+        setDebitNoteDraftRows((previous) =>
+            previous.map((row) => (row.key === rowKey ? { ...row, ...patch } : row))
+        );
+    }, []);
+
+    const deleteDebitNoteDraftRow = useCallback((rowKey: string) => {
+        setDebitNoteDraftRows((previous) => previous.filter((row) => row.key !== rowKey));
+    }, []);
+
+    const applyDebitNotes = useCallback(() => {
+        const normalized = debitNoteDraftRows
+            .map((row) => ({
+                voucherId: row.voucherId != null && Number.isFinite(row.voucherId) ? Number(row.voucherId) : null
+            }))
+            .filter((row) => row.voucherId != null);
+
+        markEntryDirty();
+        setPreservedDetails((previous) => ({
+            ...previous,
+            debitNotes: normalized
+        }));
+        setDebitNoteDialogVisible(false);
+        setLegacyActionNotice(
+            normalized.length > 0
+                ? `${normalized.length} debit note link(s) set for save.`
+                : 'Debit note links cleared.'
+        );
+    }, [debitNoteDraftRows, markEntryDirty]);
+
+    const appendDebitNoteFromLookup = useCallback((voucherId: number) => {
+        setDebitNoteDraftRows((previous) => [
+            ...previous,
+            {
+                key: makeKey(),
+                voucherId: Number(voucherId)
+            }
+        ]);
+    }, []);
+
+    const ensureProductDetail = useCallback(
+        async (productId: number) => {
+            if (productById.has(productId)) return;
+            try {
+                const result = await fetchProductById({ variables: { productId } });
+                const detail = result.data?.productById;
+                if (!detail) return;
+                setProductOverrides((previous) => ({
+                    ...previous,
+                    [productId]: detail
+                }));
+            } catch {
+                // keep form usable even if detail fetch fails
+            }
+        },
+        [fetchProductById, productById]
+    );
+
+    const applyEstimateLookup = useCallback(
+        (estimate: invoicingApi.EstimateLookupItem) => {
+            if (saving || loadingInvoice) return;
+            const nextEstimateId = Number(estimate.estimateId);
+            if (!Number.isFinite(nextEstimateId) || nextEstimateId <= 0) return;
+
+            const importEstimate = async () => {
+                setEstimateLookupLoading(true);
+                setEstimateLookupError(null);
+                try {
+                    const estimateImport = await invoicingApi.getEstimateImport(nextEstimateId);
+                    const importLines = estimateImport.lines ?? [];
+                    const importTaxLines = estimateImport.taxLines ?? [];
+                    const importAdditionalTaxations = estimateImport.additionalTaxations ?? [];
+                    const importTypeDetails = estimateImport.typeDetails ?? [];
+
+                    const mappedLines = importLines.map((line, index) => {
+                        const product = line.itemId ? productById.get(line.itemId) ?? null : null;
+                        const freeProduct = line.itemFreeId ? productById.get(line.itemFreeId) ?? null : null;
+                        return {
+                            key: makeKey(),
+                            isNewLineEntry: false,
+                            lineNumber: line.lineNumber ?? index + 1,
+                            itemId: line.itemId,
+                            itemName: product?.name ?? '',
+                            itemCode: product?.code ?? null,
+                            itemFreeId: line.itemFreeId,
+                            itemFreeName: freeProduct?.name ?? '',
+                            hsnCode: product?.hsnCode ?? '',
+                            unitId: line.unitId,
+                            unitName:
+                                line.unitId != null
+                                    ? unitNameById.get(line.unitId) ?? product?.unitName ?? null
+                                    : product?.unitName ?? null,
+                            unitFreeId: line.unitFreeId,
+                            unitFreeName:
+                                line.unitFreeId != null
+                                    ? unitNameById.get(line.unitFreeId) ?? freeProduct?.unitName ?? null
+                                    : freeProduct?.unitName ?? null,
+                            mrp: line.mrp,
+                            quantity: Number(line.quantity ?? 0),
+                            freeQuantity: Number(line.freeQuantity ?? 0),
+                            sellingRate: line.sellingRate,
+                            rate: Number(line.unitPrice ?? line.sellingRate ?? 0),
+                            displayAmount: Number(line.displayAmount ?? 0),
+                            productDiscountMode: line.isManualProductDiscount ? 'AMOUNT' : 'RATE',
+                            productDiscountRate: Number(line.productDiscountRate ?? 0),
+                            productDiscountAmount: Number(line.productDiscountAmount ?? 0),
+                            cashDiscountMode: line.isManualCashDiscount ? 'AMOUNT' : 'RATE',
+                            cashDiscountRate: Number(line.cashDiscountRate ?? 0),
+                            cashDiscountAmount: Number(line.cashDiscountAmount ?? 0),
+                            qpsDiscountMode: line.isManualQpsDiscount ? 'AMOUNT' : 'RATE',
+                            qpsRate: Number(line.qpsRate ?? 0),
+                            qpsAmount: Number(line.qpsAmount ?? 0),
+                            hasScheme: Boolean(
+                                Number(line.qpsRate ?? 0) ||
+                                    Number(line.qpsAmount ?? 0) ||
+                                    Number(line.productDiscountRate ?? 0) ||
+                                    Number(line.productDiscountAmount ?? 0)
+                            ),
+                            replacementAmount: Number(line.replacementAmount ?? 0),
+                            taxLedgerId: line.taxLedgerId,
+                            taxLedger2Id: line.taxLedger2Id,
+                            taxLedger3Id: line.taxLedger3Id,
+                            remarks: line.remarks ?? '',
+                            minQuantity: Number(line.minQuantity ?? 0),
+                            minFreeQuantity: Number(line.minFreeQuantity ?? 0),
+                            tmpTypeId: line.tmpTypeId,
+                            estimateLineId: line.estimateLineId,
+                            inventory: {
+                                warehouseId: header.warehouseId,
+                                batchNo: '',
+                                expiryDate: null,
+                                serials: [],
+                                requiresBatch: false,
+                                requiresExpiry: false,
+                                requiresSerial: false
+                            }
+                        } satisfies InvoiceLineDraft;
+                    });
+
+                    const nextLedgerId =
+                        estimateImport.ledgerId != null ? Number(estimateImport.ledgerId) : estimate.ledgerId ?? null;
+                    const nextLedger = nextLedgerId != null ? ledgerById.get(nextLedgerId) ?? null : null;
+                    const nextHasScheme = importLines.some((line) => {
+                        return Boolean(
+                            Number(line.qpsRate ?? 0) ||
+                                Number(line.qpsAmount ?? 0) ||
+                                Number(line.productDiscountRate ?? 0) ||
+                                Number(line.productDiscountAmount ?? 0)
+                        );
+                    });
+
+                    setHeader((previous) => ({
+                        ...previous,
+                        estimateId: nextEstimateId,
+                        partyLedgerId: nextLedgerId ?? previous.partyLedgerId,
+                        ledgerGroupId:
+                            nextLedgerId != null ? (nextLedger?.ledgerGroupId ?? previous.ledgerGroupId ?? null) : previous.ledgerGroupId,
+                        partyName:
+                            nextLedgerId != null
+                                ? nextLedger?.name?.trim() || estimateImport.ledgerName?.trim() || previous.partyName
+                                : previous.partyName,
+                        partyGstin:
+                            nextLedgerId != null ? (nextLedger?.gstNumber?.trim() ?? previous.partyGstin) : previous.partyGstin,
+                        hasScheme: nextHasScheme
+                    }));
+
+                    setLines(
+                        mappedLines.length > 0
+                            ? reindexLines(mappedLines)
+                            : [createEmptyLine(header.warehouseId)]
+                    );
+                    setAdditionalTaxations(
+                        importAdditionalTaxations
+                            .filter((line) => line.ledgerId != null || Number(line.addAmount ?? 0) !== 0)
+                            .map((line) => ({
+                                key: makeKey(),
+                                ledgerId: line.ledgerId ?? null,
+                                addAmount: round2(Number(line.addAmount ?? 0)),
+                                taxableAmount: round2(Number(line.taxableAmount ?? 0))
+                            }))
+                    );
+                    setTypeDetails(
+                        importTypeDetails.map((line) => ({
+                            key: makeKey(),
+                            itemId: line.itemId ?? null,
+                            typeDetailId: line.typeDetailId ?? null,
+                            quantity: Number(line.quantity ?? 0),
+                            tmpTypeId: line.tmpTypeId ?? null
+                        }))
+                    );
+                    setPreservedDetails((previous) => ({
+                        ...previous,
+                        taxLines: importTaxLines
+                            .filter(
+                                (line) =>
+                                    line.ledgerId != null ||
+                                    Number(line.addAmount ?? 0) !== 0 ||
+                                    Number(line.lessAmount ?? 0) !== 0
+                            )
+                            .map((line) => ({
+                                ledgerId: line.ledgerId ?? null,
+                                addAmount: line.addAmount ?? null,
+                                lessAmount: line.lessAmount ?? null,
+                                taxableAmount: line.taxableAmount ?? null
+                            }))
+                    }));
+                    markEntryDirty();
+
+                    const idsToEnsure = new Set<number>();
+                    importLines.forEach((line) => {
+                        if (line.itemId) idsToEnsure.add(line.itemId);
+                        if (line.itemFreeId) idsToEnsure.add(line.itemFreeId);
+                    });
+                    importTypeDetails.forEach((line) => {
+                        if (line.itemId) idsToEnsure.add(line.itemId);
+                    });
+                    idsToEnsure.forEach((id) => {
+                        if (!productById.has(id)) {
+                            void ensureProductDetail(id);
+                        }
+                    });
+
+                    inventorySnapshotByLineKeyRef.current = {};
+                    autoDefaultHeaderLedgerRef.current = true;
+                    setEstimateLookupDialogVisible(false);
+                    setLegacyActionNotice(
+                        `Imported estimate #${nextEstimateId} with ${mappedLines.length} line(s).`
+                    );
+                } catch (nextError) {
+                    setEstimateLookupError(
+                        nextError instanceof Error ? nextError.message : 'Failed to import estimate details'
+                    );
+                } finally {
+                    setEstimateLookupLoading(false);
+                }
+            };
+
+            void importEstimate();
+        },
+        [ensureProductDetail, header.warehouseId, ledgerById, loadingInvoice, markEntryDirty, productById, saving, unitNameById]
+    );
+
     useEffect(() => {
         void loadSaleInvoices();
     }, [loadSaleInvoices]);
@@ -845,24 +1373,6 @@ export function InvoiceFormContainer({ routeView, routeSaleInvoiceId }: InvoiceF
         });
     }, [productById]);
 
-    const ensureProductDetail = useCallback(
-        async (productId: number) => {
-            if (productById.has(productId)) return;
-            try {
-                const result = await fetchProductById({ variables: { productId } });
-                const detail = result.data?.productById;
-                if (!detail) return;
-                setProductOverrides((previous) => ({
-                    ...previous,
-                    [productId]: detail
-                }));
-            } catch {
-                // keep form usable even if detail fetch fails
-            }
-        },
-        [fetchProductById, productById]
-    );
-
     const ensureTypeDetailOptions = useCallback(
         async (productAttributeTypeId: number | null) => {
             if (!productAttributeTypeId) return;
@@ -943,6 +1453,8 @@ export function InvoiceFormContainer({ routeView, routeSaleInvoiceId }: InvoiceF
         async (saleInvoiceId: number) => {
             setLoadingInvoice(true);
             setError(null);
+            setLegacyActionNotice(null);
+            setHasUnsavedEntryChanges(false);
             try {
                 const result = await invoicingApi.getSaleInvoice(saleInvoiceId);
                 const invoice = result.invoice;
@@ -1117,6 +1629,21 @@ export function InvoiceFormContainer({ routeView, routeSaleInvoiceId }: InvoiceF
 
     const resetDraftState = useCallback(() => {
         setError(null);
+        setLegacyActionNotice(null);
+        setEstimateLookupDialogVisible(false);
+        setEstimateLookupLoading(false);
+        setEstimateLookupError(null);
+        setEstimateLookups([]);
+        setCreditNoteDialogVisible(false);
+        setDebitNoteDialogVisible(false);
+        setCreditNoteDraftRows([]);
+        setDebitNoteDraftRows([]);
+        setCreditNoteLookupLoading(false);
+        setCreditNoteLookupError(null);
+        setCreditNoteLookups([]);
+        setDebitNoteLookupLoading(false);
+        setDebitNoteLookupError(null);
+        setDebitNoteLookups([]);
         setEditingSaleInvoiceId(null);
         setHeader(createDefaultHeader());
         setLines([createEmptyLine(null)]);
@@ -1131,6 +1658,7 @@ export function InvoiceFormContainer({ routeView, routeSaleInvoiceId }: InvoiceF
         previousPriceListRef.current = 'retail';
         setPhaseOneWarningVisible(false);
         setPhaseOneWarningAcknowledged(false);
+        setHasUnsavedEntryChanges(false);
     }, []);
 
     useEffect(() => {
@@ -1161,6 +1689,12 @@ export function InvoiceFormContainer({ routeView, routeSaleInvoiceId }: InvoiceF
                 setError('Invalid invoice id in route');
                 return;
             }
+            setEstimateLookupDialogVisible(false);
+            setEstimateLookupError(null);
+            setCreditNoteDialogVisible(false);
+            setDebitNoteDialogVisible(false);
+            setCreditNoteLookupError(null);
+            setDebitNoteLookupError(null);
             if (
                 hydratedRouteInvoiceIdRef.current === routeSaleInvoiceId &&
                 editingSaleInvoiceId === routeSaleInvoiceId
@@ -1177,6 +1711,14 @@ export function InvoiceFormContainer({ routeView, routeSaleInvoiceId }: InvoiceF
         hydratedRouteInvoiceIdRef.current = null;
         setLoadingInvoice(false);
         setEditingSaleInvoiceId(null);
+        setHasUnsavedEntryChanges(false);
+        setLegacyActionNotice(null);
+        setEstimateLookupDialogVisible(false);
+        setEstimateLookupError(null);
+        setCreditNoteDialogVisible(false);
+        setDebitNoteDialogVisible(false);
+        setCreditNoteLookupError(null);
+        setDebitNoteLookupError(null);
         setPhaseOneWarningVisible(false);
         setPhaseOneWarningAcknowledged(false);
     }, [editingSaleInvoiceId, hydrateInvoice, resetDraftState, routeSaleInvoiceId, routeView]);
@@ -1234,22 +1776,31 @@ export function InvoiceFormContainer({ routeView, routeSaleInvoiceId }: InvoiceF
 
     const openNew = useCallback(() => {
         if (saving) return;
+        if (routeView === 'new') return;
+        if (!confirmDiscardUnsavedChanges('a new invoice')) return;
+        setLegacyActionNotice(null);
         navigate(INVOICE_NEW_ROUTE);
-    }, [navigate, saving]);
+    }, [confirmDiscardUnsavedChanges, navigate, routeView, saving]);
 
     const openEdit = useCallback(
         (saleInvoiceId: number) => {
             if (saving) return;
+            if (!Number.isFinite(saleInvoiceId) || saleInvoiceId <= 0) return;
+            if (routeView === 'edit' && editingSaleInvoiceId === saleInvoiceId) return;
+            if (!confirmDiscardUnsavedChanges(`invoice #${saleInvoiceId}`)) return;
+            setLegacyActionNotice(null);
             navigate(`${INVOICE_EDIT_ROUTE}/${saleInvoiceId}`);
         },
-        [navigate, saving]
+        [confirmDiscardUnsavedChanges, editingSaleInvoiceId, navigate, routeView, saving]
     );
 
     const cancelEntry = useCallback(() => {
         if (saving) return;
+        if (!confirmDiscardUnsavedChanges('the invoice register')) return;
+        setLegacyActionNotice(null);
         setPhaseOneWarningVisible(false);
         navigate(INVOICE_REGISTER_ROUTE);
-    }, [navigate, saving]);
+    }, [confirmDiscardUnsavedChanges, navigate, saving]);
 
     const deleteInvoice = useCallback(
         async (saleInvoiceId: number) => {
@@ -1284,20 +1835,23 @@ export function InvoiceFormContainer({ routeView, routeSaleInvoiceId }: InvoiceF
     );
 
     const addLine = useCallback(() => {
+        markEntryDirty();
         setLines((previous) => reindexLines([...previous, createEmptyLine(header.warehouseId, previous.length + 1)]));
-    }, [header.warehouseId]);
+    }, [header.warehouseId, markEntryDirty]);
 
     const selectProduct = useCallback(
         (lineKey: string, productId: number | null) => {
+            markEntryDirty();
             setLines((previous) =>
                 reindexLines(previous.map((line) => (line.key === lineKey ? applyProductToLine(line, productId) : line)))
             );
         },
-        [applyProductToLine]
+        [applyProductToLine, markEntryDirty]
     );
 
     const changeHeader = useCallback(
         (patch: Partial<InvoiceHeaderDraft>) => {
+            markEntryDirty();
             if (patch.voucherNumber !== undefined) {
                 const nextVoucherNumber = String(patch.voucherNumber ?? '').trim();
                 if (autoVoucherNumberRef.current != null && nextVoucherNumber !== autoVoucherNumberRef.current) {
@@ -1315,11 +1869,12 @@ export function InvoiceFormContainer({ routeView, routeSaleInvoiceId }: InvoiceF
                 return next;
             });
         },
-        [ledgerById]
+        [ledgerById, markEntryDirty]
     );
 
     const changeLine = useCallback(
         (lineKey: string, patch: Partial<InvoiceLineDraft>) => {
+            markEntryDirty();
             setLines((previous) =>
                 reindexLines(
                     previous.map((line) => {
@@ -1341,10 +1896,11 @@ export function InvoiceFormContainer({ routeView, routeSaleInvoiceId }: InvoiceF
                 )
             );
         },
-        [ensureProductDetail, productById]
+        [ensureProductDetail, markEntryDirty, productById]
     );
 
     const changeInventory = useCallback((lineKey: string, patch: Partial<LineInventoryDraft>) => {
+        markEntryDirty();
         setLines((previous) =>
             reindexLines(
                 previous.map((line) =>
@@ -1360,10 +1916,11 @@ export function InvoiceFormContainer({ routeView, routeSaleInvoiceId }: InvoiceF
                 )
             )
         );
-    }, []);
+    }, [markEntryDirty]);
 
     const deleteLine = useCallback(
         (lineKey: string) => {
+            markEntryDirty();
             setLines((previous) => {
                 if (previous.length <= 1) return previous;
                 const next = previous.filter((line) => line.key !== lineKey);
@@ -1371,10 +1928,11 @@ export function InvoiceFormContainer({ routeView, routeSaleInvoiceId }: InvoiceF
                 return reindexLines(next);
             });
         },
-        [header.warehouseId]
+        [header.warehouseId, markEntryDirty]
     );
 
     const duplicateLine = useCallback((lineKey: string) => {
+        markEntryDirty();
         setLines((previous) => {
             const sourceIndex = previous.findIndex((line) => line.key === lineKey);
             if (sourceIndex < 0) return previous;
@@ -1392,10 +1950,11 @@ export function InvoiceFormContainer({ routeView, routeSaleInvoiceId }: InvoiceF
             next.splice(sourceIndex + 1, 0, duplicated);
             return reindexLines(next);
         });
-    }, []);
+    }, [markEntryDirty]);
 
     const selectLineMrp = useCallback(
         (lineKey: string, mrp: number | null) => {
+            markEntryDirty();
             setLines((previous) =>
                 reindexLines(
                     previous.map((line) => {
@@ -1441,15 +2000,17 @@ export function InvoiceFormContainer({ routeView, routeSaleInvoiceId }: InvoiceF
                 )
             );
         },
-        [header.placeOfSupply, header.priceList, taxProfilesByProductId]
+        [header.placeOfSupply, header.priceList, markEntryDirty, taxProfilesByProductId]
     );
 
     const addTypeDetail = useCallback(() => {
+        markEntryDirty();
         setTypeDetails((previous) => [...previous, createEmptyTypeDetail()]);
-    }, []);
+    }, [markEntryDirty]);
 
     const changeTypeDetail = useCallback(
         (lineKey: string, patch: Partial<InvoiceTypeDetailDraft>) => {
+            markEntryDirty();
             setTypeDetails((previous) =>
                 previous.map((line) => {
                     if (line.key !== lineKey) return line;
@@ -1488,14 +2049,16 @@ export function InvoiceFormContainer({ routeView, routeSaleInvoiceId }: InvoiceF
                 })
             );
         },
-        [ensureProductDetail, ensureTypeDetailOptions, productById]
+        [ensureProductDetail, ensureTypeDetailOptions, markEntryDirty, productById]
     );
 
     const deleteTypeDetail = useCallback((lineKey: string) => {
+        markEntryDirty();
         setTypeDetails((previous) => previous.filter((line) => line.key !== lineKey));
-    }, []);
+    }, [markEntryDirty]);
 
     const addAdditionalTaxation = useCallback(() => {
+        markEntryDirty();
         setAdditionalTaxations((previous) => [
             ...previous,
             {
@@ -1505,20 +2068,23 @@ export function InvoiceFormContainer({ routeView, routeSaleInvoiceId }: InvoiceF
                 taxableAmount: 0
             }
         ]);
-    }, []);
+    }, [markEntryDirty]);
 
     const changeAdditionalTaxation = useCallback((lineKey: string, patch: Partial<InvoiceAdditionalTaxationDraft>) => {
+        markEntryDirty();
         setAdditionalTaxations((previous) =>
             previous.map((line) => (line.key === lineKey ? { ...line, ...patch } : line))
         );
-    }, []);
+    }, [markEntryDirty]);
 
     const deleteAdditionalTaxation = useCallback((lineKey: string) => {
+        markEntryDirty();
         setAdditionalTaxations((previous) => previous.filter((line) => line.key !== lineKey));
-    }, []);
+    }, [markEntryDirty]);
 
     const changeTaxLessAmount = useCallback(
         (args: { ledgerId: number; lessAmount: number; addAmount: number; taxableAmount: number }) => {
+            markEntryDirty();
             setPreservedDetails((previous) => {
                 const nextTaxLines = [...(previous.taxLines ?? [])];
                 const existingIndex = nextTaxLines.findIndex((line) => Number(line.ledgerId) === args.ledgerId);
@@ -1544,8 +2110,19 @@ export function InvoiceFormContainer({ routeView, routeSaleInvoiceId }: InvoiceF
                 };
             });
         },
-        []
+        [markEntryDirty]
     );
+
+    const resetTaxLessAmounts = useCallback(() => {
+        markEntryDirty();
+        setPreservedDetails((previous) => ({
+            ...previous,
+            taxLines: (previous.taxLines ?? []).map((line) => ({
+                ...line,
+                lessAmount: 0
+            }))
+        }));
+    }, [markEntryDirty]);
 
     const buildPayload = useCallback((): invoicingApi.CreateSaleInvoiceInput => {
         const inputLines: invoicingApi.SaleInvoiceLineInput[] = computation.lines.map((line, index) => ({
@@ -1754,6 +2331,7 @@ export function InvoiceFormContainer({ routeView, routeSaleInvoiceId }: InvoiceF
             setPhaseOneWarningVisible(false);
             setPhaseOneWarningAcknowledged(false);
             pendingSaveModeRef.current = 'default';
+            setHasUnsavedEntryChanges(false);
             navigate(openNewAfterSave ? INVOICE_NEW_ROUTE : INVOICE_REGISTER_ROUTE, { replace: true });
             void loadSaleInvoices();
         } catch (nextError) {
@@ -1784,10 +2362,68 @@ export function InvoiceFormContainer({ routeView, routeSaleInvoiceId }: InvoiceF
         void createOrUpdateInvoice({ openNewAfterSave: true });
     }, [createOrUpdateInvoice, routeView]);
 
+    const requestLegacyAction = useCallback(
+        (action: InvoiceLegacyAction) => {
+            if (saving || loadingInvoice) return;
+
+            const estimateId = header.estimateId;
+            const creditNoteCount = preservedDetails.creditNotes.length;
+            const debitNoteCount = preservedDetails.debitNotes.length;
+
+            if (action === 'estimate') {
+                if (!INVOICE_LEGACY_ACTION_FLAGS.estimate) {
+                    setLegacyActionNotice(
+                        estimateId
+                            ? `Estimate #${estimateId} is linked. Estimate linkage editing is read-only in this form right now.`
+                            : 'Estimate selection/creation action is not enabled yet in this form.'
+                    );
+                    return;
+                }
+                openEstimateLookupDialog();
+                return;
+            }
+
+            if (action === 'creditNote') {
+                if (!INVOICE_LEGACY_ACTION_FLAGS.creditNote) {
+                    setLegacyActionNotice(
+                        creditNoteCount > 0
+                            ? `${creditNoteCount} linked credit note(s) are preserved on save. Editing linkage is read-only in this form.`
+                            : 'Credit-note linkage action is not enabled yet in this form.'
+                    );
+                    return;
+                }
+                openCreditNoteDialog();
+                return;
+            }
+
+            if (!INVOICE_LEGACY_ACTION_FLAGS.debitNote) {
+                setLegacyActionNotice(
+                    debitNoteCount > 0
+                        ? `${debitNoteCount} linked debit note(s) are preserved on save. Editing linkage is read-only in this form.`
+                        : 'Debit-note linkage action is not enabled yet in this form.'
+                );
+                return;
+            }
+
+            openDebitNoteDialog();
+        },
+        [
+            header.estimateId,
+            loadingInvoice,
+            openCreditNoteDialog,
+            openDebitNoteDialog,
+            openEstimateLookupDialog,
+            preservedDetails.creditNotes.length,
+            preservedDetails.debitNotes.length,
+            saving
+        ]
+    );
+
     return (
         <InvoiceFormView
             routeView={routeView}
             editingSaleInvoiceId={editingSaleInvoiceId}
+            hasUnsavedEntryChanges={hasUnsavedEntryChanges}
             loading={loading}
             loadingInvoice={loadingInvoice}
             saving={saving}
@@ -1797,6 +2433,7 @@ export function InvoiceFormContainer({ routeView, routeSaleInvoiceId }: InvoiceF
             header={header}
             fiscalYearStart={fiscalRange?.start ?? null}
             fiscalYearEnd={fiscalRange?.end ?? null}
+            registerDefaultLookbackDays={registerDefaultLookbackDays}
             ledgerOptions={ledgerOptions}
             ledgerById={ledgerById}
             ledgerLoading={ledgerLoading}
@@ -1820,6 +2457,25 @@ export function InvoiceFormContainer({ routeView, routeSaleInvoiceId }: InvoiceF
             canSave={canSave}
             hasPreservedDetails={hasPreservedDetails}
             phaseOneWarningVisible={phaseOneWarningVisible}
+            legacyActionNotice={legacyActionNotice}
+            legacyActionFlags={INVOICE_LEGACY_ACTION_FLAGS}
+            linkedEstimateId={header.estimateId}
+            linkedCreditNoteCount={preservedDetails.creditNotes.length}
+            linkedDebitNoteCount={preservedDetails.debitNotes.length}
+            estimateLookupDialogVisible={estimateLookupDialogVisible}
+            estimateLookupLoading={estimateLookupLoading}
+            estimateLookupError={estimateLookupError}
+            estimateLookups={estimateLookups}
+            creditNoteDialogVisible={creditNoteDialogVisible}
+            debitNoteDialogVisible={debitNoteDialogVisible}
+            creditNoteDraftRows={creditNoteDraftRows}
+            debitNoteDraftRows={debitNoteDraftRows}
+            creditNoteLookupLoading={creditNoteLookupLoading}
+            creditNoteLookupError={creditNoteLookupError}
+            creditNoteLookups={creditNoteLookups}
+            debitNoteLookupLoading={debitNoteLookupLoading}
+            debitNoteLookupError={debitNoteLookupError}
+            debitNoteLookups={debitNoteLookups}
             onRefresh={loadSaleInvoices}
             onOpenNew={openNew}
             onOpenEdit={openEdit}
@@ -1840,8 +2496,28 @@ export function InvoiceFormContainer({ routeView, routeSaleInvoiceId }: InvoiceF
             onChangeAdditionalTaxation={changeAdditionalTaxation}
             onDeleteAdditionalTaxation={deleteAdditionalTaxation}
             onTaxLessChange={changeTaxLessAmount}
+            onResetTaxLess={resetTaxLessAmounts}
             onRequestSave={requestSave}
             onRequestSaveAndAddNew={requestSaveAndAddNew}
+            onRequestLegacyAction={requestLegacyAction}
+            onSearchEstimateLookups={loadEstimateLookups}
+            onApplyEstimateLookup={applyEstimateLookup}
+            onClearEstimateLink={clearEstimateLink}
+            onCloseEstimateLookupDialog={closeEstimateLookupDialog}
+            onAddCreditNoteDraftRow={addCreditNoteDraftRow}
+            onUpdateCreditNoteDraftRow={updateCreditNoteDraftRow}
+            onDeleteCreditNoteDraftRow={deleteCreditNoteDraftRow}
+            onApplyCreditNotes={applyCreditNotes}
+            onCloseCreditNoteDialog={closeCreditNoteDialog}
+            onAddDebitNoteDraftRow={addDebitNoteDraftRow}
+            onUpdateDebitNoteDraftRow={updateDebitNoteDraftRow}
+            onDeleteDebitNoteDraftRow={deleteDebitNoteDraftRow}
+            onApplyDebitNotes={applyDebitNotes}
+            onCloseDebitNoteDialog={closeDebitNoteDialog}
+            onRefreshCreditNoteLookups={loadCreditNoteLookups}
+            onRefreshDebitNoteLookups={loadDebitNoteLookups}
+            onAppendCreditNoteFromLookup={appendCreditNoteFromLookup}
+            onAppendDebitNoteFromLookup={appendDebitNoteFromLookup}
             onCancelPhaseOneWarning={() => setPhaseOneWarningVisible(false)}
             onConfirmPhaseOneWarning={() => {
                 setPhaseOneWarningAcknowledged(true);

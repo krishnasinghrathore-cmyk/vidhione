@@ -9,12 +9,20 @@ type InvoiceTotalsPanelProps = {
     taxSummaryRows: TaxSummaryRow[];
     ledgerById: Map<number, LedgerSummary>;
     onTaxLessChange: (args: { ledgerId: number; lessAmount: number; addAmount: number; taxableAmount: number }) => void;
+    onResetTaxLess?: () => void;
     disabled?: boolean;
 };
 
 const round2 = (value: number) => Math.round((value + Number.EPSILON) * 100) / 100;
 
-export function InvoiceTotalsPanel({ computation, taxSummaryRows, ledgerById, onTaxLessChange, disabled }: InvoiceTotalsPanelProps) {
+export function InvoiceTotalsPanel({
+    computation,
+    taxSummaryRows,
+    ledgerById,
+    onTaxLessChange,
+    onResetTaxLess,
+    disabled
+}: InvoiceTotalsPanelProps) {
     const taxAddTotal = round2(taxSummaryRows.reduce((sum, row) => sum + Number(row.addAmount ?? 0), 0));
     const taxLessTotal = round2(taxSummaryRows.reduce((sum, row) => sum + Number(row.lessAmount ?? 0), 0));
     const taxationAmount = round2(Math.max(0, taxAddTotal - taxLessTotal));
@@ -30,6 +38,7 @@ export function InvoiceTotalsPanel({ computation, taxSummaryRows, ledgerById, on
                     taxationAmount={taxationAmount}
                     disabled={disabled}
                     onTaxLessChange={onTaxLessChange}
+                    onResetTaxLess={onResetTaxLess}
                 />
             </div>
 

@@ -79,6 +79,7 @@ type LedgerReportFiltersProps = {
     displayLedger: LedgerLookupOption | null;
     currentBalanceLabel: string | null;
     currentBalanceSeverity: 'success' | 'warning' | 'info' | 'danger' | 'secondary';
+    currentBalanceTooltip: string | null;
     showBalanceBadges: boolean;
     voucherTypeId: number | null;
     voucherTypeOptions: VoucherTypeOption[];
@@ -157,6 +158,7 @@ export function LedgerReportFilters({
     displayLedger,
     currentBalanceLabel,
     currentBalanceSeverity,
+    currentBalanceTooltip,
     showBalanceBadges,
     voucherTypeId,
     voucherTypeOptions,
@@ -176,264 +178,272 @@ export function LedgerReportFilters({
 }: LedgerReportFiltersProps) {
     return (
         <div className="flex flex-column gap-2">
-            <div className="flex flex-wrap align-items-center gap-2">
-                <AppDateInput
-                    value={fromDate}
-                    onChange={onFromDateChange}
-                    placeholder="From date"
-                    fiscalYearStart={fiscalYearStartDate}
-                    fiscalYearEnd={fiscalYearEndDate}
-                    autoFocus
-                    selectOnFocus
-                    inputRef={fromDateInputRef}
-                    onEnterNext={() => toDateInputRef.current?.focus()}
-                    style={{ width: '150px' }}
-                />
-                <AppDateInput
-                    value={toDate}
-                    onChange={onToDateChange}
-                    placeholder="To date"
-                    fiscalYearStart={fiscalYearStartDate}
-                    fiscalYearEnd={fiscalYearEndDate}
-                    inputRef={toDateInputRef}
-                    onEnterNext={focusTodayInputNext}
-                    style={{ width: '150px' }}
-                />
-                {(dateErrors.fromDate || dateErrors.toDate) && (
-                    <span className="p-error text-sm">{dateErrors.fromDate || dateErrors.toDate}</span>
-                )}
-                <div className="flex align-items-center gap-2">
-                    <Checkbox
-                        inputId="ledger-today"
-                        inputRef={todayInputRef}
-                        checked={todayOnly}
-                        onChange={(e) => onTodayToggle(Boolean(e.checked))}
-                        onKeyDown={(event) => {
-                            if (event.key !== 'Enter') return;
-                            event.preventDefault();
-                            focusLedgerGroupInput();
-                        }}
+            <div className="flex flex-column gap-1">
+                <div className="flex flex-wrap align-items-center gap-2">
+                    <AppDateInput
+                        value={fromDate}
+                        onChange={onFromDateChange}
+                        placeholder="From date"
+                        fiscalYearStart={fiscalYearStartDate}
+                        fiscalYearEnd={fiscalYearEndDate}
+                        autoFocus
+                        selectOnFocus
+                        inputRef={fromDateInputRef}
+                        onEnterNext={() => toDateInputRef.current?.focus()}
+                        style={{ width: '150px' }}
                     />
-                    <label htmlFor="ledger-today">Today</label>
+                    <AppDateInput
+                        value={toDate}
+                        onChange={onToDateChange}
+                        placeholder="To date"
+                        fiscalYearStart={fiscalYearStartDate}
+                        fiscalYearEnd={fiscalYearEndDate}
+                        inputRef={toDateInputRef}
+                        onEnterNext={focusTodayInputNext}
+                        style={{ width: '150px' }}
+                    />
+                    {(dateErrors.fromDate || dateErrors.toDate) && (
+                        <span className="p-error text-sm">{dateErrors.fromDate || dateErrors.toDate}</span>
+                    )}
+                    <div className="flex align-items-center gap-2 align-self-center">
+                        <Checkbox
+                            inputId="ledger-today"
+                            inputRef={todayInputRef}
+                            checked={todayOnly}
+                            onChange={(e) => onTodayToggle(Boolean(e.checked))}
+                            onKeyDown={(event) => {
+                                if (event.key !== 'Enter') return;
+                                event.preventDefault();
+                                focusLedgerGroupInput();
+                            }}
+                        />
+                        <label htmlFor="ledger-today" className="m-0">
+                            Today
+                        </label>
+                    </div>
                 </div>
-            </div>
-            <div className="flex flex-wrap align-items-center gap-2">
-                <LedgerGroupAutoComplete
-                    value={ledgerGroupId}
-                    options={ledgerGroupOptions}
-                    loading={groupsLoading}
-                    onChange={(nextValue) => onLedgerGroupChange(nextValue)}
-                    placeholder="Ledger group"
-                    loadingPlaceholder="Loading groups..."
-                    onSelectNext={focusCityInput}
-                    inputId="ledger-group-autocomplete"
-                    ref={ledgerGroupInputRef}
-                    style={{ minWidth: '220px' }}
-                />
-                <AppAutoComplete
-                    ref={cityAutoCompleteRef}
-                    value={cityQuery.length ? cityQuery : selectedCity}
-                    suggestions={citySuggestions}
-                    completeMethod={(event: AutoCompleteCompleteEvent) => {
-                        const query = event.query ?? '';
-                        setCityQuery(query);
-                        const needle = query.trim().toLowerCase();
-                        const filtered = needle
-                            ? cityOptions.filter((c) => c.label.toLowerCase().includes(needle))
-                            : cityOptions;
-                        setCitySuggestions(filtered);
-                    }}
-                    onDropdownClick={() => {
-                        setCitySuggestions([...cityOptions]);
-                    }}
-                    onChange={(event: AutoCompleteChangeEvent) => {
-                        const value = event.value as SelectOption | string | null;
-                        const shouldFocusLedger = cityEnterRef.current;
-                        cityEnterRef.current = false;
-                        if (value == null) {
-                            setCityQuery('');
-                            setSelectedCity(null);
-                            onCityChange(null);
-                            if (shouldFocusLedger) {
-                                focusLedgerInput();
-                            }
-                            return;
-                        }
-                        if (typeof value === 'string') {
-                            setCityQuery(value);
-                            if (!value.trim()) {
-                                setSelectedCity(null);
-                                onCityChange(null);
-                                if (shouldFocusLedger) {
-                                    focusLedgerInput();
-                                }
-                            }
-                            if (shouldFocusLedger) {
-                                focusLedgerInput();
-                            }
-                            return;
-                        }
-                        setCityQuery('');
-                        setSelectedCity(value);
-                        onCityChange(value.value ?? null);
-                        if (shouldFocusLedger) {
-                            focusLedgerInput();
-                        }
-                    }}
-                    onKeyDownCapture={(event) => {
-                        if (event.key !== 'Enter') return;
-                        if (!cityPanelOpen) return;
-                        if (cityQuery.trim().length > 0) return;
-                        if (typeof document === 'undefined') return;
-                        const panelId = cityInputRef.current?.getAttribute('aria-controls');
-                        if (!panelId) return;
-                        const panel = document.getElementById(panelId);
-                        const highlighted = panel?.querySelector(
-                            'li[data-p-highlight="true"], li.p-highlight, li[aria-selected="true"]'
-                        );
-                        if (highlighted) return;
-                        event.preventDefault();
-                        event.stopPropagation();
-                        cityAutoCompleteRef.current?.hide?.();
-                        cityEnterRef.current = false;
-                        focusLedgerInput();
-                    }}
-                    onKeyDown={(event) => {
-                        if (event.defaultPrevented) return;
-                        if (event.key !== 'Enter') return;
-                        event.preventDefault();
-                        event.stopPropagation();
-                        cityEnterRef.current = true;
-                        if (!cityPanelOpen) {
-                            cityEnterRef.current = false;
-                            focusLedgerInput();
-                        }
-                    }}
-                    onBlur={() => {
-                        setCityQuery('');
-                        if (!cityId || cityId <= 0) {
-                            setSelectedCity(null);
-                            return;
-                        }
-                        const match = cityOptions.find((c) => Number(c.value) === Number(cityId)) ?? null;
-                        setSelectedCity(match);
-                    }}
-                    onShow={() => setCityPanelOpen(true)}
-                    onHide={() => {
-                        setCityPanelOpen(false);
-                        if (cityEnterRef.current) {
-                            cityEnterRef.current = false;
-                            focusLedgerInput();
-                        }
-                    }}
-                    field="label"
-                    placeholder={citiesLoading ? 'Loading cities...' : 'City'}
-                    inputId="ledger-city-autocomplete"
-                    inputRef={cityInputRef}
-                    autoHighlight={cityQuery.trim().length > 0}
-                    style={{ minWidth: '220px' }}
-                />
-                <div className="flex align-items-center gap-2 ledger-ledger-meta">
-                    <LedgerAutoComplete
-                        value={selectedLedger ?? ledgerQuery}
-                        suggestions={ledgerSuggestions}
+                <div className="flex flex-wrap align-items-end gap-2">
+                    <LedgerGroupAutoComplete
+                        value={ledgerGroupId}
+                        options={ledgerGroupOptions}
+                        loading={groupsLoading}
+                        onChange={(nextValue) => onLedgerGroupChange(nextValue)}
+                        placeholder="Ledger group"
+                        loadingPlaceholder="Loading groups..."
+                        onSelectNext={focusCityInput}
+                        inputId="ledger-group-autocomplete"
+                        ref={ledgerGroupInputRef}
+                        style={{ minWidth: '220px' }}
+                    />
+                    <AppAutoComplete
+                        ref={cityAutoCompleteRef}
+                        value={cityQuery.length ? cityQuery : selectedCity}
+                        suggestions={citySuggestions}
                         completeMethod={(event: AutoCompleteCompleteEvent) => {
                             const query = event.query ?? '';
-                            void fetchLedgers({
-                                search: query,
-                                groupId: ledgerGroupFetchGroupId,
-                                mode: query.trim().length === 0 ? 'all' : 'search'
-                            });
+                            setCityQuery(query);
+                            const needle = query.trim().toLowerCase();
+                            const filtered = needle
+                                ? cityOptions.filter((c) => c.label.toLowerCase().includes(needle))
+                                : cityOptions;
+                            setCitySuggestions(filtered);
                         }}
                         onDropdownClick={() => {
-                            setLedgerSuggestions([...ledgerOptions]);
-                            void fetchLedgers({ groupId: ledgerGroupFetchGroupId, mode: 'all' });
+                            setCitySuggestions([...cityOptions]);
                         }}
                         onChange={(event: AutoCompleteChangeEvent) => {
-                            const value = event.value as LedgerLookupOption | string | null;
-                            const shouldFocusVoucher = ledgerEnterRef.current;
-                            ledgerEnterRef.current = false;
-                            clearAppliedFilters();
+                            const value = event.value as SelectOption | string | null;
+                            const shouldFocusLedger = cityEnterRef.current;
+                            cityEnterRef.current = false;
                             if (value == null) {
-                                setLedgerQuery('');
-                                resetLedgerSelection();
-                                setPreviewLedger(null);
-                                if (shouldFocusVoucher) {
-                                    focusVoucherTypeInput();
+                                setSelectedCity(null);
+                                onCityChange(null);
+                                setCityQuery('');
+                                if (shouldFocusLedger) {
+                                    focusLedgerInput();
                                 }
                                 return;
                             }
                             if (typeof value === 'string') {
-                                setLedgerQuery(value);
-                                setSelectedLedger(null);
-                                setLedgerId(null);
+                                setCityQuery(value);
+                                if (!value.trim()) {
+                                    setSelectedCity(null);
+                                    onCityChange(null);
+                                    if (shouldFocusLedger) {
+                                        focusLedgerInput();
+                                    }
+                                }
+                                if (shouldFocusLedger) {
+                                    focusLedgerInput();
+                                }
+                                return;
+                            }
+                            setCityQuery('');
+                            setSelectedCity(value);
+                            onCityChange(value.value ?? null);
+                            if (shouldFocusLedger) {
+                                focusLedgerInput();
+                            }
+                        }}
+                        onKeyDownCapture={(event) => {
+                            if (event.key !== 'Enter') return;
+                            if (!cityPanelOpen) return;
+                            if (cityQuery.trim().length > 0) return;
+                            if (typeof document === 'undefined') return;
+                            const panelId = cityInputRef.current?.getAttribute('aria-controls');
+                            if (!panelId) return;
+                            const panel = document.getElementById(panelId);
+                            const highlighted = panel?.querySelector(
+                                'li[data-p-highlight="true"], li.p-highlight, li[aria-selected="true"]'
+                            );
+                            if (highlighted) return;
+                            event.preventDefault();
+                            event.stopPropagation();
+                            cityAutoCompleteRef.current?.hide?.();
+                            cityEnterRef.current = false;
+                            focusLedgerInput();
+                        }}
+                        onKeyDown={(event) => {
+                            if (event.defaultPrevented) return;
+                            if (event.key !== 'Enter') return;
+                            event.preventDefault();
+                            event.stopPropagation();
+                            cityEnterRef.current = true;
+                            if (!cityPanelOpen) {
+                                cityEnterRef.current = false;
+                                focusLedgerInput();
+                            }
+                        }}
+                        onBlur={() => {
+                            setCityQuery('');
+                            if (!cityId || cityId <= 0) {
+                                setSelectedCity(null);
+                                return;
+                            }
+                            const match = cityOptions.find((c) => Number(c.value) === Number(cityId)) ?? null;
+                            setSelectedCity(match);
+                        }}
+                        onShow={() => setCityPanelOpen(true)}
+                        onHide={() => {
+                            setCityPanelOpen(false);
+                            if (cityEnterRef.current) {
+                                cityEnterRef.current = false;
+                                focusLedgerInput();
+                            }
+                        }}
+                        field="label"
+                        placeholder={citiesLoading ? 'Loading cities...' : 'City'}
+                        inputId="ledger-city-autocomplete"
+                        inputRef={cityInputRef}
+                        autoHighlight={cityQuery.trim().length > 0}
+                        style={{ minWidth: '220px' }}
+                    />
+                    <div className="flex align-items-end gap-2 ledger-ledger-meta">
+                        <LedgerAutoComplete
+                            value={selectedLedger ?? ledgerQuery}
+                            suggestions={ledgerSuggestions}
+                            completeMethod={(event: AutoCompleteCompleteEvent) => {
+                                const query = event.query ?? '';
+                                void fetchLedgers({
+                                    search: query,
+                                    groupId: ledgerGroupFetchGroupId,
+                                    mode: query.trim().length === 0 ? 'all' : 'search'
+                                });
+                            }}
+                            onDropdownClick={() => {
+                                setLedgerSuggestions([...ledgerOptions]);
+                                void fetchLedgers({ groupId: ledgerGroupFetchGroupId, mode: 'all' });
+                            }}
+                            onChange={(event: AutoCompleteChangeEvent) => {
+                                const value = event.value as LedgerLookupOption | string | null;
+                                const shouldFocusVoucher = ledgerEnterRef.current;
+                                ledgerEnterRef.current = false;
+                                clearAppliedFilters();
+                                if (value == null) {
+                                    setLedgerQuery('');
+                                    resetLedgerSelection();
+                                    setPreviewLedger(null);
+                                    if (shouldFocusVoucher) {
+                                        focusVoucherTypeInput();
+                                    }
+                                    return;
+                                }
+                                if (typeof value === 'string') {
+                                    setLedgerQuery(value);
+                                    setSelectedLedger(null);
+                                    setLedgerId(null);
+                                    setPreviewLedger(null);
+                                    if (shouldFocusVoucher) {
+                                        focusVoucherTypeInput();
+                                    }
+                                    return;
+                                }
+                                setLedgerQuery('');
+                                setSelectedLedger(value);
+                                setLedgerId(Number(value.ledgerId));
                                 setPreviewLedger(null);
                                 if (shouldFocusVoucher) {
                                     focusVoucherTypeInput();
                                 }
-                                return;
-                            }
-                            setLedgerQuery('');
-                            setSelectedLedger(value);
-                            setLedgerId(Number(value.ledgerId));
-                            setPreviewLedger(null);
-                            if (shouldFocusVoucher) {
-                                focusVoucherTypeInput();
-                            }
-                        }}
-                        itemTemplate={(option: LedgerLookupOption) => (
-                            <span data-ledger-id={option.ledgerId} onMouseEnter={() => setPreviewLedger(option)}>
-                                {option.label}
-                            </span>
-                        )}
-                        field="label"
-                        loading={showLedgerSpinner}
-                        showEmptyMessage
-                        placeholder={showLedgerSpinner ? 'Loading ledgers...' : 'Select ledger'}
-                        inputId="ledger-autocomplete"
-                        onShow={() => {
-                            setLedgerPanelOpen(true);
-                            setPreviewLedger(selectedLedger ?? null);
-                            if (typeof window !== 'undefined') {
-                                window.requestAnimationFrame(syncLedgerPreviewFromHighlight);
-                            }
-                        }}
-                        onHide={() => {
-                            setLedgerPanelOpen(false);
-                            setPreviewLedger(null);
-                            if (ledgerEnterRef.current) {
-                                ledgerEnterRef.current = false;
-                                focusVoucherTypeInput();
-                            }
-                        }}
-                        onKeyDown={(event) => {
-                            if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                            }}
+                            itemTemplate={(option: LedgerLookupOption) => (
+                                <span data-ledger-id={option.ledgerId} onMouseEnter={() => setPreviewLedger(option)}>
+                                    {option.label}
+                                </span>
+                            )}
+                            field="label"
+                            loading={showLedgerSpinner}
+                            showEmptyMessage
+                            placeholder={showLedgerSpinner ? 'Loading ledgers...' : 'Select ledger'}
+                            inputId="ledger-autocomplete"
+                            onShow={() => {
+                                setLedgerPanelOpen(true);
+                                setPreviewLedger(selectedLedger ?? null);
                                 if (typeof window !== 'undefined') {
                                     window.requestAnimationFrame(syncLedgerPreviewFromHighlight);
                                 }
-                            }
-                            if (event.key !== 'Enter') return;
-                            event.preventDefault();
-                            event.stopPropagation();
-                            ledgerEnterRef.current = true;
-                            if (!ledgerPanelOpen) {
-                                ledgerEnterRef.current = false;
-                                focusVoucherTypeInput();
-                            }
-                        }}
-                        virtualScrollerOptions={{ itemSize: 36 }}
-                        autoHighlight={ledgerQuery.trim().length > 0}
-                        inputRef={ledgerInputRef}
-                        style={{ minWidth: '260px' }}
-                    />
-                    {displayLedger && (
-                        <LedgerMetaPanel
-                            address={displayLedger.address}
-                            balanceLabel={currentBalanceLabel}
-                            balanceSeverity={currentBalanceSeverity}
-                            showBalance={showBalanceBadges}
+                            }}
+                            onHide={() => {
+                                setLedgerPanelOpen(false);
+                                setPreviewLedger(null);
+                                if (ledgerEnterRef.current) {
+                                    ledgerEnterRef.current = false;
+                                    focusVoucherTypeInput();
+                                }
+                            }}
+                            onKeyDown={(event) => {
+                                if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                                    if (typeof window !== 'undefined') {
+                                        window.requestAnimationFrame(syncLedgerPreviewFromHighlight);
+                                    }
+                                }
+                                if (event.key !== 'Enter') return;
+                                event.preventDefault();
+                                event.stopPropagation();
+                                ledgerEnterRef.current = true;
+                                if (!ledgerPanelOpen) {
+                                    ledgerEnterRef.current = false;
+                                    focusVoucherTypeInput();
+                                }
+                            }}
+                            virtualScrollerOptions={{ itemSize: 36 }}
+                            autoHighlight={ledgerQuery.trim().length > 0}
+                            inputRef={ledgerInputRef}
+                            showCurrentBalanceInline={showBalanceBadges}
+                            currentBalanceLabel={currentBalanceLabel}
+                            currentBalanceSeverity={currentBalanceSeverity}
+                            currentBalanceTooltip={currentBalanceTooltip}
+                            style={{ minWidth: '260px' }}
                         />
-                    )}
+                        {displayLedger && (
+                            <LedgerMetaPanel
+                                address={displayLedger.address}
+                                balanceLabel={currentBalanceLabel}
+                                balanceSeverity={currentBalanceSeverity}
+                                showBalance={false}
+                            />
+                        )}
+                    </div>
                 </div>
             </div>
             <div className="flex flex-wrap align-items-center gap-2">

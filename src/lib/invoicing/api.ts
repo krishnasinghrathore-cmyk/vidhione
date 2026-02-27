@@ -58,9 +58,143 @@ export type SaleInvoiceListItem = {
     saleInvoiceId: number;
     voucherNumber: string | null;
     voucherDateText: string | null;
+    billNumber: string | null;
+    estimateId: number | null;
+    ledgerId: number | null;
+    ledgerName: string | null;
+    ledgerGroupId: number | null;
+    ledgerGroupName: string | null;
+    otherLedgerId: number | null;
+    remarks: string | null;
+    isVatIncluded: boolean;
+    isOtherState: boolean;
+    hasScheme: boolean;
+    isChecked: boolean;
+    deliveryStatus: string | null;
+    hasLedgerGst: boolean;
+    productGroupNames: string[];
+    productBrandNames: string[];
+    productNames: string[];
+    isDisputed: boolean;
+    isCancelled: boolean;
+    linkedCreditNoteCount: number;
+    linkedDebitNoteCount: number;
+    totalProductDiscountAmount: number;
+    totalDisplayAmount: number;
+    totalCashDiscountAmount: number;
+    totalReplacementAmount: number;
+    totalLessSpecialAmount: number;
+    totalGrossAmount: number;
+    totalQpsDiscountAmount: number;
+    totalFinalAmount: number;
+    totalQuantity: number;
+    totalFreeQuantity: number;
+    totalQuantityRateAmount: number;
+    totalAdditionalTaxAmount: number;
+    totalAmount: number;
+    totalTaxAmount: number;
+    roundOffAmount: number;
+    totalNetAmount: number;
+    cashReceiptAmount: number;
+    bankReceiptAmount: number;
+    creditNoteAmount: number;
+    voucherBillAmount: number;
+    returnAmount: number;
+    paidAmount: number;
+    dueAmount: number;
+};
+
+export type EstimateLookupItem = {
+    estimateId: number;
+    voucherDateText: string | null;
     ledgerId: number | null;
     ledgerName: string | null;
     totalNetAmount: number;
+    isCancelled: boolean;
+};
+
+export type DebitNoteLookupItem = {
+    voucherId: number;
+    totalAppliedAmount: number;
+    totalNetAmount: number;
+    isCancelled: boolean;
+};
+
+export type EstimateImportLine = {
+    lineNumber: number | null;
+    itemId: number | null;
+    itemFreeId: number | null;
+    unitId: number | null;
+    unitFreeId: number | null;
+    mrp: number | null;
+    quantity: number | null;
+    freeQuantity: number | null;
+    unitPrice: number | null;
+    sellingRate: number | null;
+    quantityRateAmount: number | null;
+    displayAmount: number | null;
+    productDiscountRate: number | null;
+    productDiscountAmount: number | null;
+    cashDiscountRate: number | null;
+    cashDiscountAmount: number | null;
+    qpsRate: number | null;
+    qpsAmount: number | null;
+    lineAmount: number | null;
+    replacementAmount: number | null;
+    finalAmount: number | null;
+    taxLedgerId: number | null;
+    taxRate: number | null;
+    taxAmount: number | null;
+    taxableAmount: number | null;
+    taxLedger2Id: number | null;
+    taxRate2: number | null;
+    taxAmount2: number | null;
+    taxableAmount2: number | null;
+    taxLedger3Id: number | null;
+    taxRate3: number | null;
+    taxAmount3: number | null;
+    taxableAmount3: number | null;
+    remarks: string | null;
+    minQuantity: number | null;
+    minFreeQuantity: number | null;
+    isManualProductDiscount: boolean;
+    isManualCashDiscount: boolean;
+    isManualQpsDiscount: boolean;
+    tmpTypeId: number | null;
+    estimateLineId: number | null;
+};
+
+export type EstimateImportTaxLine = {
+    ledgerId: number | null;
+    addAmount: number | null;
+    lessAmount: number | null;
+    taxableAmount: number | null;
+};
+
+export type EstimateImportAdditionalTaxation = {
+    ledgerId: number | null;
+    addAmount: number | null;
+    taxableAmount: number | null;
+};
+
+export type EstimateImportTypeDetail = {
+    itemId: number | null;
+    typeDetailId: number | null;
+    quantity: number | null;
+    tmpTypeId: number | null;
+};
+
+export type EstimateImport = {
+    estimateId: number;
+    voucherDateText: string | null;
+    ledgerId: number | null;
+    ledgerName: string | null;
+    totalNetAmount: number;
+    isCancelled: boolean;
+    lines: EstimateImportLine[];
+    taxLines: EstimateImportTaxLine[];
+    additionalTaxations: EstimateImportAdditionalTaxation[];
+    typeDetails: EstimateImportTypeDetail[];
 };
 
 export type SaleInvoiceLine = {
@@ -364,10 +498,12 @@ export type SalesBookRow = {
     ledgerId: number | null;
     ledgerName: string | null;
     ledgerGroupId: number | null;
+    ledgerGroupName: string | null;
     otherLedgerId: number | null;
     remarks: string | null;
     billNumber: string | null;
     isVatIncluded: boolean;
+    isOtherState: boolean;
     hasScheme: boolean;
     isChecked: boolean;
     deliveryStatus: string | null;
@@ -761,14 +897,184 @@ export const listSaleInvoices = async () => {
                     saleInvoiceId
                     voucherNumber
                     voucherDateText
+                    billNumber
+                    estimateId
                     ledgerId
                     ledgerName
+                    ledgerGroupId
+                    ledgerGroupName
+                    otherLedgerId
+                    remarks
+                    isVatIncluded
+                    isOtherState
+                    hasScheme
+                    isChecked
+                    deliveryStatus
+                    hasLedgerGst
+                    productGroupNames
+                    productBrandNames
+                    productNames
+                    isDisputed
+                    isCancelled
+                    linkedCreditNoteCount
+                    linkedDebitNoteCount
+                    totalProductDiscountAmount
+                    totalDisplayAmount
+                    totalCashDiscountAmount
+                    totalReplacementAmount
+                    totalLessSpecialAmount
+                    totalGrossAmount
+                    totalQpsDiscountAmount
+                    totalFinalAmount
+                    totalQuantity
+                    totalFreeQuantity
+                    totalQuantityRateAmount
+                    totalAdditionalTaxAmount
+                    totalAmount
+                    totalTaxAmount
+                    roundOffAmount
                     totalNetAmount
+                    cashReceiptAmount
+                    bankReceiptAmount
+                    creditNoteAmount
+                    voucherBillAmount
+                    returnAmount
+                    paidAmount
+                    dueAmount
                 }
             }
         }`
     );
     return data.saleInvoices;
+};
+
+export const listEstimateLookups = async (input?: {
+    search?: string | null;
+    limit?: number | null;
+    includeCancelled?: boolean | null;
+}) => {
+    const data = await requestInvoicingGraphql<{ estimateLookups: { items: EstimateLookupItem[] } }>(
+        `query EstimateLookups($search: String, $limit: Int, $includeCancelled: Boolean) {
+            estimateLookups(search: $search, limit: $limit, includeCancelled: $includeCancelled) {
+                items {
+                    estimateId
+                    voucherDateText
+                    ledgerId
+                    ledgerName
+                    totalNetAmount
+                    isCancelled
+                }
+            }
+        }`,
+        {
+            search: input?.search?.trim() || null,
+            limit: input?.limit ?? null,
+            includeCancelled: input?.includeCancelled ?? null
+        }
+    );
+    return data.estimateLookups;
+};
+
+export const listDebitNoteLookups = async (input?: {
+    search?: string | null;
+    limit?: number | null;
+    includeCancelled?: boolean | null;
+}) => {
+    const data = await requestInvoicingGraphql<{ debitNoteLookups: { items: DebitNoteLookupItem[] } }>(
+        `query DebitNoteLookups($search: String, $limit: Int, $includeCancelled: Boolean) {
+            debitNoteLookups(search: $search, limit: $limit, includeCancelled: $includeCancelled) {
+                items {
+                    voucherId
+                    totalAppliedAmount
+                    totalNetAmount
+                    isCancelled
+                }
+            }
+        }`,
+        {
+            search: input?.search?.trim() || null,
+            limit: input?.limit ?? null,
+            includeCancelled: input?.includeCancelled ?? null
+        }
+    );
+    return data.debitNoteLookups;
+};
+
+export const getEstimateImport = async (estimateId: number) => {
+    const data = await requestInvoicingGraphql<{ estimateImport: EstimateImport }>(
+        `query EstimateImport($estimateId: Int!) {
+            estimateImport(estimateId: $estimateId) {
+                estimateId
+                voucherDateText
+                ledgerId
+                ledgerName
+                totalNetAmount
+                isCancelled
+                lines {
+                    lineNumber
+                    itemId
+                    itemFreeId
+                    unitId
+                    unitFreeId
+                    mrp
+                    quantity
+                    freeQuantity
+                    unitPrice
+                    sellingRate
+                    quantityRateAmount
+                    displayAmount
+                    productDiscountRate
+                    productDiscountAmount
+                    cashDiscountRate
+                    cashDiscountAmount
+                    qpsRate
+                    qpsAmount
+                    lineAmount
+                    replacementAmount
+                    finalAmount
+                    taxLedgerId
+                    taxRate
+                    taxAmount
+                    taxableAmount
+                    taxLedger2Id
+                    taxRate2
+                    taxAmount2
+                    taxableAmount2
+                    taxLedger3Id
+                    taxRate3
+                    taxAmount3
+                    taxableAmount3
+                    remarks
+                    minQuantity
+                    minFreeQuantity
+                    isManualProductDiscount
+                    isManualCashDiscount
+                    isManualQpsDiscount
+                    tmpTypeId
+                    estimateLineId
+                }
+                taxLines {
+                    ledgerId
+                    addAmount
+                    lessAmount
+                    taxableAmount
+                }
+                additionalTaxations {
+                    ledgerId
+                    addAmount
+                    taxableAmount
+                }
+                typeDetails {
+                    itemId
+                    typeDetailId
+                    quantity
+                    tmpTypeId
+                }
+            }
+        }`,
+        { estimateId: Number(estimateId) }
+    );
+    return data.estimateImport;
 };
 
 export const fetchSalesBook = async (input: {
@@ -795,6 +1101,7 @@ export const fetchSalesBook = async (input: {
                     remarks
                     billNumber
                     isVatIncluded
+                    isOtherState
                     hasScheme
                     isChecked
                     deliveryStatus

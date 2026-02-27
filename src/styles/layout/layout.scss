@@ -207,6 +207,34 @@
     width: 100%;
 }
 
+.app-data-table.app-report-table--inline-filters .p-datatable-thead > tr > th .p-column-header-content {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.35rem;
+}
+
+.app-data-table.app-report-table--inline-filters .p-datatable-thead > tr > th .p-column-filter-menu-button {
+    margin-left: 0 !important;
+}
+
+.app-data-table .p-datatable-thead > tr > th.app-data-table-action-column,
+.app-data-table .p-datatable-tbody > tr > td.app-data-table-action-column,
+.app-data-table .p-datatable-tfoot > tr > td.app-data-table-action-column {
+    position: sticky;
+    right: 0;
+    background: var(--surface-card);
+    z-index: 2;
+}
+
+.app-data-table .p-datatable-thead > tr > th.app-data-table-action-column {
+    z-index: 3;
+}
+
+.app-data-table .p-datatable-tbody > tr > td.app-data-table-action-column {
+    box-shadow: -8px 0 8px -8px rgba(15, 23, 42, 0.28);
+}
+
 @media (max-width: 960px) {
     .app-data-table-header {
         flex-direction: column;

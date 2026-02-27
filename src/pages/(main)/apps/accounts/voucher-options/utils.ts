@@ -63,6 +63,7 @@ export const areVoucherTypeFormsEqual = (left: VoucherTypeFormState, right: Vouc
     left.prefix === right.prefix &&
     left.suffix === right.suffix &&
     left.voucherStartNumber === right.voucherStartNumber &&
+    left.defaultReportLookbackDays === right.defaultReportLookbackDays &&
     left.isManualVoucherNo === right.isManualVoucherNo &&
     left.isLocked === right.isLocked &&
     toDateTime(left.lockFromDate) === toDateTime(right.lockFromDate) &&

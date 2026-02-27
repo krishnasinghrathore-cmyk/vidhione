@@ -67,10 +67,12 @@ import {
   MANAGERS,
   MONEY_RECEIPT_BANK_BOOK_FALLBACK,
   MONEY_RECEIPT_CASH_BOOK_FALLBACK,
+  COMPANY_FISCAL_YEARS_FOR_BILL_SEARCH,
   MONEY_RECEIPT_ISSUE_BOOKS_FOR_SALESMAN,
   NEXT_CHEQUE_NUMBER_FOR_BOOK,
   NEXT_VOUCHER_NUMBER,
   PAYMENT_VIA_MASTERS,
+  SALE_INVOICE_BILL_SEARCH,
   SALESMEN,
   UPDATE_VOUCHER,
   VOUCHER_ENTRY_BY_ID,
@@ -270,6 +272,10 @@ const hasLegacyVoucherEntryFieldValidationError = (message: string) => {
   );
 };
 
+const isSaleInvoiceBillSearchUnavailableError = (message: string) =>
+  message.includes('Cannot query field "saleInvoiceBillSearch"') &&
+  message.includes('on type "Query"');
+
 const hasSameNumericId = (left: unknown, right: unknown): boolean => {
   const leftId = toNumericId(left);
   const rightId = toNumericId(right);
@@ -311,6 +317,15 @@ type ReceiptIssueBookOption = SelectOption & {
   receiptStartNumber: number | null;
   receiptEndNumber: number | null;
   voucherDateText: string | null;
+  usedReceiptCount: number | null;
+  totalReceiptCount: number | null;
+  isFullyConsumed: boolean | null;
+};
+
+type ReceiptIssueBookUsageStats = {
+  usedReceiptCount: number;
+  totalReceiptCount: number;
+  isFullyConsumed: boolean;
 };
 
 const normalizeIssueBookRows = (
@@ -347,10 +362,15 @@ const normalizeIssueBookRows = (
         book.receiptEndNumber >= book.receiptStartNumber
     )
     .sort((left, right) => {
+      const leftDateKey = toDateKey(left.voucherDateText ?? null) ?? "";
+      const rightDateKey = toDateKey(right.voucherDateText ?? null) ?? "";
+      if (leftDateKey !== rightDateKey) {
+        return rightDateKey.localeCompare(leftDateKey);
+      }
       if (left.receiptStartNumber !== right.receiptStartNumber) {
         return left.receiptStartNumber - right.receiptStartNumber;
       }
-      return left.moneyReceiptIssueBookId - right.moneyReceiptIssueBookId;
+      return right.moneyReceiptIssueBookId - left.moneyReceiptIssueBookId;
     });
 
 const parseReceiptNoValue = (
@@ -371,6 +391,37 @@ const isIssueBookApplicableForVoucherDate = (
   const voucherDateKey = toDateKey(voucherDateText ?? null);
   if (!voucherDateKey) return true;
   return bookDateKey <= voucherDateKey;
+};
+
+const resolveIssueBookUsageStartDateKey = (
+  issueBookVoucherDateText: string | null,
+  fiscalYearStartDateKey: string | null
+): string | null => {
+  const issueDateKey = toDateKey(issueBookVoucherDateText ?? null);
+  if (issueDateKey && fiscalYearStartDateKey) {
+    return issueDateKey >= fiscalYearStartDateKey
+      ? issueDateKey
+      : fiscalYearStartDateKey;
+  }
+  return issueDateKey ?? fiscalYearStartDateKey ?? null;
+};
+
+const extractYearFromDateKey = (dateKey: string | null): number | null => {
+  if (!dateKey || dateKey.length < 4) return null;
+  const year = Number(dateKey.slice(0, 4));
+  return Number.isFinite(year) && year > 0 ? year : null;
+};
+
+const buildFiscalYearLabel = (
+  financialYearStart: string | null,
+  financialYearEnd: string | null
+) => {
+  const startYear = extractYearFromDateKey(toDateKey(financialYearStart));
+  const endYear = extractYearFromDateKey(toDateKey(financialYearEnd));
+  if (startYear != null && endYear != null) return `${startYear}-${endYear}`;
+  if (startYear != null) return String(startYear);
+  if (endYear != null) return String(endYear);
+  return "Year";
 };
 
 const findIssueBookForReceiptNo = (
@@ -655,9 +706,27 @@ type BillWiseInvoiceSearchRow = {
   dueAmount: number;
   ledgerId: number | null;
   ledgerName: string;
+  ledgerAddress: string | null;
   ledgerGroupId: number | null;
   ledgerGroupName: string | null;
   isDebitNote: boolean;
+};
+
+type CompanyFiscalYearRow = {
+  companyFiscalYearId: number;
+  financialYearStart: string | null;
+  financialYearEnd: string | null;
+  isCurrentFlag: number | null;
+};
+
+type BillWiseFiscalYearOption = {
+  label: string;
+  value: number;
+  fromDateText: string | null;
+  toDateText: string | null;
+  fromDateKey: string | null;
+  toDateKey: string | null;
+  isCurrent: boolean;
 };
 
 type BillWiseLineEditorState = {
@@ -906,6 +975,9 @@ export const useVoucherState = (
   const [billWiseFullPaid, setBillWiseFullPaid] = useState(false);
   const [billWiseShowAdvanceBill, setBillWiseShowAdvanceBill] = useState(false);
   const [billWiseDebitNote, setBillWiseDebitNote] = useState(false);
+  const [billWiseFiscalYearId, setBillWiseFiscalYearId] = useState<
+    number | null
+  >(null);
   const [
     billWiseInvoiceSearchDialogVisible,
     setBillWiseInvoiceSearchDialogVisible,
@@ -913,6 +985,7 @@ export const useVoucherState = (
   const [billWiseInvoiceSearchTerm, setBillWiseInvoiceSearchTerm] =
     useState("");
   const billWiseInvoiceSearchTermRef = useRef("");
+  const billWiseInvoiceSearchRequestSeqRef = useRef(0);
   const [billWiseInvoiceSearchRows, setBillWiseInvoiceSearchRows] = useState<
     BillWiseInvoiceSearchRow[]
   >([]);
@@ -1858,6 +1931,146 @@ export const useVoucherState = (
     }),
     [companyFiscalYearId, fiscalYearEnd, fiscalYearStart, voucherTypeId]
   );
+  const shouldLoadBillWiseFiscalYears = showBillWiseOption && isFormActive;
+  const { data: billWiseFiscalYearsData } = useQuery(
+    COMPANY_FISCAL_YEARS_FOR_BILL_SEARCH,
+    {
+      client: billingApolloClient,
+      skip: !shouldLoadBillWiseFiscalYears,
+      fetchPolicy: "cache-first",
+      nextFetchPolicy: "cache-first",
+    }
+  );
+  const billWiseFiscalYearOptions = useMemo<BillWiseFiscalYearOption[]>(() => {
+    const rows = (billWiseFiscalYearsData?.companyFiscalYears ??
+      []) as CompanyFiscalYearRow[];
+    return rows
+      .map((row) => {
+        const value = Number(row.companyFiscalYearId);
+        if (!Number.isFinite(value) || value <= 0) return null;
+        const fromDateKey = toDateKey(row.financialYearStart ?? null);
+        const toDateKeyValue = toDateKey(row.financialYearEnd ?? null);
+        return {
+          label: buildFiscalYearLabel(
+            row.financialYearStart ?? null,
+            row.financialYearEnd ?? null
+          ),
+          value,
+          fromDateText: fromDateKey ?? null,
+          toDateText: toDateKeyValue ?? null,
+          fromDateKey: fromDateKey ?? null,
+          toDateKey: toDateKeyValue ?? null,
+          isCurrent: Number(row.isCurrentFlag ?? 0) === 1,
+        } satisfies BillWiseFiscalYearOption;
+      })
+      .filter(
+        (option): option is BillWiseFiscalYearOption => option != null
+      )
+      .sort((left, right) => {
+        const leftStart = left.fromDateKey ?? "";
+        const rightStart = right.fromDateKey ?? "";
+        if (leftStart !== rightStart) {
+          return rightStart.localeCompare(leftStart);
+        }
+        return Number(right.value) - Number(left.value);
+      });
+  }, [billWiseFiscalYearsData?.companyFiscalYears]);
+  const billWiseFiscalYearOptionMap = useMemo(() => {
+    const map = new Map<number, BillWiseFiscalYearOption>();
+    billWiseFiscalYearOptions.forEach((option) => {
+      map.set(Number(option.value), option);
+    });
+    return map;
+  }, [billWiseFiscalYearOptions]);
+  const billWiseFiscalYearSelectOptions = useMemo<SelectOption[]>(
+    () =>
+      billWiseFiscalYearOptions.map((option) => ({
+        label: option.label,
+        value: Number(option.value),
+      })),
+    [billWiseFiscalYearOptions]
+  );
+  useEffect(() => {
+    if (!showBillWiseOption || billWiseFiscalYearOptions.length === 0) return;
+    const contextFiscalYearId = toPositiveId(companyFiscalYearId);
+    const baseDate = refDate ?? voucherDate ?? postingDate ?? null;
+    const baseDateKey = toDateKey(baseDate ? toDateText(baseDate) : null);
+    setBillWiseFiscalYearId((prev) => {
+      if (prev != null && billWiseFiscalYearOptionMap.has(Number(prev))) {
+        return Number(prev);
+      }
+      if (contextFiscalYearId != null) {
+        const contextOption = billWiseFiscalYearOptionMap.get(contextFiscalYearId);
+        if (contextOption) return Number(contextOption.value);
+      }
+      if (baseDateKey) {
+        const matchedByDate =
+          billWiseFiscalYearOptions.find((option) => {
+            if (!option.fromDateKey || !option.toDateKey) return false;
+            return (
+              baseDateKey >= option.fromDateKey &&
+              baseDateKey <= option.toDateKey
+            );
+          }) ?? null;
+        if (matchedByDate) return Number(matchedByDate.value);
+      }
+      const currentOption =
+        billWiseFiscalYearOptions.find((option) => option.isCurrent) ??
+        billWiseFiscalYearOptions[0] ??
+        null;
+      return currentOption ? Number(currentOption.value) : null;
+    });
+  }, [
+    billWiseFiscalYearOptionMap,
+    billWiseFiscalYearOptions,
+    companyFiscalYearId,
+    postingDate,
+    refDate,
+    showBillWiseOption,
+    voucherDate,
+  ]);
+  const resolveBillWiseDateRange = useCallback(
+    (
+      baseDateOverride?: Date | null,
+      fiscalYearIdOverride?: number | null
+    ) => {
+      const resolvedFiscalYearId =
+        fiscalYearIdOverride != null
+          ? Number(fiscalYearIdOverride)
+          : billWiseFiscalYearId != null
+          ? Number(billWiseFiscalYearId)
+          : null;
+      const selectedFiscalYear =
+        resolvedFiscalYearId != null
+          ? billWiseFiscalYearOptionMap.get(resolvedFiscalYearId) ?? null
+          : null;
+      const baseDate = baseDateOverride ?? refDate ?? voucherDate ?? postingDate ?? new Date();
+      const baseToDateText = toDateText(baseDate);
+      const baseToDateKey = toDateKey(baseToDateText);
+      let toDateKeyValue = baseToDateKey;
+      if (selectedFiscalYear?.toDateKey) {
+        if (!toDateKeyValue || toDateKeyValue > selectedFiscalYear.toDateKey) {
+          toDateKeyValue = selectedFiscalYear.toDateKey;
+        }
+      }
+      if (selectedFiscalYear?.fromDateKey && toDateKeyValue) {
+        if (selectedFiscalYear.fromDateKey > toDateKeyValue) {
+          toDateKeyValue = selectedFiscalYear.fromDateKey;
+        }
+      }
+      return {
+        fromDate: selectedFiscalYear?.fromDateText ?? null,
+        toDate: toDateKeyValue ?? baseToDateText,
+      };
+    },
+    [
+      billWiseFiscalYearId,
+      billWiseFiscalYearOptionMap,
+      postingDate,
+      refDate,
+      voucherDate,
+    ]
+  );
 
   const {
     data: nextNoData,
@@ -1977,21 +2190,112 @@ export const useVoucherState = (
     () => (isReceiptCashFlow ? toPositiveId(chequeIssueBookId) : null),
     [chequeIssueBookId, isReceiptCashFlow]
   );
+  const receiptFiscalYearStartDateKey = useMemo(
+    () => toDateKey(fiscalYearStartText ?? null),
+    [fiscalYearStartText]
+  );
+  const receiptIssueBookUsageStatsMap = useMemo(() => {
+    const usageStatsMap = new Map<number, ReceiptIssueBookUsageStats>();
+    if (!shouldLoadSalesmanIssueBooks || salesmanIssueBooks.length === 0) {
+      return usageStatsMap;
+    }
+
+    const usedNumberSetByBook = new Map<number, Set<number>>();
+    salesmanIssueEntries.forEach((entry) => {
+      const bookId = toPositiveId(entry.moneyReceiptIssueBookId);
+      if (bookId == null) return;
+      const issueBook = salesmanIssueBookMap.get(bookId) ?? null;
+      if (!issueBook) return;
+
+      const receiptNo =
+        entry.receiptNumber != null &&
+        Number.isFinite(Number(entry.receiptNumber))
+          ? Number(entry.receiptNumber)
+          : null;
+      if (receiptNo == null || receiptNo <= 0) return;
+      if (
+        receiptNo < issueBook.receiptStartNumber ||
+        receiptNo > issueBook.receiptEndNumber
+      ) {
+        return;
+      }
+
+      const usageStartDateKey = resolveIssueBookUsageStartDateKey(
+        issueBook.voucherDateText ?? null,
+        receiptFiscalYearStartDateKey
+      );
+      if (usageStartDateKey) {
+        const entryDateKey = toDateKey(entry.voucherDateText ?? null);
+        if (!entryDateKey || entryDateKey < usageStartDateKey) return;
+      }
+
+      const usedSet = usedNumberSetByBook.get(bookId) ?? new Set<number>();
+      usedSet.add(receiptNo);
+      usedNumberSetByBook.set(bookId, usedSet);
+    });
+
+    salesmanIssueBooks.forEach((book) => {
+      const usedNumbers = usedNumberSetByBook.get(book.moneyReceiptIssueBookId);
+      const usedReceiptCount = usedNumbers?.size ?? 0;
+      const totalReceiptCount = book.receiptEndNumber - book.receiptStartNumber + 1;
+      const maxUsedReceiptNo =
+        usedNumbers != null && usedNumbers.size > 0
+          ? Math.max(...Array.from(usedNumbers))
+          : null;
+      const nextReceiptNo =
+        maxUsedReceiptNo != null
+          ? Math.max(maxUsedReceiptNo + 1, book.receiptStartNumber)
+          : book.receiptStartNumber;
+      const isFullyConsumed = nextReceiptNo > book.receiptEndNumber;
+      usageStatsMap.set(book.moneyReceiptIssueBookId, {
+        usedReceiptCount,
+        totalReceiptCount,
+        isFullyConsumed,
+      });
+    });
+
+    return usageStatsMap;
+  }, [
+    receiptFiscalYearStartDateKey,
+    salesmanIssueBookMap,
+    salesmanIssueBooks,
+    salesmanIssueEntries,
+    shouldLoadSalesmanIssueBooks,
+  ]);
   const receiptIssueBookOptions = useMemo<ReceiptIssueBookOption[]>(() => {
     if (!shouldLoadSalesmanIssueBooks) return [];
     const options = salesmanIssueBooks
       .map((book) => {
+        const isSelectedBookOnEdit =
+          editingId != null &&
+          selectedReceiptIssueBookId != null &&
+          Number(selectedReceiptIssueBookId) ===
+            Number(book.moneyReceiptIssueBookId);
+        const usageStats =
+          receiptIssueBookUsageStatsMap.get(book.moneyReceiptIssueBookId) ?? null;
+        const totalReceiptCount =
+          usageStats?.totalReceiptCount ??
+          book.receiptEndNumber - book.receiptStartNumber + 1;
+        const usedReceiptCount = usageStats?.usedReceiptCount ?? 0;
+        const isFullyConsumed = usageStats?.isFullyConsumed ?? false;
+        if (isFullyConsumed && !isSelectedBookOnEdit) return null;
+
         const displayName =
           book.bookNumber?.trim() || `Book ${book.moneyReceiptIssueBookId}`;
         return {
-          label: `${displayName} (${book.receiptStartNumber} to ${book.receiptEndNumber})`,
+          label: `${displayName} (${book.receiptStartNumber} to ${book.receiptEndNumber}) [${usedReceiptCount}/${totalReceiptCount}]`,
           value: book.moneyReceiptIssueBookId,
           receiptStartNumber: book.receiptStartNumber,
           receiptEndNumber: book.receiptEndNumber,
           voucherDateText: book.voucherDateText,
+          usedReceiptCount,
+          totalReceiptCount,
+          isFullyConsumed,
         };
-      });
+      })
+      .filter((option): option is ReceiptIssueBookOption => option != null);
     if (
+      editingId != null &&
       selectedReceiptIssueBookId != null &&
       !options.some(
         (option) => Number(option.value) === selectedReceiptIssueBookId
@@ -1999,6 +2303,19 @@ export const useVoucherState = (
     ) {
       const selectedBook =
         salesmanIssueBookMap.get(selectedReceiptIssueBookId) ?? null;
+      const usageStats =
+        selectedBook != null
+          ? (receiptIssueBookUsageStatsMap.get(
+              selectedBook.moneyReceiptIssueBookId
+            ) ?? null)
+          : null;
+      const totalReceiptCount = usageStats?.totalReceiptCount ?? null;
+      const usedReceiptCount = usageStats?.usedReceiptCount ?? null;
+      const isFullyConsumed = usageStats?.isFullyConsumed ?? null;
+      const usedTotalLabel =
+        usedReceiptCount != null && totalReceiptCount != null
+          ? ` [${usedReceiptCount}/${totalReceiptCount}]`
+          : "";
       options.unshift({
         label: selectedBook
           ? `${
@@ -2006,16 +2323,21 @@ export const useVoucherState = (
               `Book ${selectedBook.moneyReceiptIssueBookId}`
             } (${selectedBook.receiptStartNumber} to ${
               selectedBook.receiptEndNumber
-            })`
+            })${usedTotalLabel}`
           : `Book ${selectedReceiptIssueBookId}`,
         value: selectedReceiptIssueBookId,
         receiptStartNumber: selectedBook?.receiptStartNumber ?? null,
         receiptEndNumber: selectedBook?.receiptEndNumber ?? null,
         voucherDateText: selectedBook?.voucherDateText ?? null,
+        usedReceiptCount,
+        totalReceiptCount,
+        isFullyConsumed,
       });
     }
     return options;
   }, [
+    editingId,
+    receiptIssueBookUsageStatsMap,
     salesmanIssueBookMap,
     salesmanIssueBooks,
     selectedReceiptIssueBookId,
@@ -2038,18 +2360,11 @@ export const useVoucherState = (
     selectedReceiptIssueBookId,
     shouldLoadSalesmanIssueBooks,
   ]);
-  const receiptFiscalYearStartDateKey = useMemo(
-    () => toDateKey(fiscalYearStartText ?? null),
-    [fiscalYearStartText]
-  );
   const selectedReceiptIssueUsageStartDateKey = useMemo(() => {
-    const issueDateKey = toDateKey(selectedReceiptIssueBook?.voucherDateText ?? null);
-    if (issueDateKey && receiptFiscalYearStartDateKey) {
-      return issueDateKey >= receiptFiscalYearStartDateKey
-        ? issueDateKey
-        : receiptFiscalYearStartDateKey;
-    }
-    return issueDateKey ?? receiptFiscalYearStartDateKey ?? null;
+    return resolveIssueBookUsageStartDateKey(
+      selectedReceiptIssueBook?.voucherDateText ?? null,
+      receiptFiscalYearStartDateKey
+    );
   }, [receiptFiscalYearStartDateKey, selectedReceiptIssueBook?.voucherDateText]);
   const salesmanIssueInfoMessage = useMemo(() => {
     if (!shouldLoadSalesmanIssueBooks) return null;
@@ -2820,63 +3135,135 @@ export const useVoucherState = (
     [billWiseFullPaid]
   );
 
-  const refreshBillWiseInvoices = useCallback(async () => {
-    if (!isFormActive || !showBillWiseOption) return;
-    const partyLedgerId =
-      billWisePartyLedgerId != null ? Number(billWisePartyLedgerId) : null;
-    if (partyLedgerId == null || partyLedgerId <= 0) return;
-    setBillWiseInvoicesLoading(true);
-    try {
-      const toDate = toDateText(voucherDate ?? postingDate ?? new Date());
-      const result = await loadBillWiseInvoices({
-        variables: {
-          ledgerIds: [partyLedgerId],
-          toDate,
-          removeZeroLines: billWiseShowAdvanceBill ? 0 : 1,
-          search: null,
-        },
-      });
-      const items = result.data?.invoiceRollover?.items ?? [];
-      const mappedRows: BillWiseInvoiceRow[] = (items as Array<any>)
-        .filter((item) => !item?.isReceiptRow)
-        .map((item) => {
-          const saleInvoiceId = Number(item?.invoiceId);
-          const dueAmountRaw = Number(item?.difference ?? 0);
-          const dueAmount = Number.isFinite(dueAmountRaw)
-            ? Number(dueAmountRaw)
-            : 0;
-          return {
-            saleInvoiceId,
-            invoiceNumber: String(item?.invoiceNumber ?? saleInvoiceId),
-            invoiceDate: item?.invoiceDate ?? null,
-            dueAmount,
-            selected: false,
-            appliedAmount: null,
-            isDebitNote: dueAmount < 0,
-            isManualAmount: false,
-          };
-        })
-        .filter(
-          (item) =>
-            Number.isFinite(item.saleInvoiceId) && item.saleInvoiceId > 0
-        )
-        .filter((item) => Math.abs(item.dueAmount) > 0.00001);
-      upsertBillWiseInvoiceRows(mappedRows);
-    } catch {
-      // Keep the current selections when invoice refresh fails.
-    } finally {
-      setBillWiseInvoicesLoading(false);
-    }
-  }, [
-    billWisePartyLedgerId,
-    billWiseShowAdvanceBill,
-    showBillWiseOption,
-    isFormActive,
-    loadBillWiseInvoices,
-    postingDate,
-    upsertBillWiseInvoiceRows,
-    voucherDate,
-  ]);
+  const refreshBillWiseInvoices = useCallback(
+    async () => {
+      if (!isFormActive || !showBillWiseOption) return;
+      const partyLedgerId =
+        billWisePartyLedgerId != null ? Number(billWisePartyLedgerId) : null;
+      if (partyLedgerId == null || partyLedgerId <= 0) return;
+      const mapInvoiceRows = (items: Array<any>): BillWiseInvoiceRow[] =>
+        items
+          .filter((item) => !item?.isReceiptRow)
+          .map((item) => {
+            const saleInvoiceId = Number(item?.invoiceId);
+            const dueAmountRaw = Number(item?.difference ?? 0);
+            const dueAmount = Number.isFinite(dueAmountRaw)
+              ? Number(dueAmountRaw)
+              : 0;
+            return {
+              saleInvoiceId,
+              invoiceNumber: String(item?.invoiceNumber ?? saleInvoiceId),
+              invoiceDate: item?.invoiceDate ?? null,
+              dueAmount,
+              selected: false,
+              appliedAmount: null,
+              isDebitNote: dueAmount < 0,
+              isManualAmount: false,
+            };
+          })
+          .filter(
+            (item) =>
+              Number.isFinite(item.saleInvoiceId) && item.saleInvoiceId > 0
+          )
+          .filter((item) => Math.abs(item.dueAmount) > 0.00001);
+      setBillWiseInvoicesLoading(true);
+      try {
+        const baseDate = refDate ?? voucherDate ?? postingDate ?? new Date();
+        const baseDateText = toDateText(baseDate);
+        const baseDateKey = toDateKey(baseDateText);
+        const matchedFiscalYearOption =
+          baseDateKey != null
+            ? billWiseFiscalYearOptions.find((option) => {
+                if (!option.fromDateKey || !option.toDateKey) return false;
+                return (
+                  baseDateKey >= option.fromDateKey &&
+                  baseDateKey <= option.toDateKey
+                );
+              }) ?? null
+            : null;
+        const effectiveFiscalYearId =
+          matchedFiscalYearOption != null
+            ? Number(matchedFiscalYearOption.value)
+            : billWiseFiscalYearId != null
+            ? Number(billWiseFiscalYearId)
+            : null;
+        const invoiceRange = resolveBillWiseDateRange(
+          baseDate,
+          effectiveFiscalYearId
+        );
+        let fromDate = invoiceRange.fromDate ?? null;
+        let toDate = invoiceRange.toDate ?? baseDateText;
+        if (
+          fromDate &&
+          toDate &&
+          toDateKey(fromDate) != null &&
+          toDateKey(toDate) != null &&
+          Number(toDateKey(fromDate)) > Number(toDateKey(toDate))
+        ) {
+          fromDate = null;
+          toDate = baseDateText;
+        }
+        const result = await loadBillWiseInvoices({
+          variables: {
+            ledgerIds: [partyLedgerId],
+            fromDate,
+            toDate,
+            removeZeroLines: billWiseShowAdvanceBill ? 0 : 1,
+            search: null,
+          },
+        });
+        const items = (result.data?.invoiceRollover?.items ?? []) as Array<any>;
+        let mappedRows = mapInvoiceRows(items);
+
+        if (mappedRows.length === 0 && !billWiseShowAdvanceBill) {
+          const relaxedResult = await loadBillWiseInvoices({
+            variables: {
+              ledgerIds: [partyLedgerId],
+              fromDate,
+              toDate,
+              removeZeroLines: 0,
+              search: null,
+            },
+          });
+          const relaxedItems = (relaxedResult.data?.invoiceRollover?.items ??
+            []) as Array<any>;
+          mappedRows = mapInvoiceRows(relaxedItems);
+        }
+
+        upsertBillWiseInvoiceRows(mappedRows);
+      } catch (error) {
+        const reason =
+          error instanceof Error
+            ? error.message.trim()
+            : String(error ?? "").trim();
+        toastRef.current?.show({
+          severity: "error",
+          summary: "Invoice Load Failed",
+          detail:
+            reason.length > 0
+              ? `Unable to load pending invoices. ${reason}`
+              : "Unable to load pending invoices. Please try again.",
+        });
+      } finally {
+        setBillWiseInvoicesLoading(false);
+      }
+    },
+    [
+      billWiseFiscalYearId,
+      billWiseFiscalYearOptions,
+      billWisePartyLedgerId,
+      billWiseShowAdvanceBill,
+      showBillWiseOption,
+      isFormActive,
+      loadBillWiseInvoices,
+      postingDate,
+      refDate,
+      resolveBillWiseDateRange,
+      toastRef,
+      upsertBillWiseInvoiceRows,
+      voucherDate,
+    ]
+  );
 
   const filterOptions = <T extends { label: string }>(
     options: T[],
@@ -2949,52 +3336,131 @@ export const useVoucherState = (
     [chequeIssueBookId]
   );
   const chequeBookOptions = useMemo<ChequeBookOption[]>(() => {
-    const rows = (chequeBooksData?.chequeIssueBooks ??
-      []) as ChequeIssueBookRow[];
+    const rows = ((chequeBooksData?.chequeIssueBooks ?? []) as ChequeIssueBookRow[])
+      .slice()
+      .sort((left, right) => {
+        const leftDateKey = toDateKey(left.voucherDate ?? null) ?? "";
+        const rightDateKey = toDateKey(right.voucherDate ?? null) ?? "";
+        if (leftDateKey !== rightDateKey) {
+          return rightDateKey.localeCompare(leftDateKey);
+        }
+        return Number(right.chequeIssueBookId ?? 0) - Number(left.chequeIssueBookId ?? 0);
+      });
+
     const options = rows
-      .filter((row) => {
-        const rowBookId = toPositiveId(row?.chequeIssueBookId);
-        if (rowBookId == null) return false;
-        const isSelectedBook =
-          selectedChequeBookId != null && rowBookId === selectedChequeBookId;
-        return !row.isCancelledFlag || isSelectedBook;
-      })
       .map((row) => {
-        const labelParts = [
-          row.voucherNumber
-            ? row.voucherNumber
-            : `Book ${row.chequeIssueBookId}`,
+        const rowBookId = toPositiveId(row?.chequeIssueBookId);
+        if (rowBookId == null) return null;
+        const isSelectedBook = selectedChequeBookId != null && rowBookId === selectedChequeBookId;
+        const includeSelectedHiddenBookOnEdit = editingId != null && isSelectedBook;
+        const isCancelled = Number(row.isCancelledFlag ?? 0) === 1;
+        const rowIsFullyConsumed = row.isFullyConsumed === true;
+        if ((isCancelled || rowIsFullyConsumed) && !includeSelectedHiddenBookOnEdit) {
+          return null;
+        }
+
+        const derivedTotalChequeCount =
+          row.chequeStartNumber != null && row.chequeEndNumber != null
+            ? Number(row.chequeEndNumber) - Number(row.chequeStartNumber) + 1
+            : null;
+        const totalChequeCount =
+          row.totalChequeCount != null && Number.isFinite(Number(row.totalChequeCount))
+            ? Number(row.totalChequeCount)
+            : derivedTotalChequeCount;
+        const rawUsedCount =
+          row.usedChequeCount != null && Number.isFinite(Number(row.usedChequeCount))
+            ? Number(row.usedChequeCount)
+            : 0;
+        const usedChequeCount =
+          totalChequeCount != null
+            ? Math.max(0, Math.min(totalChequeCount, rawUsedCount))
+            : rawUsedCount;
+        const isFullyConsumed =
+          row.isFullyConsumed != null
+            ? Boolean(row.isFullyConsumed)
+            : totalChequeCount != null && usedChequeCount >= totalChequeCount;
+
+        const rangeLabel =
           row.chequeStartNumber != null && row.chequeEndNumber != null
             ? `(${row.chequeStartNumber} to ${row.chequeEndNumber})`
-            : null,
+            : null;
+        const usageLabel =
+          totalChequeCount != null ? `[${usedChequeCount}/${totalChequeCount}]` : null;
+        const labelParts = [
+          row.voucherNumber ? row.voucherNumber : `Book ${row.chequeIssueBookId}`,
+          rangeLabel,
+          usageLabel,
         ].filter(Boolean);
-        if (row.isCancelledFlag) {
+        if (isCancelled) {
           labelParts.push("(Cancelled)");
         }
         return {
           label: labelParts.join(" "),
           value: Number(row.chequeIssueBookId),
           chequeStartNumber:
-            row.chequeStartNumber != null
-              ? Number(row.chequeStartNumber)
-              : null,
+            row.chequeStartNumber != null ? Number(row.chequeStartNumber) : null,
           chequeEndNumber:
             row.chequeEndNumber != null ? Number(row.chequeEndNumber) : null,
+          usedChequeCount: totalChequeCount != null ? usedChequeCount : null,
+          totalChequeCount,
+          isFullyConsumed,
         };
-      });
+      })
+      .filter((option): option is ChequeBookOption => option != null);
+
     if (
+      editingId != null &&
       selectedChequeBookId != null &&
       !options.some((option) => Number(option.value) === selectedChequeBookId)
     ) {
+      const selectedRow =
+        rows.find(
+          (row) => Number(row.chequeIssueBookId) === Number(selectedChequeBookId)
+        ) ?? null;
+      const derivedTotalChequeCount =
+        selectedRow?.chequeStartNumber != null && selectedRow?.chequeEndNumber != null
+          ? Number(selectedRow.chequeEndNumber) - Number(selectedRow.chequeStartNumber) + 1
+          : null;
+      const totalChequeCount =
+        selectedRow?.totalChequeCount != null &&
+        Number.isFinite(Number(selectedRow.totalChequeCount))
+          ? Number(selectedRow.totalChequeCount)
+          : derivedTotalChequeCount;
+      const rawUsedCount =
+        selectedRow?.usedChequeCount != null &&
+        Number.isFinite(Number(selectedRow.usedChequeCount))
+          ? Number(selectedRow.usedChequeCount)
+          : null;
+      const usedChequeCount =
+        rawUsedCount != null && totalChequeCount != null
+          ? Math.max(0, Math.min(totalChequeCount, rawUsedCount))
+          : rawUsedCount;
+      const usageLabel =
+        usedChequeCount != null && totalChequeCount != null
+          ? ` [${usedChequeCount}/${totalChequeCount}]`
+          : "";
+      const rangeLabel =
+        selectedRow?.chequeStartNumber != null && selectedRow?.chequeEndNumber != null
+          ? ` (${selectedRow.chequeStartNumber} to ${selectedRow.chequeEndNumber})`
+          : "";
       options.unshift({
-        label: `Book ${selectedChequeBookId}`,
+        label: `${selectedRow?.voucherNumber ?? `Book ${selectedChequeBookId}`}${rangeLabel}${usageLabel}`,
         value: selectedChequeBookId,
-        chequeStartNumber: null,
-        chequeEndNumber: null,
+        chequeStartNumber:
+          selectedRow?.chequeStartNumber != null
+            ? Number(selectedRow.chequeStartNumber)
+            : null,
+        chequeEndNumber:
+          selectedRow?.chequeEndNumber != null
+            ? Number(selectedRow.chequeEndNumber)
+            : null,
+        usedChequeCount: usedChequeCount ?? null,
+        totalChequeCount: totalChequeCount ?? null,
+        isFullyConsumed: selectedRow?.isFullyConsumed ?? null,
       });
     }
     return options;
-  }, [chequeBooksData, selectedChequeBookId]);
+  }, [chequeBooksData, editingId, selectedChequeBookId]);
   const chequeBookOptionMap = useMemo(() => {
     const map = new Map<number, ChequeBookOption>();
     chequeBookOptions.forEach((option) => {
@@ -3614,12 +4080,14 @@ export const useVoucherState = (
     billWisePartyLedgerId,
     billWiseInvoiceSearchDialogVisible,
     billWiseSelectionDialogVisible,
+    billWiseShowAdvanceBill,
     isEditing,
     isBillWiseMode,
     isFormActive,
     refreshBillWiseInvoices,
     voucherDate,
     postingDate,
+    refDate,
   ]);
 
   useEffect(() => {
@@ -4666,13 +5134,19 @@ export const useVoucherState = (
     if (hasValidSelection) return;
 
     if (selectedReceiptIssueBookByRefNo) {
-      setChequeIssueBookId(
-        Number(selectedReceiptIssueBookByRefNo.moneyReceiptIssueBookId)
+      const refMatchedBookId = Number(
+        selectedReceiptIssueBookByRefNo.moneyReceiptIssueBookId
       );
-      if (canRebaselineAutoDefaults) {
-        scheduleFormSnapshotCapture();
+      const isRefMatchedBookVisible =
+        Number.isFinite(refMatchedBookId) &&
+        receiptIssueBookOptionMap.has(refMatchedBookId);
+      if (editingId != null || isRefMatchedBookVisible) {
+        setChequeIssueBookId(refMatchedBookId);
+        if (canRebaselineAutoDefaults) {
+          scheduleFormSnapshotCapture();
+        }
+        return;
       }
-      return;
     }
 
     if (editingId != null) return;
@@ -6303,6 +6777,13 @@ export const useVoucherState = (
   const updateBillWiseDebitNote = useCallback((nextEnabled: boolean) => {
     setBillWiseDebitNote(nextEnabled);
   }, []);
+  const updateBillWiseFiscalYear = useCallback((nextValue: number | null) => {
+    const normalizedValue =
+      nextValue != null && Number.isFinite(Number(nextValue))
+        ? Number(nextValue)
+        : null;
+    setBillWiseFiscalYearId(normalizedValue);
+  }, []);
   const updateBillWiseInvoiceSearchTerm = useCallback((nextValue: string) => {
     billWiseInvoiceSearchTermRef.current = nextValue;
     setBillWiseInvoiceSearchTerm(nextValue);
@@ -6323,11 +6804,15 @@ export const useVoucherState = (
     showBillWiseOption,
   ]);
   const closeBillWiseInvoiceSearchDialog = useCallback(() => {
+    billWiseInvoiceSearchRequestSeqRef.current += 1;
     setBillWiseInvoiceSearchDialogVisible(false);
     setBillWiseInvoiceSearchLoading(false);
   }, []);
   const runBillWiseInvoiceSearch = useCallback(
-    async (rawSearch?: string | null) => {
+    async (
+      rawSearch?: string | null,
+      options?: { fiscalYearIdOverride?: number | null }
+    ) => {
       if (!showBillWiseOption || !isFormActive || !isBillWiseMode) return;
       const resolvedRawSearch =
         rawSearch != null
@@ -6339,10 +6824,17 @@ export const useVoucherState = (
         setBillWiseInvoiceSearchTerm(resolvedRawSearch);
       }
       if (searchValue.length < 2) {
+        billWiseInvoiceSearchRequestSeqRef.current += 1;
         setBillWiseInvoiceSearchRows([]);
+        setBillWiseInvoiceSearchLoading(false);
         return;
       }
+      const requestId = billWiseInvoiceSearchRequestSeqRef.current + 1;
+      billWiseInvoiceSearchRequestSeqRef.current = requestId;
+      const isCurrentRequest = () =>
+        billWiseInvoiceSearchRequestSeqRef.current === requestId;
       setBillWiseInvoiceSearchLoading(true);
+      setBillWiseInvoiceSearchRows([]);
       try {
         const normalizeDocSearchValue = (value: string | number | null) =>
           String(value ?? "")
@@ -6352,12 +6844,12 @@ export const useVoucherState = (
         const searchLower = searchValue.toLowerCase();
         const hasNormalizedSearch = normalizedSearch.length > 0;
         const matchesSearchValue = (value: string | number | null) => {
-          const rawValue = String(value ?? "");
+          const rawValue = String(value ?? "").trim();
           if (!rawValue) return false;
           if (hasNormalizedSearch) {
-            return normalizeDocSearchValue(rawValue).includes(normalizedSearch);
+            return normalizeDocSearchValue(rawValue) === normalizedSearch;
           }
-          return rawValue.toLowerCase().includes(searchLower);
+          return rawValue.toLowerCase() === searchLower;
         };
         const resolveSearchRowInvoiceId = (
           rawSaleInvoiceId: unknown,
@@ -6380,60 +6872,60 @@ export const useVoucherState = (
           }
           return -(fallbackIndex + 1);
         };
-        const mapLocalSearchRows = () =>
-          billWiseInvoiceRows
-            .map((row, index) => {
-              const saleInvoiceId = resolveSearchRowInvoiceId(
-                row.saleInvoiceId,
-                row.invoiceNumber,
-                index
-              );
-              return {
-                saleInvoiceId,
-                invoiceNumber: String(row.invoiceNumber ?? saleInvoiceId),
-                invoiceDate: row.invoiceDate ?? null,
-                dueAmount: Number(row.dueAmount ?? 0),
-                ledgerId:
-                  billWisePartyLedgerId != null
-                    ? Number(billWisePartyLedgerId)
-                    : null,
-                ledgerName: String(
-                  billWisePartyLedgerOption?.label ?? ""
-                ).trim(),
-                ledgerGroupId:
-                  billWisePartyLedgerGroupId != null
-                    ? Number(billWisePartyLedgerGroupId)
-                    : null,
-                ledgerGroupName: null,
-                isDebitNote: Boolean(row.isDebitNote),
-              } satisfies BillWiseInvoiceSearchRow;
-            })
-            .filter((row) => {
-              const dueAmount = Number(row.dueAmount ?? 0);
-              if (!Number.isFinite(dueAmount) || Math.abs(dueAmount) <= 0.00001) {
-                return false;
-              }
-              return (
-                matchesSearchValue(row.invoiceNumber) ||
-                matchesSearchValue(row.saleInvoiceId)
-              );
-            })
-            .sort((left, right) => {
-              const leftDateKey = toDateKey(left.invoiceDate) ?? "";
-              const rightDateKey = toDateKey(right.invoiceDate) ?? "";
-              if (leftDateKey !== rightDateKey) {
-                return leftDateKey.localeCompare(rightDateKey);
-              }
-              return String(left.invoiceNumber).localeCompare(
-                String(right.invoiceNumber),
-                "en",
-                { sensitivity: "base" }
-              );
-            });
-        const mapSearchRows = (sourceItems: Array<any>) =>
-          sourceItems
-            .filter((item) => !item?.isReceiptRow)
-            .map((item, index) => {
+        const sortSearchRows = (rows: BillWiseInvoiceSearchRow[]) =>
+          rows.sort((left, right) => {
+            const leftDateKey = toDateKey(left.invoiceDate) ?? "";
+            const rightDateKey = toDateKey(right.invoiceDate) ?? "";
+            if (leftDateKey !== rightDateKey) {
+              return leftDateKey.localeCompare(rightDateKey);
+            }
+            return String(left.invoiceNumber).localeCompare(
+              String(right.invoiceNumber),
+              "en",
+              { sensitivity: "base" }
+            );
+          });
+        const finalizeSearchRows = (rows: BillWiseInvoiceSearchRow[]) => {
+          const filteredRows = rows.filter((row) => {
+            return (
+              matchesSearchValue(row.invoiceNumber) ||
+              matchesSearchValue(row.saleInvoiceId)
+            );
+          });
+          const dedupedByDocNo = new Map<string, BillWiseInvoiceSearchRow>();
+          const rowsWithoutDocNo: BillWiseInvoiceSearchRow[] = [];
+          filteredRows.forEach((row) => {
+            const docNoKey = normalizeDocSearchValue(row.invoiceNumber);
+            if (!docNoKey) {
+              rowsWithoutDocNo.push(row);
+              return;
+            }
+            const existingRow = dedupedByDocNo.get(docNoKey) ?? null;
+            if (!existingRow) {
+              dedupedByDocNo.set(docNoKey, row);
+              return;
+            }
+            const existingDateKey = toDateKey(existingRow.invoiceDate) ?? "";
+            const nextDateKey = toDateKey(row.invoiceDate) ?? "";
+            if (nextDateKey > existingDateKey) {
+              dedupedByDocNo.set(docNoKey, row);
+              return;
+            }
+            if (
+              nextDateKey === existingDateKey &&
+              Number(row.saleInvoiceId) > Number(existingRow.saleInvoiceId)
+            ) {
+              dedupedByDocNo.set(docNoKey, row);
+            }
+          });
+          return sortSearchRows([
+            ...dedupedByDocNo.values(),
+            ...rowsWithoutDocNo,
+          ]);
+        };
+        const mapSaleInvoiceSearchRows = (sourceItems: Array<any>) =>
+          finalizeSearchRows(
+            sourceItems.map((item, index) => {
               const saleInvoiceId = resolveSearchRowInvoiceId(
                 item?.invoiceId,
                 item?.invoiceNumber,
@@ -6444,17 +6936,21 @@ export const useVoucherState = (
                 Number.isFinite(rawLedgerId) && rawLedgerId > 0
                   ? rawLedgerId
                   : null;
-              const dueAmountRaw = Number(item?.difference ?? 0);
-              const dueAmount = Number.isFinite(dueAmountRaw)
-                ? Number(dueAmountRaw)
+              const billAmountRaw = Number(item?.billAmount ?? 0);
+              const billAmount = Number.isFinite(billAmountRaw)
+                ? billAmountRaw
                 : 0;
               return {
                 saleInvoiceId,
                 invoiceNumber: String(item?.invoiceNumber ?? saleInvoiceId),
                 invoiceDate: item?.invoiceDate ?? null,
-                dueAmount,
+                dueAmount: billAmount,
                 ledgerId,
                 ledgerName: String(item?.ledgerName ?? "").trim(),
+                ledgerAddress:
+                  item?.ledgerAddress != null
+                    ? String(item.ledgerAddress).trim() || null
+                    : null,
                 ledgerGroupId:
                   item?.ledgerGroupId != null
                     ? Number(item.ledgerGroupId)
@@ -6463,67 +6959,70 @@ export const useVoucherState = (
                   item?.ledgerGroupName != null
                     ? String(item.ledgerGroupName)
                     : null,
-                isDebitNote: dueAmount < 0,
+                isDebitNote: billAmount < 0,
               } satisfies BillWiseInvoiceSearchRow;
             })
-            .filter((row) => {
-              if (Math.abs(Number(row.dueAmount ?? 0)) <= 0.00001) return false;
-              return (
-                matchesSearchValue(row.invoiceNumber) ||
-                matchesSearchValue(row.saleInvoiceId)
-              );
-            })
-            .sort((left, right) => {
-              const leftDateKey = toDateKey(left.invoiceDate) ?? "";
-              const rightDateKey = toDateKey(right.invoiceDate) ?? "";
-              if (leftDateKey !== rightDateKey) {
-                return leftDateKey.localeCompare(rightDateKey);
-              }
-              return String(left.invoiceNumber).localeCompare(
-                String(right.invoiceNumber),
-                "en",
-                { sensitivity: "base" }
-              );
-            });
-        const localRows = mapLocalSearchRows();
-        if (localRows.length > 0) {
-          setBillWiseInvoiceSearchRows(localRows);
-          return;
-        }
-        const toDate = toDateText(voucherDate ?? postingDate ?? new Date());
-        const boundedResult = await loadBillWiseInvoices({
+          );
+        const resolvedFiscalYearId =
+          options?.fiscalYearIdOverride != null
+            ? Number(options.fiscalYearIdOverride)
+            : billWiseFiscalYearId != null
+            ? Number(billWiseFiscalYearId)
+            : null;
+        const selectedFiscalYear =
+          resolvedFiscalYearId != null
+            ? billWiseFiscalYearOptionMap.get(resolvedFiscalYearId) ?? null
+            : null;
+        const searchRange = {
+          fromDate: selectedFiscalYear?.fromDateText ?? null,
+          toDate: selectedFiscalYear?.toDateText ?? null,
+        };
+        const saleInvoiceSearchResult = await apolloClient.query({
+          query: SALE_INVOICE_BILL_SEARCH,
+          fetchPolicy: "network-only",
           variables: {
-            ledgerIds: null,
-            toDate,
-            removeZeroLines: 1,
+            fromDate: searchRange.fromDate,
+            toDate: searchRange.toDate,
             search: searchValue,
+            limit: 200,
           },
         });
-        const boundedItems = boundedResult.data?.invoiceRollover?.items ?? [];
-        const mappedRows = mapSearchRows(boundedItems as Array<any>);
+        const searchItems = (saleInvoiceSearchResult.data?.saleInvoiceBillSearch ??
+          []) as Array<any>;
+        const mappedRows = mapSaleInvoiceSearchRows(searchItems);
+        if (!isCurrentRequest()) return;
         setBillWiseInvoiceSearchRows(mappedRows);
-      } catch {
+      } catch (error) {
+        if (!isCurrentRequest()) return;
         setBillWiseInvoiceSearchRows([]);
+        const reason =
+          error instanceof Error
+            ? error.message.trim()
+            : String(error ?? "").trim();
+        const isUnavailableError = isSaleInvoiceBillSearchUnavailableError(reason);
         toastRef.current?.show({
           severity: "error",
           summary: "Search Failed",
-          detail: "Unable to load bill details. Please try again.",
+          detail:
+            isUnavailableError
+              ? "Unable to load bill details. Backend query `saleInvoiceBillSearch` is not available on the running server. Please restart/redeploy accounts backend."
+              : reason.length > 0
+              ? `Unable to load bill details. ${reason}`
+              : "Unable to load bill details. Please try again.",
         });
       } finally {
-        setBillWiseInvoiceSearchLoading(false);
+        if (isCurrentRequest()) {
+          setBillWiseInvoiceSearchLoading(false);
+        }
       }
     },
     [
-      billWiseInvoiceRows,
-      billWisePartyLedgerGroupId,
-      billWisePartyLedgerId,
-      billWisePartyLedgerOption?.label,
+      billWiseFiscalYearId,
+      billWiseFiscalYearOptionMap,
+      apolloClient,
       isBillWiseMode,
       isFormActive,
-      loadBillWiseInvoices,
-      postingDate,
       showBillWiseOption,
-      voucherDate,
     ]
   );
   const selectBillWiseInvoiceSearchRow = useCallback(
@@ -6633,11 +7132,13 @@ export const useVoucherState = (
     activeElement?.blur?.();
     setBillWiseInvoiceSearchDialogVisible(false);
     setBillWiseSelectionDialogVisible(true);
+    void refreshBillWiseInvoices();
   }, [
     clearQueuedVoucherDateFocus,
     closeHeaderAutocompleteOverlays,
     isBillWiseMode,
     isFormActive,
+    refreshBillWiseInvoices,
     showBillWiseOption,
   ]);
   const closeBillWiseSelectionDialog = useCallback(() => {
@@ -6650,7 +7151,12 @@ export const useVoucherState = (
     if (!showBillWiseOption || !isFormActive || !isBillWiseMode) return;
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "F7") return;
+      if (event.altKey || event.shiftKey) return;
       event.preventDefault();
+      if (event.ctrlKey || event.metaKey) {
+        openBillWiseSelectionDialog();
+        return;
+      }
       if (billWiseInvoiceSearchDialogVisible) {
         window.setTimeout(() => {
           const input = document.getElementById(
@@ -6672,6 +7178,7 @@ export const useVoucherState = (
     billWiseInvoiceSearchDialogVisible,
     isBillWiseMode,
     isFormActive,
+    openBillWiseSelectionDialog,
     searchInvoiceBills,
     showBillWiseOption,
   ]);
@@ -7736,7 +8243,7 @@ export const useVoucherState = (
           isChequePayment && chequeInFavour.trim()
             ? chequeInFavour.trim()
             : null;
-        const chequeIssueBookValue = isChequePayment
+        const chequeIssueBookValue = isChequePayment || isReceiptCashFlow
           ? toPositiveId(chequeIssueBookId)
           : null;
         const preservedHeaderLines =
@@ -10214,6 +10721,9 @@ export const useVoucherState = (
     updateBillWiseFullPaid,
     billWiseShowAdvanceBill,
     updateBillWiseShowAdvanceBill,
+    billWiseFiscalYearId,
+    billWiseFiscalYearOptions: billWiseFiscalYearSelectOptions,
+    updateBillWiseFiscalYear,
     billWiseDebitNote,
     updateBillWiseDebitNote,
     billWiseInvoiceRows,

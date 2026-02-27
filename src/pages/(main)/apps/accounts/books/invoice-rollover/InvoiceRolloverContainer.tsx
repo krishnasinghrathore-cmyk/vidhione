@@ -12,6 +12,7 @@ import { ReportHeader } from '@/components/ReportHeader';
 import { ReportRegisterSearch } from '@/components/ReportRegisterSearch';
 import AppDateInput from '@/components/AppDateInput';
 import LedgerMetaPanel from '@/components/LedgerMetaPanel';
+import LedgerMultiSelect from '@/components/LedgerMultiSelect';
 import AppReportActions from '@/components/AppReportActions';
 import AppMultiSelect from '@/components/AppMultiSelect';
 import { ACCOUNT_MASTER_LAZY_QUERY_OPTIONS } from '@/lib/accounts/masterLookupCache';
@@ -604,6 +605,13 @@ export function InvoiceRolloverContainer() {
 
     const canQuery = Boolean(fromDateTextValue && toDateTextValue && ledgerIds.length > 0);
     const showBalanceBadges = Boolean(currentBalanceLabel && selectedLedger && ledgerIds.length === 1);
+    const currentBalanceTooltip = useMemo(() => {
+        if (!showBalanceBadges) return null;
+        const asOnDate = formatDate(balanceToDateText);
+        return asOnDate
+            ? `Current balance as on current date (${asOnDate})`
+            : 'Current balance as on current date';
+    }, [balanceToDateText, showBalanceBadges]);
 
     return (
         <div className="card app-gradient-card">
@@ -655,7 +663,7 @@ export function InvoiceRolloverContainer() {
                 className="summary-table invoice-rollover-table"
                 emptyMessage={reportLoading || !hasApplied ? '' : 'No results found'}
                 headerLeft={
-                    <div className="flex flex-column gap-2 w-full">
+                    <div className="flex flex-column gap-1 w-full">
                         <div className="flex align-items-center gap-2 flex-wrap">
                             <AppDateInput
                                 value={fromDate}
@@ -685,7 +693,7 @@ export function InvoiceRolloverContainer() {
                         {(dateErrors.fromDate || dateErrors.toDate) && (
                             <small className="text-red-500">{dateErrors.fromDate || dateErrors.toDate}</small>
                         )}
-                        <div className="flex align-items-center gap-2 flex-wrap">
+                        <div className="flex align-items-end gap-2 flex-nowrap">
                             <AppMultiSelect
                                 value={areaIds}
                                 options={areaOptions}
@@ -702,8 +710,8 @@ export function InvoiceRolloverContainer() {
                                 filterInputAutoFocus
                                 style={{ width: '220px' }}
                             />
-                            <div className="flex align-items-center gap-2 ledger-ledger-meta">
-                                <AppMultiSelect
+                            <div className="flex align-items-end gap-2 ledger-ledger-meta">
+                                <LedgerMultiSelect
                                     value={ledgerIds}
                                     options={ledgerOptions}
                                     optionLabel="label"
@@ -727,6 +735,10 @@ export function InvoiceRolloverContainer() {
                                             </div>
                                         );
                                     }}
+                                    showCurrentBalanceInline={showBalanceBadges}
+                                    currentBalanceLabel={currentBalanceLabel}
+                                    currentBalanceSeverity={currentBalanceSeverity}
+                                    currentBalanceTooltip={currentBalanceTooltip}
                                     style={{ width: '320px' }}
                                 />
                                 {selectedLedger && (
@@ -734,7 +746,7 @@ export function InvoiceRolloverContainer() {
                                         address={selectedLedger.address}
                                         balanceLabel={currentBalanceLabel ?? null}
                                         balanceSeverity={currentBalanceSeverity}
-                                        showBalance={showBalanceBadges}
+                                        showBalance={false}
                                     />
                                 )}
                             </div>

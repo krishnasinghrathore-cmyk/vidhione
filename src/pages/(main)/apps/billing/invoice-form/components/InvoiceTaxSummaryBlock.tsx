@@ -1,4 +1,5 @@
 import React from 'react';
+import { Button } from 'primereact/button';
 import { Column } from 'primereact/column';
 import { DataTable } from 'primereact/datatable';
 import { InputNumber } from 'primereact/inputnumber';
@@ -14,6 +15,7 @@ type InvoiceTaxSummaryBlockProps = {
     taxationAmount: number;
     disabled?: boolean;
     onTaxLessChange: (args: { ledgerId: number; lessAmount: number; addAmount: number; taxableAmount: number }) => void;
+    onResetTaxLess?: () => void;
 };
 
 export function InvoiceTaxSummaryBlock({
@@ -23,11 +25,22 @@ export function InvoiceTaxSummaryBlock({
     taxLessTotal,
     taxationAmount,
     disabled,
-    onTaxLessChange
+    onTaxLessChange,
+    onResetTaxLess
 }: InvoiceTaxSummaryBlockProps) {
     return (
         <div className="invoice-summary-card">
-            <h4 className="mt-0 mb-3">Tax Summary</h4>
+            <div className="flex align-items-center justify-content-between gap-2 mb-3">
+                <h4 className="m-0">Tax Summary</h4>
+                <Button
+                    type="button"
+                    label="Clear Less"
+                    text
+                    className="app-action-compact"
+                    onClick={onResetTaxLess}
+                    disabled={disabled || taxSummaryRows.length === 0}
+                />
+            </div>
             <DataTable value={taxSummaryRows} dataKey="ledgerId" responsiveLayout="scroll" size="small">
                 <Column
                     header="Tax"

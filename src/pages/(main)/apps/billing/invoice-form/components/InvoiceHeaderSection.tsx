@@ -8,7 +8,7 @@ import AppInput from '@/components/AppInput';
 import { AppNotchedField } from '@/components/AppNotchedField';
 import LedgerAutoComplete from '@/components/LedgerAutoComplete';
 import LedgerGroupAutoComplete from '@/components/LedgerGroupAutoComplete';
-import type { LedgerGroupOption } from '@/lib/accounts/ledgerGroups';
+import { useLedgerGroupOptions, type LedgerGroupOption } from '@/lib/accounts/ledgerGroups';
 import { formatAmount, toDateText } from '../../helpers';
 import type { LedgerOption, LedgerSummary } from '../../useLedgerLookup';
 import type { InvoiceHeaderDraft } from '../types';
@@ -86,10 +86,18 @@ export function InvoiceHeaderSection({
     const [voucherDateInputError, setVoucherDateInputError] = useState<string | null>(null);
     const ledgerGroupInputRef = useRef<AutoComplete | null>(null);
     const partyLedgerInputRef = useRef<AutoComplete | null>(null);
+    const { options: allLedgerGroupOptions } = useLedgerGroupOptions();
 
     const selectedLedger = header.partyLedgerId ? ledgerById.get(header.partyLedgerId) ?? null : null;
+    const selectedAddress = [selectedLedger?.address, selectedLedger?.cityName, selectedLedger?.stateName]
+        .map((value) => (value ?? '').trim())
+        .filter(Boolean)
+        .join(', ');
 
     const ledgerGroupOptions = useMemo<LedgerGroupOption[]>(() => {
+        if (allLedgerGroupOptions.length > 0) {
+            return allLedgerGroupOptions;
+        }
         const seen = new Set<number>();
         const options: LedgerGroupOption[] = [];
         ledgerOptions.forEach((option) => {
@@ -104,11 +112,11 @@ export function InvoiceHeaderSection({
             });
         });
         return options.sort((a, b) => a.value - b.value);
-    }, [ledgerById, ledgerOptions]);
+    }, [allLedgerGroupOptions, ledgerById, ledgerOptions]);
 
     const partyLedgerOptions = useMemo<PartyLedgerOption[]>(
-        () =>
-            ledgerOptions
+        () => {
+            const options = ledgerOptions
                 .filter((option) =>
                     header.ledgerGroupId == null ? true : ledgerById.get(option.value)?.ledgerGroupId === header.ledgerGroupId
                 )
@@ -123,14 +131,20 @@ export function InvoiceHeaderSection({
                         value: option.value,
                         address: address || null
                     };
-                }),
-        [header.ledgerGroupId, ledgerById, ledgerOptions]
-    );
+                });
 
-    const selectedAddress = [selectedLedger?.address, selectedLedger?.cityName, selectedLedger?.stateName]
-        .map((value) => (value ?? '').trim())
-        .filter(Boolean)
-        .join(', ');
+            if (header.partyLedgerId != null && !options.some((option) => option.value === header.partyLedgerId)) {
+                options.unshift({
+                    label: header.partyName?.trim() || `Ledger ${header.partyLedgerId}`,
+                    value: header.partyLedgerId,
+                    address: selectedAddress || null
+                });
+            }
+
+            return options;
+        },
+        [header.ledgerGroupId, header.partyLedgerId, header.partyName, ledgerById, ledgerOptions, selectedAddress]
+    );
 
     const voucherDateHeaderError = useMemo(
         () => headerErrors.find((message) => message.toLowerCase().includes('voucher date')) ?? null,
@@ -181,17 +195,10 @@ export function InvoiceHeaderSection({
 
     return (
         <div className="app-entry-section app-entry-section--header">
-            <div className="flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
-                <h4 className="m-0">Header Section</h4>
-                <span className="invoice-form-status-chip">
-                    {header.placeOfSupply === 'other_state' ? 'Other State (IGST)' : 'In State (SGST/CGST)'}
-                </span>
-            </div>
-
-            <div className="app-entry-row invoice-header-row invoice-header-row--compact">
-                <div className="app-entry-field">
+            <div className="app-entry-row invoice-header-row invoice-header-row--compact invoice-header-row--top">
+                <div className="app-entry-field invoice-header-field invoice-header-field--prefix">
                     <AppNotchedField
-                        label={<HeaderLabel icon="pi-hashtag">Invoice Prefix</HeaderLabel>}
+                        label={<HeaderLabel icon="pi-hashtag">Prefix</HeaderLabel>}
                         className="app-notched-input--entry-main"
                         style={{ width: '100%' }}
                     >
@@ -209,7 +216,7 @@ export function InvoiceHeaderSection({
                     </AppNotchedField>
                 </div>
 
-                <div className="app-entry-field">
+                <div className="app-entry-field invoice-header-field invoice-header-field--number">
                     <AppNotchedField
                         label={<HeaderLabel icon="pi-file-edit">Invoice No</HeaderLabel>}
                         className="app-notched-input--entry-main"
@@ -229,7 +236,7 @@ export function InvoiceHeaderSection({
                     </AppNotchedField>
                 </div>
 
-                <div className="app-entry-field">
+                <div className="app-entry-field invoice-header-field invoice-header-field--date">
                     <AppNotchedField
                         label={<HeaderLabel icon="pi-calendar">Date *</HeaderLabel>}
                         className="app-notched-input--entry-main"
@@ -250,17 +257,47 @@ export function InvoiceHeaderSection({
                             enforceFiscalRange
                             className={classNames('app-entry-control', { 'p-invalid': !!voucherDateError })}
                             onEnterNext={() => {
-                                focusLedgerGroupInput();
+                                focusById('invoice-bill-number');
                                 return true;
                             }}
                         />
                     </AppNotchedField>
                     {voucherDateError && <small className="text-red-500">{voucherDateError}</small>}
                 </div>
+
+                <div className="app-entry-field invoice-header-field invoice-header-field--bill">
+                    <AppNotchedField
+                        label={<HeaderLabel icon="pi-ticket">Bill No</HeaderLabel>}
+                        className="app-notched-input--entry-main"
+                        style={{ width: '100%' }}
+                    >
+                        <AppInput
+                            id="invoice-bill-number"
+                            value={header.billNumber}
+                            onChange={(event) => onHeaderChange({ billNumber: event.target.value })}
+                            onKeyDown={(event) => {
+                                if (event.key !== 'Enter') return;
+                                event.preventDefault();
+                                focusLedgerGroupInput();
+                            }}
+                            className="app-entry-control"
+                        />
+                    </AppNotchedField>
+                </div>
+
+                <div className="app-entry-field invoice-header-field invoice-header-field--gstin">
+                    <AppNotchedField
+                        label={<HeaderLabel icon="pi-id-card">Party GSTIN</HeaderLabel>}
+                        className="app-notched-input--entry-main"
+                        style={{ width: '100%' }}
+                    >
+                        <AppInput id="invoice-party-gstin" value={header.partyGstin} readOnly className="app-entry-control" />
+                    </AppNotchedField>
+                </div>
             </div>
 
-            <div className="app-entry-row invoice-header-row invoice-header-row--compact">
-                <div className="app-entry-field app-entry-field--wide">
+            <div className="app-entry-row invoice-header-row invoice-header-row--compact invoice-header-row--party">
+                <div className="app-entry-field app-entry-field--wide invoice-header-field invoice-header-field--ledger-group">
                     <AppNotchedField
                         label={<HeaderLabel icon="pi-sitemap">Ledger Group</HeaderLabel>}
                         className="app-notched-input--entry-main"
@@ -300,7 +337,7 @@ export function InvoiceHeaderSection({
                     </AppNotchedField>
                 </div>
 
-                <div className="app-entry-field app-entry-field--xwide app-entry-ledger-field app-entry-ledger-field--cash">
+                <div className="app-entry-field app-entry-field--xwide app-entry-ledger-field app-entry-ledger-field--cash invoice-header-field invoice-header-field--ledger">
                     <div className="app-entry-ledger-balance-row">
                         {partyLedgerBalanceLabel ? (
                             <span className={`app-entry-ledger-balance ${partyLedgerBalanceClass}`}>{partyLedgerBalanceLabel}</span>
@@ -338,7 +375,7 @@ export function InvoiceHeaderSection({
                     {partyHeaderError && <small className="text-red-500">{partyHeaderError}</small>}
                 </div>
 
-                <div className="app-entry-field app-entry-field--xwide">
+                <div className="app-entry-field app-entry-field--xwide invoice-header-field invoice-header-field--address">
                     <AppNotchedField
                         label={<HeaderLabel icon="pi-map-marker">Address</HeaderLabel>}
                         className="app-notched-input--line-editor"
@@ -350,7 +387,7 @@ export function InvoiceHeaderSection({
                     </AppNotchedField>
                 </div>
 
-                <div className="invoice-header-other-state">
+                <div className="invoice-header-other-state invoice-header-field invoice-header-field--other-state">
                     <div className="flex align-items-center gap-2">
                         <Checkbox
                             inputId="invoice-other-state"
@@ -362,8 +399,16 @@ export function InvoiceHeaderSection({
                 </div>
             </div>
 
-            <div className="app-entry-row invoice-header-row invoice-header-row--compact">
-                <div className="invoice-header-checks">
+            <div className="app-entry-row invoice-header-row invoice-header-row--compact invoice-header-row--meta">
+                <div className="invoice-header-checks invoice-header-field invoice-header-field--checks">
+                    <div className="flex align-items-center gap-2">
+                        <Checkbox
+                            inputId="invoice-vat-included"
+                            checked={header.isVatIncluded}
+                            onChange={(event) => onHeaderChange({ isVatIncluded: !!event.checked })}
+                        />
+                        <label htmlFor="invoice-vat-included">VAT Included</label>
+                    </div>
                     <div className="flex align-items-center gap-2">
                         <Checkbox
                             inputId="invoice-has-scheme"
@@ -392,7 +437,7 @@ export function InvoiceHeaderSection({
                     ) : null}
                 </div>
 
-                <div className="app-entry-field app-entry-field--xwide">
+                <div className="app-entry-field app-entry-field--xwide invoice-header-field invoice-header-field--remark">
                     <AppNotchedField
                         label={<HeaderLabel icon="pi-pencil">Remark</HeaderLabel>}
                         className="app-notched-input--entry-main"
@@ -412,7 +457,7 @@ export function InvoiceHeaderSection({
                     </AppNotchedField>
                 </div>
 
-                <div className="app-entry-field app-entry-field--wide">
+                <div className="app-entry-field app-entry-field--wide invoice-header-field invoice-header-field--bizom">
                     <AppNotchedField
                         label={<HeaderLabel icon="pi-id-card">Bizom Invoice No</HeaderLabel>}
                         className="app-notched-input--entry-main"

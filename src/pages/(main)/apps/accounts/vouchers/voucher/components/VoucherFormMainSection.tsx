@@ -280,6 +280,19 @@ export function VoucherFormMainSection({
     return focusLegacyVoucherNoInput();
   };
   const handleNarrationEnter = () => {
+    if (isBillWiseMode) {
+      const billSelectionButton = document.getElementById(
+        "voucher-billwise-select-invoices"
+      );
+      if (
+        billSelectionButton instanceof HTMLButtonElement &&
+        !billSelectionButton.disabled
+      ) {
+        billSelectionButton.focus();
+        return document.activeElement === billSelectionButton;
+      }
+      return false;
+    }
     startAddLine();
     return true;
   };
@@ -372,10 +385,13 @@ export function VoucherFormMainSection({
       }
       return document.activeElement === input;
     };
-    if (focusInput()) return;
+    if (focusInput()) return true;
+    const input = voucherDateInputRef.current;
+    if (!input || input.disabled) return false;
     [60, 140, 260].forEach((delay) => {
       window.setTimeout(focusInput, delay);
     });
+    return false;
   }, [voucherDateInputRef]);
   const focusHeaderDrCrToggle = React.useCallback(() => {
     if (!allowHeaderDrCrSelection || !isFormActive || saving) return false;
@@ -405,7 +421,9 @@ export function VoucherFormMainSection({
   const showLegacyReceiptCashLayout =
     isReceiptCashSequence || isJournalCashSequence;
   const showLegacyReceiptBankLayout = isReceiptBankSequence;
-  const voucherNoLabel = "Voucher No. *";
+  const voucherNoLabel = isReceiptCashSequence
+    ? "Auto Voucher No. *"
+    : "Voucher No. *";
   const voucherDateLabel = "Voucher Date *";
   const isReceiptReferenceLocked = false;
   const legacyBankRefNoLabel = refNoLabel;
@@ -414,6 +432,10 @@ export function VoucherFormMainSection({
   const showManagerInMainSection = requiresManager && isReceiptCashSequence;
   const showSalesmanInMainSection = isReceiptCashSequence;
   const showReceiptBookInMainSection = isReceiptCashSequence;
+  const isVoucherDateLockedByReceiptBook =
+    isReceiptCashSequence &&
+    chequeIssueBookId != null &&
+    Number(chequeIssueBookId) > 0;
   const showNoteReferenceFields =
     voucherProfileKey === "credit-note" || voucherProfileKey === "debit-note";
   const showInvoiceControls = isReceiptCashSequence;
@@ -776,7 +798,7 @@ export function VoucherFormMainSection({
                     fiscalYearStart={fiscalRange?.start ?? null}
                     fiscalYearEnd={fiscalRange?.end ?? null}
                     enforceFiscalRange
-                    disabled={!isFormActive}
+                    disabled={!isFormActive || isVoucherDateLockedByReceiptBook}
                     autoFocus={
                       isFormActive && !shouldSkipVoucherDateAutoFocus
                     }
@@ -852,6 +874,12 @@ export function VoucherFormMainSection({
                     onChange={(value) => {
                       setRefDate(value);
                       setRefDateError(null);
+                      if (isVoucherDateLockedByReceiptBook && value) {
+                        setVoucherDate(value);
+                        setPostingDate(value);
+                        setVoucherDateError(null);
+                        setPostingDateError(null);
+                      }
                     }}
                     onCommit={(value, raw) => {
                       setRefDateError(resolveDateInputError(value, raw));
@@ -1159,7 +1187,7 @@ export function VoucherFormMainSection({
 
               <div className="app-entry-field app-entry-field--legacy-remark">
                 <AppNotchedField
-                  label={<LabelWithIcon icon="pi-pencil">Remark</LabelWithIcon>}
+                  label={<LabelWithIcon icon="pi-pencil">Narration</LabelWithIcon>}
                   className="app-notched-input--entry-main"
                   style={{ width: "100%" }}
                 >
@@ -1401,6 +1429,12 @@ export function VoucherFormMainSection({
                     onChange={(value) => {
                       setRefDate(value);
                       setRefDateError(null);
+                      if (isVoucherDateLockedByReceiptBook && value) {
+                        setVoucherDate(value);
+                        setPostingDate(value);
+                        setVoucherDateError(null);
+                        setPostingDateError(null);
+                      }
                     }}
                     onCommit={(value, raw) => {
                       setRefDateError(resolveDateInputError(value, raw));
@@ -1714,7 +1748,7 @@ export function VoucherFormMainSection({
 
               <div className="app-entry-field app-entry-field--legacy-remark">
                 <AppNotchedField
-                  label={<LabelWithIcon icon="pi-pencil">Remark</LabelWithIcon>}
+                  label={<LabelWithIcon icon="pi-pencil">Narration</LabelWithIcon>}
                   className="app-notched-input--entry-main"
                   style={{ width: "100%" }}
                 >
@@ -2122,6 +2156,12 @@ export function VoucherFormMainSection({
                       onChange={(value) => {
                         setRefDate(value);
                         setRefDateError(null);
+                        if (isVoucherDateLockedByReceiptBook && value) {
+                          setVoucherDate(value);
+                          setPostingDate(value);
+                          setVoucherDateError(null);
+                          setPostingDateError(null);
+                        }
                       }}
                       onCommit={(value, raw) => {
                         setRefDateError(resolveDateInputError(value, raw));
@@ -2222,7 +2262,7 @@ export function VoucherFormMainSection({
             {showLegacyReceiptCashLayout ? (
               <div className="app-entry-field app-entry-field--remark">
                 <AppNotchedField
-                  label={<LabelWithIcon icon="pi-pencil">Remark</LabelWithIcon>}
+                  label={<LabelWithIcon icon="pi-pencil">Narration</LabelWithIcon>}
                   className="app-notched-input--entry-main"
                   style={{ width: "100%" }}
                 >

@@ -9,57 +9,48 @@ type InvoiceTotalFieldsBlockProps = {
 };
 
 export function InvoiceTotalFieldsBlock({ computation, taxAddTotal, taxLessTotal }: InvoiceTotalFieldsBlockProps) {
+    const totalRows = [
+        { label: 'Total Qty', value: computation.totals.totalQuantity },
+        { label: 'Free', value: computation.totals.totalFreeQuantity },
+        { label: 'Qty x Rate', value: computation.totals.totalQuantityRateAmount },
+        { label: 'Amount', value: computation.totals.totalAmount },
+        { label: 'QPS Dis Amount', value: computation.totals.totalQpsDiscountAmount },
+        { label: 'Display Amount', value: computation.totals.totalDisplayAmount },
+        { label: 'Scheme Amount', value: computation.totals.totalProductDiscountAmount },
+        { label: 'Disc Amount', value: computation.totals.totalCashDiscountAmount },
+        { label: 'Less Special Amount', value: computation.totals.totalLessSpecialAmount },
+        { label: 'Final Amount', value: computation.totals.totalFinalAmount },
+        { label: 'Gross Amount', value: computation.totals.totalGrossAmount },
+        { label: 'Tax Add', value: taxAddTotal },
+        { label: 'Tax Less', value: taxLessTotal },
+        { label: 'Taxation Amount', value: computation.totals.totalTaxAmount },
+        { label: 'Additional Tax', value: computation.totals.totalAdditionalTaxAmount },
+        { label: 'Round Add/Off', value: computation.totals.roundOffAmount }
+    ];
+    const mid = Math.ceil(totalRows.length / 2);
+    const firstColumnRows = totalRows.slice(0, mid);
+    const secondColumnRows = totalRows.slice(mid);
+
     return (
         <div className="invoice-summary-card">
             <h4 className="mt-0 mb-3">Total Fields</h4>
-            <div className="grid text-sm">
-                <div className="col-6 text-600">Total Qty</div>
-                <div className="col-6 text-right">{formatAmount(computation.totals.totalQuantity)}</div>
-
-                <div className="col-6 text-600">Free</div>
-                <div className="col-6 text-right">{formatAmount(computation.totals.totalFreeQuantity)}</div>
-
-                <div className="col-6 text-600">Qty x Rate</div>
-                <div className="col-6 text-right">{formatAmount(computation.totals.totalQuantityRateAmount)}</div>
-
-                <div className="col-6 text-600">Amount</div>
-                <div className="col-6 text-right">{formatAmount(computation.totals.totalAmount)}</div>
-
-                <div className="col-6 text-600">QPS Dis Amount</div>
-                <div className="col-6 text-right">{formatAmount(computation.totals.totalQpsDiscountAmount)}</div>
-
-                <div className="col-6 text-600">Display Amount</div>
-                <div className="col-6 text-right">{formatAmount(computation.totals.totalDisplayAmount)}</div>
-
-                <div className="col-6 text-600">Scheme Amount</div>
-                <div className="col-6 text-right">{formatAmount(computation.totals.totalProductDiscountAmount)}</div>
-
-                <div className="col-6 text-600">Disc Amount</div>
-                <div className="col-6 text-right">{formatAmount(computation.totals.totalCashDiscountAmount)}</div>
-
-                <div className="col-6 text-600">Less Special Amount</div>
-                <div className="col-6 text-right">{formatAmount(computation.totals.totalLessSpecialAmount)}</div>
-
-                <div className="col-6 text-600">Final Amount</div>
-                <div className="col-6 text-right">{formatAmount(computation.totals.totalFinalAmount)}</div>
-
-                <div className="col-6 text-600">Gross Amount</div>
-                <div className="col-6 text-right">{formatAmount(computation.totals.totalGrossAmount)}</div>
-
-                <div className="col-6 text-600">Tax Add</div>
-                <div className="col-6 text-right">{formatAmount(taxAddTotal)}</div>
-
-                <div className="col-6 text-600">Tax Less</div>
-                <div className="col-6 text-right">{formatAmount(taxLessTotal)}</div>
-
-                <div className="col-6 text-600">Taxation Amount</div>
-                <div className="col-6 text-right">{formatAmount(computation.totals.totalTaxAmount)}</div>
-
-                <div className="col-6 text-600">Additional Tax</div>
-                <div className="col-6 text-right">{formatAmount(computation.totals.totalAdditionalTaxAmount)}</div>
-
-                <div className="col-6 text-600">Round Add/Off</div>
-                <div className="col-6 text-right">{formatAmount(computation.totals.roundOffAmount)}</div>
+            <div className="invoice-total-fields-grid text-sm">
+                <div className="invoice-total-fields-grid__column">
+                    {firstColumnRows.map((row) => (
+                        <div key={row.label} className="invoice-total-fields-grid__row">
+                            <span className="invoice-total-fields-grid__label">{row.label}</span>
+                            <span className="invoice-total-fields-grid__value">{formatAmount(row.value)}</span>
+                        </div>
+                    ))}
+                </div>
+                <div className="invoice-total-fields-grid__column">
+                    {secondColumnRows.map((row) => (
+                        <div key={row.label} className="invoice-total-fields-grid__row">
+                            <span className="invoice-total-fields-grid__label">{row.label}</span>
+                            <span className="invoice-total-fields-grid__value">{formatAmount(row.value)}</span>
+                        </div>
+                    ))}
+                </div>
             </div>
 
             <div className="flex justify-content-between pt-2 border-top-1 surface-border mt-2">

@@ -115,6 +115,9 @@ export type SelectOption = {
 export type ChequeBookOption = SelectOption & {
     chequeStartNumber: number | null;
     chequeEndNumber: number | null;
+    usedChequeCount: number | null;
+    totalChequeCount: number | null;
+    isFullyConsumed: boolean | null;
 };
 
 export type PaymentMode = 'cash' | 'bank' | 'deposit' | 'withdrawal' | 'transfer';
@@ -154,8 +157,12 @@ export interface SalesmanRow {
 export interface ChequeIssueBookRow {
     chequeIssueBookId: number;
     voucherNumber: string | null;
+    voucherDate?: string | null;
     chequeStartNumber: number | null;
     chequeEndNumber: number | null;
+    usedChequeCount?: number | null;
+    totalChequeCount?: number | null;
+    isFullyConsumed?: boolean | null;
     remarks?: string | null;
     isCancelledFlag?: number | null;
 }

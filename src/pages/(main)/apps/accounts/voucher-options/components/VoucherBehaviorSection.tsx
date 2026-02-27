@@ -49,7 +49,23 @@ export function VoucherBehaviorSection({
                     />
                     {errors.editPassword && <small className="p-error">{errors.editPassword}</small>}
                 </div>
-                <div className="col-12 md:col-3" />
+                <div className="col-12 md:col-3">
+                    <label className="block text-600 mb-1">Default Report Days</label>
+                    <AppInput
+                        value={form.defaultReportLookbackDays == null ? '' : String(form.defaultReportLookbackDays)}
+                        onChange={(event) => {
+                            const digitsOnly = event.target.value.replace(/\D/g, '');
+                            onFormPatch({
+                                defaultReportLookbackDays: digitsOnly ? Number.parseInt(digitsOnly, 10) : null
+                            });
+                        }}
+                        className={errors.defaultReportLookbackDays ? 'w-full p-invalid' : 'w-full'}
+                        compact
+                        style={inputWidthStyle}
+                        placeholder="e.g. 30"
+                    />
+                    {errors.defaultReportLookbackDays && <small className="p-error">{errors.defaultReportLookbackDays}</small>}
+                </div>
             </div>
         </div>
     );

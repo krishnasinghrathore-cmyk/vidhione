@@ -43,6 +43,7 @@ type SalesBookRow = {
     remarks: string | null;
     billNumber: string | null;
     isVatIncluded: boolean;
+    isOtherState: boolean;
     hasScheme: boolean;
     isChecked: boolean;
     deliveryStatus: string | null;
@@ -218,6 +219,12 @@ export default function BillingSalesBookPage() {
     const totalLessSpecialAmount = hasApplied ? reportData?.totalLessSpecialAmount ?? 0 : 0;
     const totalGrossAmount = hasApplied ? reportData?.totalGrossAmount ?? 0 : 0;
     const totalQpsDiscountAmount = hasApplied ? reportData?.totalQpsDiscountAmount ?? 0 : 0;
+    const totalFinalAmount = hasApplied ? reportData?.totalFinalAmount ?? 0 : 0;
+    const totalQuantity = hasApplied ? reportData?.totalQuantity ?? 0 : 0;
+    const totalFreeQuantity = hasApplied ? reportData?.totalFreeQuantity ?? 0 : 0;
+    const totalQuantityRateAmount = hasApplied ? reportData?.totalQuantityRateAmount ?? 0 : 0;
+    const totalAdditionalTaxAmount = hasApplied ? reportData?.totalAdditionalTaxAmount ?? 0 : 0;
+    const totalAmount = hasApplied ? reportData?.totalAmount ?? 0 : 0;
     const totalTaxAmount = hasApplied ? reportData?.totalTaxAmount ?? 0 : 0;
     const totalNetAmount = hasApplied ? reportData?.totalNetAmount ?? 0 : 0;
     const roundOffTotal = hasApplied ? reportData?.roundOffTotal ?? 0 : 0;
@@ -239,6 +246,7 @@ export default function BillingSalesBookPage() {
             remarks: row.remarks ?? null,
             billNumber: row.billNumber ?? null,
             isVatIncluded: Boolean(row.isVatIncluded),
+            isOtherState: Boolean(row.isOtherState),
             hasScheme: Boolean(row.hasScheme),
             isChecked: Boolean(row.isChecked),
             deliveryStatus: row.deliveryStatus ?? null,
@@ -293,6 +301,7 @@ export default function BillingSalesBookPage() {
                 remarks: '',
                 billNumber: '',
                 isVatIncluded: false,
+                isOtherState: false,
                 hasScheme: false,
                 isChecked: false,
                 deliveryStatus: '',
@@ -353,6 +362,7 @@ export default function BillingSalesBookPage() {
                 remarks: row.remarks ?? null,
                 billNumber: row.billNumber ?? null,
                 isVatIncluded: Boolean(row.isVatIncluded),
+                isOtherState: Boolean(row.isOtherState),
                 hasScheme: Boolean(row.hasScheme),
                 isChecked: Boolean(row.isChecked),
                 deliveryStatus: row.deliveryStatus ?? null,
@@ -535,6 +545,7 @@ export default function BillingSalesBookPage() {
             { header: 'Invoice Id', value: (row) => row.saleInvoiceId },
             { header: 'Estimate Id', value: (row) => (row.estimateId != null ? String(row.estimateId) : '') },
             { header: 'Voucher No', value: (row) => row.voucherNumber ?? '' },
+            { header: 'Bill No', value: (row) => row.billNumber ?? '' },
             { header: 'Date', value: (row) => formatVoucherDate(row.voucherDateText) },
             { header: 'Party', value: (row) => row.ledgerName ?? '' },
             { header: 'Ledger Id', value: (row) => (row.ledgerId != null ? String(row.ledgerId) : '') },
@@ -543,11 +554,25 @@ export default function BillingSalesBookPage() {
             { header: 'Other Ledger Id', value: (row) => (row.otherLedgerId != null ? String(row.otherLedgerId) : '') },
             { header: 'Remark', value: (row) => row.remarks ?? '' },
             { header: 'VAT Included', value: (row) => formatFlag(row.isVatIncluded) },
+            { header: 'Scheme', value: (row) => formatFlag(row.hasScheme) },
+            { header: 'Other State', value: (row) => formatFlag(row.isOtherState) },
             { header: 'Status', value: (row) => (row.isCancelled ? 'Cancelled' : row.deliveryStatus ?? 'Pending') },
             { header: 'QPS Dis Amt', value: (row) => (row.totalQpsDiscountAmount ? row.totalQpsDiscountAmount.toFixed(2) : '') },
             { header: 'Display Amt', value: (row) => (row.totalDisplayAmount ? row.totalDisplayAmount.toFixed(2) : '') },
             { header: 'Pro Dis Amt', value: (row) => (row.totalProductDiscountAmount ? row.totalProductDiscountAmount.toFixed(2) : '') },
             { header: 'Cash Disc Amt', value: (row) => (row.totalCashDiscountAmount ? row.totalCashDiscountAmount.toFixed(2) : '') },
+            { header: 'Qty', value: (row) => (row.totalQuantity ? row.totalQuantity.toFixed(2) : '') },
+            { header: 'Free Qty', value: (row) => (row.totalFreeQuantity ? row.totalFreeQuantity.toFixed(2) : '') },
+            {
+                header: 'Qty Rate Amt',
+                value: (row) => (row.totalQuantityRateAmount ? row.totalQuantityRateAmount.toFixed(2) : '')
+            },
+            {
+                header: 'Add Tax Amt',
+                value: (row) => (row.totalAdditionalTaxAmount ? row.totalAdditionalTaxAmount.toFixed(2) : '')
+            },
+            { header: 'Amount', value: (row) => (row.totalAmount ? row.totalAmount.toFixed(2) : '') },
+            { header: 'Final Amt', value: (row) => (row.totalFinalAmount ? row.totalFinalAmount.toFixed(2) : '') },
             { header: 'Replacement Amt', value: (row) => (row.totalReplacementAmount ? row.totalReplacementAmount.toFixed(2) : '') },
             { header: 'Less Special Amt', value: (row) => (row.totalLessSpecialAmount ? row.totalLessSpecialAmount.toFixed(2) : '') },
             { header: 'Gross Amt', value: (row) => (row.totalGrossAmount ? row.totalGrossAmount.toFixed(2) : '') },
@@ -560,6 +585,8 @@ export default function BillingSalesBookPage() {
             { header: 'Diff Final Amt', value: (row) => (row.diffFinalAmount ? row.diffFinalAmount.toFixed(2) : '') },
             { header: 'Cash Receipt Nos', value: (row) => row.cashReceiptNumbers ?? '' },
             { header: 'Bank Receipt Nos', value: (row) => row.bankReceiptNumbers ?? '' },
+            { header: 'Cash Receipt Amt', value: (row) => (row.cashReceiptAmount ? row.cashReceiptAmount.toFixed(2) : '') },
+            { header: 'Bank Receipt Amt', value: (row) => (row.bankReceiptAmount ? row.bankReceiptAmount.toFixed(2) : '') },
             { header: 'Paid Amt', value: (row) => (row.paidAmount ? row.paidAmount.toFixed(2) : '') },
             { header: 'Credit Note Amt', value: (row) => (row.creditNoteAmount ? row.creditNoteAmount.toFixed(2) : '') },
             { header: 'Voucher Bill Amt', value: (row) => (row.voucherBillAmount ? row.voucherBillAmount.toFixed(2) : '') },
@@ -640,6 +667,7 @@ export default function BillingSalesBookPage() {
     };
     const remarksBody = (row: SalesBookRow) => (isSkeletonRow(row) ? skeletonCell('8rem') : row.remarks ?? '');
     const flagBody = (value: boolean) => (value ? 'Yes' : 'No');
+    const billNumberBody = (row: SalesBookRow) => (isSkeletonRow(row) ? skeletonCell('4rem') : row.billNumber ?? '');
     const statusBody = (row: SalesBookRow) => {
         if (isSkeletonRow(row)) return skeletonCell('6rem');
         if (row.isCancelled) return 'Cancelled';
@@ -650,6 +678,9 @@ export default function BillingSalesBookPage() {
     const cancelledBody = (row: SalesBookRow) =>
         isSkeletonRow(row) ? skeletonCell('4rem') : row.isCancelled ? 'Yes' : 'No';
     const vatBody = (row: SalesBookRow) => (isSkeletonRow(row) ? skeletonCell('4rem') : flagBody(row.isVatIncluded));
+    const schemeBody = (row: SalesBookRow) => (isSkeletonRow(row) ? skeletonCell('4rem') : flagBody(row.hasScheme));
+    const otherStateBody = (row: SalesBookRow) =>
+        isSkeletonRow(row) ? skeletonCell('4rem') : flagBody(row.isOtherState);
     const replacementBody = (row: SalesBookRow) =>
         isSkeletonRow(row) ? skeletonCell('4rem') : formatAmount(row.totalReplacementAmount);
     const lessSpecialBody = (row: SalesBookRow) =>
@@ -662,6 +693,8 @@ export default function BillingSalesBookPage() {
         isSkeletonRow(row) ? skeletonCell('4rem') : row.ledgerId != null ? String(row.ledgerId) : '';
     const otherLedgerIdBody = (row: SalesBookRow) =>
         isSkeletonRow(row) ? skeletonCell('4rem') : row.otherLedgerId != null ? String(row.otherLedgerId) : '';
+    const saleInvoiceIdBody = (row: SalesBookRow) =>
+        isSkeletonRow(row) ? skeletonCell('4rem') : String(row.saleInvoiceId);
     const estimateIdBody = (row: SalesBookRow) =>
         isSkeletonRow(row) ? skeletonCell('4rem') : row.estimateId != null ? String(row.estimateId) : '';
     const gridTaxBody = (row: SalesBookRow) =>
@@ -690,6 +723,21 @@ export default function BillingSalesBookPage() {
         isSkeletonRow(row) ? skeletonCell('6rem') : row.cashReceiptIds ?? '';
     const bankReceiptIdsBody = (row: SalesBookRow) =>
         isSkeletonRow(row) ? skeletonCell('6rem') : row.bankReceiptIds ?? '';
+    const quantityBody = (row: SalesBookRow) =>
+        isSkeletonRow(row) ? skeletonCell('4rem') : formatAmount(row.totalQuantity);
+    const freeQuantityBody = (row: SalesBookRow) =>
+        isSkeletonRow(row) ? skeletonCell('4rem') : formatAmount(row.totalFreeQuantity);
+    const quantityRateAmountBody = (row: SalesBookRow) =>
+        isSkeletonRow(row) ? skeletonCell('4rem') : formatAmount(row.totalQuantityRateAmount);
+    const additionalTaxBody = (row: SalesBookRow) =>
+        isSkeletonRow(row) ? skeletonCell('4rem') : formatAmount(row.totalAdditionalTaxAmount);
+    const amountBody = (row: SalesBookRow) => (isSkeletonRow(row) ? skeletonCell('4rem') : formatAmount(row.totalAmount));
+    const finalAmountBody = (row: SalesBookRow) =>
+        isSkeletonRow(row) ? skeletonCell('4rem') : formatAmount(row.totalFinalAmount);
+    const cashReceiptAmountBody = (row: SalesBookRow) =>
+        isSkeletonRow(row) ? skeletonCell('4rem') : formatAmount(row.cashReceiptAmount);
+    const bankReceiptAmountBody = (row: SalesBookRow) =>
+        isSkeletonRow(row) ? skeletonCell('4rem') : formatAmount(row.bankReceiptAmount);
     const qpsDisplayBody = (row: SalesBookRow) => {
         if (isSkeletonRow(row)) {
             return renderTwoLineCell(skeletonCell('4rem'), skeletonCell('4rem'), '');
@@ -732,6 +780,12 @@ export default function BillingSalesBookPage() {
     const totalTaxFooter = reportLoading ? skeletonCell('4rem') : formatAmount(totalTaxAmount);
     const roundOffFooter = reportLoading ? skeletonCell('3rem') : formatAmount(roundOffTotal);
     const totalNetFooter = reportLoading ? skeletonCell('4rem') : formatAmount(totalNetAmount);
+    const totalFinalFooter = reportLoading ? skeletonCell('4rem') : formatAmount(totalFinalAmount);
+    const totalQuantityFooter = reportLoading ? skeletonCell('4rem') : formatAmount(totalQuantity);
+    const totalFreeQuantityFooter = reportLoading ? skeletonCell('4rem') : formatAmount(totalFreeQuantity);
+    const totalQuantityRateFooter = reportLoading ? skeletonCell('4rem') : formatAmount(totalQuantityRateAmount);
+    const totalAdditionalTaxFooter = reportLoading ? skeletonCell('4rem') : formatAmount(totalAdditionalTaxAmount);
+    const totalAmountFooter = reportLoading ? skeletonCell('4rem') : formatAmount(totalAmount);
 
     const canRefresh = Boolean(fromDate && toDate);
 
@@ -956,6 +1010,8 @@ export default function BillingSalesBookPage() {
                     body={invoiceBody}
                     style={{ minWidth: '10rem' }}
                 />
+                <Column field="saleInvoiceId" header="Inv. Id" body={saleInvoiceIdBody} style={{ width: '7rem' }} />
+                <Column field="billNumber" header="Bill No" body={billNumberBody} style={{ width: '8rem' }} />
                 <Column
                     header={
                         <div className="flex flex-column">
@@ -969,6 +1025,8 @@ export default function BillingSalesBookPage() {
                 <Column field="ledgerGroupName" header="Group" body={ledgerGroupNameBody} style={{ minWidth: '10rem' }} />
                 <Column field="remarks" header="Remark" body={remarksBody} style={{ minWidth: '12rem' }} />
                 <Column field="isVatIncluded" header="VAT Incl." body={vatBody} style={{ width: '7rem' }} />
+                <Column field="hasScheme" header="Scheme" body={schemeBody} style={{ width: '7rem' }} />
+                <Column field="isOtherState" header="Other State" body={otherStateBody} style={{ width: '8rem' }} />
                 <Column
                     header={
                         <div className="flex flex-column">
@@ -996,6 +1054,66 @@ export default function BillingSalesBookPage() {
                     bodyClassName="summary-number"
                     footerClassName="summary-number"
                     style={{ width: '10rem' }}
+                />
+                <Column
+                    field="totalQuantity"
+                    header="Qty"
+                    body={quantityBody}
+                    footer={totalQuantityFooter}
+                    headerClassName="summary-number"
+                    bodyClassName="summary-number"
+                    footerClassName="summary-number"
+                    style={{ width: '7rem' }}
+                />
+                <Column
+                    field="totalFreeQuantity"
+                    header="Free Qty"
+                    body={freeQuantityBody}
+                    footer={totalFreeQuantityFooter}
+                    headerClassName="summary-number"
+                    bodyClassName="summary-number"
+                    footerClassName="summary-number"
+                    style={{ width: '7rem' }}
+                />
+                <Column
+                    field="totalQuantityRateAmount"
+                    header="Qty Rate"
+                    body={quantityRateAmountBody}
+                    footer={totalQuantityRateFooter}
+                    headerClassName="summary-number"
+                    bodyClassName="summary-number"
+                    footerClassName="summary-number"
+                    style={{ width: '8rem' }}
+                />
+                <Column
+                    field="totalAdditionalTaxAmount"
+                    header="Add Tax"
+                    body={additionalTaxBody}
+                    footer={totalAdditionalTaxFooter}
+                    headerClassName="summary-number"
+                    bodyClassName="summary-number"
+                    footerClassName="summary-number"
+                    style={{ width: '8rem' }}
+                />
+                <Column
+                    field="totalAmount"
+                    header="Amount"
+                    body={amountBody}
+                    footer={totalAmountFooter}
+                    headerClassName="summary-number"
+                    bodyClassName="summary-number"
+                    footerClassName="summary-number"
+                    style={{ width: '8rem' }}
+                />
+                <Column
+                    field="totalFinalAmount"
+                    header="Final"
+                    body={finalAmountBody}
+                    footer={totalFinalFooter}
+                    headerClassName="summary-number"
+                    bodyClassName="summary-number"
+                    footerClassName="summary-number"
+                    style={{ width: '8rem' }}
                 />
                 <Column
                     field="totalReplacementAmount"
@@ -1091,6 +1209,22 @@ export default function BillingSalesBookPage() {
                 />
                 <Column field="cashReceiptNumbers" header="Cash Rcpt No" body={cashReceiptNumbersBody} style={{ width: '10rem' }} />
                 <Column field="bankReceiptNumbers" header="Bank Rcpt No" body={bankReceiptNumbersBody} style={{ width: '10rem' }} />
+                <Column
+                    field="cashReceiptAmount"
+                    header="Cash Rcpt Amt"
+                    body={cashReceiptAmountBody}
+                    headerClassName="summary-number"
+                    bodyClassName="summary-number"
+                    style={{ width: '9rem' }}
+                />
+                <Column
+                    field="bankReceiptAmount"
+                    header="Bank Rcpt Amt"
+                    body={bankReceiptAmountBody}
+                    headerClassName="summary-number"
+                    bodyClassName="summary-number"
+                    style={{ width: '9rem' }}
+                />
                 <Column
                     field="paidAmount"
                     header="Paid"

@@ -1,5 +1,5 @@
 'use client';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Card } from 'primereact/card';
 import { Button } from 'primereact/button';
 import { DataTable } from 'primereact/datatable';
@@ -52,19 +52,27 @@ const formatDayWithYear = (value: string) => {
 const formatTime = (value: Date) =>
     value.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 
+const formatLoadDuration = (valueMs: number) => {
+    if (valueMs < 1000) return `${Math.round(valueMs)} ms`;
+    if (valueMs < 10000) return `${(valueMs / 1000).toFixed(2)} s`;
+    return `${(valueMs / 1000).toFixed(1)} s`;
+};
+
 type Props = {
     enabled: boolean;
 };
 
 export default function AgencyDashboardSummarySection({ enabled }: Props) {
-    const { companyContext } = useAuth();
+    const { companyContext, loading: authLoading } = useAuth();
+    const summaryRequestInFlightRef = useRef(false);
     const [collapsed, setCollapsed] = useState(false);
     const [summary, setSummary] = useState<AgencyDashboardSummary | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
+    const [lastLoadDurationMs, setLastLoadDurationMs] = useState<number | null>(null);
     const companyFiscalYearId = companyContext?.companyFiscalYearId ?? null;
-    const showSkeleton = loading && !summary;
+    const showSkeleton = (loading || authLoading) && !summary;
 
     const skeletonSummaryRows = useMemo<SummaryRow[]>(
         () =>
@@ -87,26 +95,31 @@ export default function AgencyDashboardSummarySection({ enabled }: Props) {
     );
 
     const loadSummary = useCallback(async () => {
-        if (!enabled) return;
+        if (!enabled || authLoading) return;
+        if (summaryRequestInFlightRef.current) return;
+        summaryRequestInFlightRef.current = true;
         setLoading(true);
         setError(null);
+        const startTime = performance.now();
         try {
             const nextSummary = await fetchAgencyDashboardSummary({
                 companyFiscalYearId: companyFiscalYearId ?? undefined
             });
             setSummary(nextSummary);
             setLastRefreshedAt(new Date());
+            setLastLoadDurationMs(performance.now() - startTime);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to load summaries');
         } finally {
+            summaryRequestInFlightRef.current = false;
             setLoading(false);
         }
-    }, [enabled, companyFiscalYearId]);
+    }, [enabled, authLoading, companyFiscalYearId]);
 
     useEffect(() => {
-        if (!enabled) return;
+        if (!enabled || authLoading) return;
         loadSummary();
-    }, [enabled, loadSummary]);
+    }, [enabled, authLoading, loadSummary]);
     const dueInvoices = summary?.dueInvoices ?? [];
     const dueEstimates = summary?.dueEstimates ?? [];
     const deliveryMonthWise = summary?.deliveryMonthWise ?? [];
@@ -115,6 +128,13 @@ export default function AgencyDashboardSummarySection({ enabled }: Props) {
     const dueEstimatesRows = showSkeleton ? skeletonSummaryRows : dueEstimates;
     const deliveryMonthRows = showSkeleton ? skeletonDeliveryRows : deliveryMonthWise;
     const deliveryDayRows = showSkeleton ? skeletonDeliveryRows : deliveryDayWise;
+    const summaryMeta = [
+        summary?.asOfDate ? `As of ${formatDayWithYear(summary.asOfDate)}` : null,
+        lastRefreshedAt ? `Last refreshed ${formatTime(lastRefreshedAt)}` : null,
+        lastLoadDurationMs !== null ? `Load time ${formatLoadDuration(lastLoadDurationMs)}` : null
+    ]
+        .filter((value): value is string => Boolean(value))
+        .join(' · ');
 
     const renderMonthCell = (value: string) =>
         showSkeleton ? <Skeleton width="6rem" height="0.85rem" /> : formatMonth(value);
@@ -205,11 +225,9 @@ export default function AgencyDashboardSummarySection({ enabled }: Props) {
                             disabled={loading}
                         />
                     </div>
-                    {(summary?.asOfDate || lastRefreshedAt) && (
+                    {summaryMeta && (
                         <p className="text-700 text-sm font-medium m-0 md:text-right">
-                            {summary?.asOfDate ? `As of ${formatDayWithYear(summary.asOfDate)}` : null}
-                            {summary?.asOfDate && lastRefreshedAt ? ' · ' : null}
-                            {lastRefreshedAt ? `Last refreshed ${formatTime(lastRefreshedAt)}` : null}
+                            {summaryMeta}
                         </p>
                     )}
                 </div>

@@ -13,10 +13,19 @@ import type {
     AutoCompleteCompleteEvent
 } from 'primereact/autocomplete';
 import AppAutoComplete from '@/components/AppAutoComplete';
+import LedgerCurrentBalanceInline, { type LedgerBalanceSeverity } from '@/components/LedgerCurrentBalanceInline';
 import { usePartyLedgerOptions, type PartyLedgerOption } from '@/lib/accounts/partyLedger';
 import { useLedgerOptionsByPurpose, type LedgerOption } from '@/lib/accounts/ledgerOptions';
 
-type ManualLedgerAutoCompleteProps = React.ComponentProps<typeof AppAutoComplete> & {
+type LedgerAutoCompleteBalanceProps = {
+    showCurrentBalanceInline?: boolean;
+    currentBalanceLabel?: string | null;
+    currentBalanceSeverity?: LedgerBalanceSeverity;
+    currentBalanceTooltip?: string | null;
+};
+
+type ManualLedgerAutoCompleteProps = React.ComponentProps<typeof AppAutoComplete> &
+    LedgerAutoCompleteBalanceProps & {
     variant?: 'manual';
     onSelectNext?: () => void;
     ledgerGroupId?: number | null;
@@ -28,7 +37,8 @@ type ManualLedgerAutoCompleteProps = React.ComponentProps<typeof AppAutoComplete
 type PartyLedgerAutoCompleteProps = Omit<
     React.ComponentProps<typeof AppAutoComplete>,
     'value' | 'suggestions' | 'completeMethod' | 'onChange' | 'field'
-> & {
+> &
+    LedgerAutoCompleteBalanceProps & {
     variant: 'party';
     value: number | null;
     onChange: (value: number | null, option?: PartyLedgerOption | null) => void;
@@ -49,7 +59,8 @@ type PartyLedgerAutoCompleteProps = Omit<
 type LedgerByPurposeAutoCompleteProps = Omit<
     React.ComponentProps<typeof AppAutoComplete>,
     'value' | 'suggestions' | 'completeMethod' | 'onChange' | 'field'
-> & {
+> &
+    LedgerAutoCompleteBalanceProps & {
     variant: 'purpose';
     value: number | null;
     onChange: (value: number | null, option?: LedgerOption | null) => void;
@@ -187,6 +198,10 @@ const PartyLedgerAutoCompleteImpl = forwardRef<AutoComplete, PartyLedgerAutoComp
         openOnFocus,
         disabled,
         readOnly,
+        showCurrentBalanceInline,
+        currentBalanceLabel,
+        currentBalanceSeverity,
+        currentBalanceTooltip,
         skip,
         ledgerGroupId,
         cityId,
@@ -480,27 +495,34 @@ const PartyLedgerAutoCompleteImpl = forwardRef<AutoComplete, PartyLedgerAutoComp
         : placeholder ?? 'Select party';
 
     return (
-        <AppAutoComplete
-            {...rest}
-            ref={autoCompleteRef}
-            value={displayValue}
-            suggestions={suggestions}
-            completeMethod={handleComplete}
-            onChange={handleChange}
-            onBlur={handleBlur}
-            onFocus={handleFocus}
-            onKeyDown={handleKeyDown}
-            onDropdownClick={handleDropdownClick}
-            field="label"
-            loading={showLoading}
-            showLoadingIcon
-            showEmptyMessage
-            placeholder={resolvedPlaceholder}
-            disabled={disabled}
-            readOnly={readOnly}
-            inlineTypeahead={false}
-            autoHighlight
-        />
+        <LedgerCurrentBalanceInline
+            show={Boolean(showCurrentBalanceInline)}
+            label={currentBalanceLabel}
+            severity={currentBalanceSeverity}
+            tooltip={currentBalanceTooltip}
+        >
+            <AppAutoComplete
+                {...rest}
+                ref={autoCompleteRef}
+                value={displayValue}
+                suggestions={suggestions}
+                completeMethod={handleComplete}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                onFocus={handleFocus}
+                onKeyDown={handleKeyDown}
+                onDropdownClick={handleDropdownClick}
+                field="label"
+                loading={showLoading}
+                showLoadingIcon
+                showEmptyMessage
+                placeholder={resolvedPlaceholder}
+                disabled={disabled}
+                readOnly={readOnly}
+                inlineTypeahead={false}
+                autoHighlight
+            />
+        </LedgerCurrentBalanceInline>
     );
 });
 
@@ -534,6 +556,10 @@ const LedgerByPurposeAutoCompleteImpl = forwardRef<AutoComplete, LedgerByPurpose
         onPreviewOptionChange,
         disabled,
         readOnly,
+        showCurrentBalanceInline,
+        currentBalanceLabel,
+        currentBalanceSeverity,
+        currentBalanceTooltip,
         skip,
         variant: _variant,
         ...rest
@@ -827,32 +853,39 @@ const LedgerByPurposeAutoCompleteImpl = forwardRef<AutoComplete, LedgerByPurpose
         : placeholder ?? 'Select ledger';
 
     return (
-        <AppAutoComplete
-            {...rest}
-            ref={autoCompleteRef}
-            value={displayValue}
-            suggestions={suggestions}
-            completeMethod={handleComplete}
-            onChange={handleChange}
-            onSelect={handleSelect}
-            onBlur={handleBlur}
-            onFocus={onFocus}
-            onKeyDown={handleKeyDown}
-            onKeyDownCapture={handleKeyDownCapture}
-            onDropdownClick={handleDropdownClick}
-            onShow={handleShow}
-            onHide={handleHide}
-            field="label"
-            loading={resolvedLoading}
-            showLoadingIcon
-            showEmptyMessage
-            placeholder={resolvedPlaceholder}
-            disabled={disabled}
-            readOnly={readOnly}
-            inlineTypeahead={false}
-            autoHighlight
-            highlightSelectedOnShow={false}
-        />
+        <LedgerCurrentBalanceInline
+            show={Boolean(showCurrentBalanceInline)}
+            label={currentBalanceLabel}
+            severity={currentBalanceSeverity}
+            tooltip={currentBalanceTooltip}
+        >
+            <AppAutoComplete
+                {...rest}
+                ref={autoCompleteRef}
+                value={displayValue}
+                suggestions={suggestions}
+                completeMethod={handleComplete}
+                onChange={handleChange}
+                onSelect={handleSelect}
+                onBlur={handleBlur}
+                onFocus={onFocus}
+                onKeyDown={handleKeyDown}
+                onKeyDownCapture={handleKeyDownCapture}
+                onDropdownClick={handleDropdownClick}
+                onShow={handleShow}
+                onHide={handleHide}
+                field="label"
+                loading={resolvedLoading}
+                showLoadingIcon
+                showEmptyMessage
+                placeholder={resolvedPlaceholder}
+                disabled={disabled}
+                readOnly={readOnly}
+                inlineTypeahead={false}
+                autoHighlight
+                highlightSelectedOnShow={false}
+            />
+        </LedgerCurrentBalanceInline>
     );
 });
 
@@ -880,6 +913,10 @@ const LedgerAutoComplete = forwardRef<AutoComplete, LedgerAutoCompleteProps>((pr
         variant,
         debug,
         debugLabel,
+        showCurrentBalanceInline,
+        currentBalanceLabel,
+        currentBalanceSeverity,
+        currentBalanceTooltip,
         field,
         suggestions,
         value,
@@ -1080,21 +1117,28 @@ const LedgerAutoComplete = forwardRef<AutoComplete, LedgerAutoCompleteProps>((pr
     };
 
     return (
-        <AppAutoComplete
-            {...rest}
-            ref={autoCompleteRef}
-            suggestions={displaySuggestions}
-            value={manualDisplayValue.length ? manualDisplayValue : value}
-            field={resolvedField}
-            completeMethod={completeMethod ? handleComplete : undefined}
-            onChange={handleChange}
-            onBlur={handleBlur}
-            onKeyDown={handleKeyDown}
-            onDropdownClick={handleDropdownClick}
-            onShow={handleShow}
-            inlineTypeahead={false}
-            autoHighlight
-        />
+        <LedgerCurrentBalanceInline
+            show={Boolean(showCurrentBalanceInline)}
+            label={currentBalanceLabel}
+            severity={currentBalanceSeverity}
+            tooltip={currentBalanceTooltip}
+        >
+            <AppAutoComplete
+                {...rest}
+                ref={autoCompleteRef}
+                suggestions={displaySuggestions}
+                value={manualDisplayValue.length ? manualDisplayValue : value}
+                field={resolvedField}
+                completeMethod={completeMethod ? handleComplete : undefined}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                onKeyDown={handleKeyDown}
+                onDropdownClick={handleDropdownClick}
+                onShow={handleShow}
+                inlineTypeahead={false}
+                autoHighlight
+            />
+        </LedgerCurrentBalanceInline>
     );
 });
 

@@ -1,8 +1,13 @@
-import React, { forwardRef, useCallback, useMemo, useRef } from 'react';
-import { DataTable, type DataTableProps } from 'primereact/datatable';
+import React, { forwardRef, useCallback, useEffect, useMemo, useRef } from 'react';
+import { DataTable, type DataTableFilterEvent, type DataTableFilterMeta, type DataTableProps } from 'primereact/datatable';
 import { classNames } from 'primereact/utils';
 import { Skeleton } from 'primereact/skeleton';
 import { focusNextElement, isEnterWithoutModifiers, shouldSkipEnterAsTabTarget } from '@/lib/enterNavigation';
+import {
+  clearDataTableFilters,
+  REPORT_TABLE_CLEAR_FILTERS_EVENT,
+  type ReportTableFilterResetDetail
+} from '@/lib/reportTableFilterReset';
 
 interface AppDataTableProps<T> extends DataTableProps<T[]> {
   headerLeft?: React.ReactNode;
@@ -11,6 +16,31 @@ interface AppDataTableProps<T> extends DataTableProps<T[]> {
   skeletonRows?: number;
   showSkeleton?: boolean;
 }
+
+type ColumnLikeElementProps = {
+  header?: React.ReactNode;
+  className?: string;
+  headerClassName?: string;
+  bodyClassName?: string;
+  frozen?: boolean;
+  alignFrozen?: 'left' | 'right';
+};
+
+const ACTIONS_HEADER_PATTERN = /\bactions?\b/i;
+
+const resolveNodeText = (node: React.ReactNode): string => {
+  if (node == null || typeof node === 'boolean') return '';
+  if (typeof node === 'string' || typeof node === 'number' || typeof node === 'bigint') return String(node);
+  if (Array.isArray(node)) return node.map(resolveNodeText).join(' ');
+  if (!React.isValidElement(node)) return '';
+  return resolveNodeText(node.props.children);
+};
+
+const hasActionColumnHeader = (header: React.ReactNode): boolean => {
+  const headerText = resolveNodeText(header).trim();
+  if (!headerText) return false;
+  return ACTIONS_HEADER_PATTERN.test(headerText);
+};
 
 /**
  * Shared table wrapper to keep header/actions/summary consistent across screens.
@@ -34,16 +64,50 @@ export const AppDataTable = forwardRef(function AppDataTable<T>(
   ref: React.ForwardedRef<any>
 ) {
   const headerRef = useRef<HTMLDivElement | null>(null);
+  const tableWrapperRef = useRef<HTMLDivElement | null>(null);
   const loading = Boolean(rest.loading);
   const valueLength = Array.isArray(rest.value) ? rest.value.length : 0;
   const hasCustomLoadingIcon = rest.loadingIcon != null;
   const shouldShowSkeleton = showSkeleton && loading && !hasCustomLoadingIcon && valueLength === 0;
+  const processedChildren = useMemo(() => {
+    const items = React.Children.toArray(children);
+    if (items.length === 0) return children;
+
+    let actionColumnIndex = -1;
+    items.forEach((child, index) => {
+      if (!React.isValidElement(child)) return;
+      const props = child.props as ColumnLikeElementProps;
+      if (!hasActionColumnHeader(props.header)) return;
+      actionColumnIndex = index;
+    });
+
+    if (actionColumnIndex < 0) return children;
+
+    return items.map((child, index) => {
+      if (!React.isValidElement(child) || index !== actionColumnIndex) return child;
+
+      const props = child.props as ColumnLikeElementProps;
+      const shouldFreezeActionColumn = rest.scrollable === true || props.frozen === true;
+
+      return React.cloneElement(child, {
+        className: classNames(props.className, 'app-data-table-action-column'),
+        headerClassName: classNames(props.headerClassName, 'app-data-table-action-column'),
+        bodyClassName: classNames(props.bodyClassName, 'app-data-table-action-column'),
+        ...(shouldFreezeActionColumn
+          ? {
+              frozen: props.frozen ?? true,
+              alignFrozen: props.alignFrozen ?? 'right'
+            }
+          : {})
+      });
+    });
+  }, [children, rest.scrollable]);
 
   const columnCount = useMemo(() => {
-    const items = React.Children.toArray(children);
+    const items = React.Children.toArray(processedChildren);
     const count = items.filter((child) => React.isValidElement(child)).length;
     return Math.max(count, 1);
-  }, [children]);
+  }, [processedChildren]);
 
   const resolvedSkeletonRows = useMemo(() => {
     if (typeof skeletonRows === 'number' && skeletonRows > 0) return skeletonRows;
@@ -101,8 +165,35 @@ export const AppDataTable = forwardRef(function AppDataTable<T>(
       });
     });
 
+  const clearColumnHeaderFilters = useCallback(() => {
+    const currentFilters = rest.filters as DataTableFilterMeta | undefined;
+    const onFilter = rest.onFilter as ((event: DataTableFilterEvent) => void) | undefined;
+    if (!currentFilters || typeof onFilter !== 'function') return;
+    const clearedFilters = clearDataTableFilters(currentFilters);
+    onFilter({ filters: clearedFilters } as DataTableFilterEvent);
+  }, [rest.filters, rest.onFilter]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const listener = (event: Event) => {
+      const detail = (event as CustomEvent<ReportTableFilterResetDetail>).detail;
+      const sourceButton = detail?.sourceButton;
+      if (sourceButton instanceof HTMLElement && tableWrapperRef.current instanceof HTMLElement) {
+        const sourceScope = sourceButton.closest('.card, .app-gradient-card, .layout-content, body');
+        const tableScope = tableWrapperRef.current.closest('.card, .app-gradient-card, .layout-content, body');
+        if (sourceScope && tableScope && sourceScope !== tableScope) return;
+      }
+      clearColumnHeaderFilters();
+    };
+
+    window.addEventListener(REPORT_TABLE_CLEAR_FILTERS_EVENT, listener as EventListener);
+    return () => {
+      window.removeEventListener(REPORT_TABLE_CLEAR_FILTERS_EVENT, listener as EventListener);
+    };
+  }, [clearColumnHeaderFilters]);
+
   return (
-    <div className="flex flex-column gap-2">
+    <div ref={tableWrapperRef} className="flex flex-column gap-2">
       {(headerLeft || headerRight) && (
         <div
           ref={headerRef}
@@ -130,7 +221,7 @@ export const AppDataTable = forwardRef(function AppDataTable<T>(
         loadingIcon={skeletonLoadingIcon}
         className={classNames('app-data-table', shouldShowSkeleton && 'app-data-table--skeleton', className)}
       >
-        {children}
+        {processedChildren}
       </DataTable>
       {recordSummary && (
         <div className="app-data-table-summary text-600 text-sm text-right">{recordSummary}</div>

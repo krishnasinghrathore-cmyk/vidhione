@@ -58,6 +58,9 @@ export const CHEQUE_ISSUE_BOOKS = gql`
       voucherDate
       chequeStartNumber
       chequeEndNumber
+      usedChequeCount
+      totalChequeCount
+      isFullyConsumed
       remarks
       isCancelledFlag
     }
@@ -123,12 +126,14 @@ export const LEDGER_SUMMARY_GROUP_LOOKUP = gql`
 export const INVOICE_ROLLOVER_FOR_RECEIPT_ENTRY = gql`
   query InvoiceRolloverForReceiptEntry(
     $ledgerIds: [Int!]
+    $fromDate: String
     $toDate: String
     $removeZeroLines: Int
     $search: String
   ) {
     invoiceRollover(
       ledgerIds: $ledgerIds
+      fromDate: $fromDate
       toDate: $toDate
       removeZeroLines: $removeZeroLines
       search: $search
@@ -137,6 +142,8 @@ export const INVOICE_ROLLOVER_FOR_RECEIPT_ENTRY = gql`
         invoiceId
         invoiceNumber
         invoiceDate
+        voucherTypeId
+        debit
         ledgerId
         ledgerName
         ledgerGroupId
@@ -144,6 +151,43 @@ export const INVOICE_ROLLOVER_FOR_RECEIPT_ENTRY = gql`
         difference
         isReceiptRow
       }
+    }
+  }
+`;
+
+export const SALE_INVOICE_BILL_SEARCH = gql`
+  query SaleInvoiceBillSearch(
+    $fromDate: String
+    $toDate: String
+    $search: String
+    $limit: Int
+  ) {
+    saleInvoiceBillSearch(
+      fromDate: $fromDate
+      toDate: $toDate
+      search: $search
+      limit: $limit
+    ) {
+      invoiceId
+      invoiceNumber
+      invoiceDate
+      ledgerId
+      ledgerName
+      ledgerAddress
+      ledgerGroupId
+      ledgerGroupName
+      billAmount
+    }
+  }
+`;
+
+export const COMPANY_FISCAL_YEARS_FOR_BILL_SEARCH = gql`
+  query CompanyFiscalYearsForBillSearch {
+    companyFiscalYears {
+      companyFiscalYearId
+      financialYearStart
+      financialYearEnd
+      isCurrentFlag
     }
   }
 `;

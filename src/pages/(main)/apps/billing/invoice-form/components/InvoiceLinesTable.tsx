@@ -40,6 +40,7 @@ type TaxLedgerOption = {
 type InvoiceLinesTableProps = {
     lines: ComputedInvoiceLine[];
     placeOfSupply: PlaceOfSupplyMode;
+    showTaxColumns?: boolean;
     productOptions: AppItemOption[];
     mrpOptionsByProductId: Record<number, MRPOption[]>;
     unitOptions: UnitOption[];
@@ -125,6 +126,7 @@ const createRestorePatch = (snapshot: InvoiceLineDraft): Partial<InvoiceLineDraf
 export function InvoiceLinesTable({
     lines,
     placeOfSupply,
+    showTaxColumns = true,
     productOptions,
     mrpOptionsByProductId,
     unitOptions,
@@ -268,7 +270,7 @@ export function InvoiceLinesTable({
         onLineChange(selectedLine.key, patch);
     };
 
-    const handleEditorAdd = () => {
+    const handleAddNextLine = () => {
         if (selectedLine) {
             onLineChange(selectedLine.key, { isNewLineEntry: false });
             delete lineSnapshotsRef.current[selectedLine.key];
@@ -276,7 +278,7 @@ export function InvoiceLinesTable({
         onAddLine();
     };
 
-    const handleEditorUpdate = () => {
+    const handleDoneEditing = () => {
         if (!selectedLine) return;
         onLineChange(selectedLine.key, { isNewLineEntry: false });
         delete lineSnapshotsRef.current[selectedLine.key];
@@ -493,75 +495,79 @@ export function InvoiceLinesTable({
                             )}
                             style={{ width: '9rem' }}
                         />
-                        <Column
-                            header="SGST"
-                            headerClassName="app-entry-header-left"
-                            body={(line: ComputedInvoiceLine) => (
-                                <div className="flex flex-column gap-1">
-                                    {placeOfSupply === 'other_state' ? (
-                                        <span className="text-500">N/A</span>
-                                    ) : (
-                                        <>
-                                            <span>
-                                                {line.taxLedgerId
-                                                    ? taxLabelById.get(line.taxLedgerId) ?? `Ledger ${line.taxLedgerId}`
-                                                    : '-'}
-                                            </span>
-                                            <small className="text-600">
-                                                {line.taxRate.toFixed(2)}% / {formatAmount(line.taxAmount)}
-                                            </small>
-                                        </>
+                        {showTaxColumns ? (
+                            <>
+                                <Column
+                                    header="SGST"
+                                    headerClassName="app-entry-header-left"
+                                    body={(line: ComputedInvoiceLine) => (
+                                        <div className="flex flex-column gap-1">
+                                            {placeOfSupply === 'other_state' ? (
+                                                <span className="text-500">N/A</span>
+                                            ) : (
+                                                <>
+                                                    <span>
+                                                        {line.taxLedgerId
+                                                            ? taxLabelById.get(line.taxLedgerId) ?? `Ledger ${line.taxLedgerId}`
+                                                            : '-'}
+                                                    </span>
+                                                    <small className="text-600">
+                                                        {line.taxRate.toFixed(2)}% / {formatAmount(line.taxAmount)}
+                                                    </small>
+                                                </>
+                                            )}
+                                        </div>
                                     )}
-                                </div>
-                            )}
-                            style={{ minWidth: '11rem' }}
-                        />
-                        <Column
-                            header="CGST"
-                            headerClassName="app-entry-header-left"
-                            body={(line: ComputedInvoiceLine) => (
-                                <div className="flex flex-column gap-1">
-                                    {placeOfSupply === 'other_state' ? (
-                                        <span className="text-500">N/A</span>
-                                    ) : (
-                                        <>
-                                            <span>
-                                                {line.taxLedger2Id
-                                                    ? taxLabelById.get(line.taxLedger2Id) ?? `Ledger ${line.taxLedger2Id}`
-                                                    : '-'}
-                                            </span>
-                                            <small className="text-600">
-                                                {line.taxRate2.toFixed(2)}% / {formatAmount(line.taxAmount2)}
-                                            </small>
-                                        </>
+                                    style={{ minWidth: '11rem' }}
+                                />
+                                <Column
+                                    header="CGST"
+                                    headerClassName="app-entry-header-left"
+                                    body={(line: ComputedInvoiceLine) => (
+                                        <div className="flex flex-column gap-1">
+                                            {placeOfSupply === 'other_state' ? (
+                                                <span className="text-500">N/A</span>
+                                            ) : (
+                                                <>
+                                                    <span>
+                                                        {line.taxLedger2Id
+                                                            ? taxLabelById.get(line.taxLedger2Id) ?? `Ledger ${line.taxLedger2Id}`
+                                                            : '-'}
+                                                    </span>
+                                                    <small className="text-600">
+                                                        {line.taxRate2.toFixed(2)}% / {formatAmount(line.taxAmount2)}
+                                                    </small>
+                                                </>
+                                            )}
+                                        </div>
                                     )}
-                                </div>
-                            )}
-                            style={{ minWidth: '11rem' }}
-                        />
-                        <Column
-                            header="IGST"
-                            headerClassName="app-entry-header-left"
-                            body={(line: ComputedInvoiceLine) => (
-                                <div className="flex flex-column gap-1">
-                                    {placeOfSupply === 'in_state' ? (
-                                        <span className="text-500">N/A</span>
-                                    ) : (
-                                        <>
-                                            <span>
-                                                {line.taxLedger3Id
-                                                    ? taxLabelById.get(line.taxLedger3Id) ?? `Ledger ${line.taxLedger3Id}`
-                                                    : '-'}
-                                            </span>
-                                            <small className="text-600">
-                                                {line.taxRate3.toFixed(2)}% / {formatAmount(line.taxAmount3)}
-                                            </small>
-                                        </>
+                                    style={{ minWidth: '11rem' }}
+                                />
+                                <Column
+                                    header="IGST"
+                                    headerClassName="app-entry-header-left"
+                                    body={(line: ComputedInvoiceLine) => (
+                                        <div className="flex flex-column gap-1">
+                                            {placeOfSupply === 'in_state' ? (
+                                                <span className="text-500">N/A</span>
+                                            ) : (
+                                                <>
+                                                    <span>
+                                                        {line.taxLedger3Id
+                                                            ? taxLabelById.get(line.taxLedger3Id) ?? `Ledger ${line.taxLedger3Id}`
+                                                            : '-'}
+                                                    </span>
+                                                    <small className="text-600">
+                                                        {line.taxRate3.toFixed(2)}% / {formatAmount(line.taxAmount3)}
+                                                    </small>
+                                                </>
+                                            )}
+                                        </div>
                                     )}
-                                </div>
-                            )}
-                            style={{ minWidth: '11rem' }}
-                        />
+                                    style={{ minWidth: '11rem' }}
+                                />
+                            </>
+                        ) : null}
                         <Column
                             header="QtyxRate"
                             headerClassName="app-entry-header-right"
@@ -652,10 +658,9 @@ export function InvoiceLinesTable({
                                 isNewLineEntryMode ? 'app-entry-line-editor__mode--add' : 'app-entry-line-editor__mode--edit'
                             }`}
                         >
-                            {isNewLineEntryMode
-                                ? `Adding new line (SN ${selectedLine.lineNumber})`
-                                : `Editing selected line (SN ${selectedLine.lineNumber})`}
+                            {`Editing selected line (SN ${selectedLine.lineNumber})`}
                         </span>
+                        {isNewLineEntryMode ? <span className="invoice-form-status-chip">New Line</span> : null}
                     </div>
 
                     <div className="invoice-line-editor__grid">
@@ -1073,23 +1078,20 @@ export function InvoiceLinesTable({
                         </div>
                     </div>
                     <div className="flex justify-content-end gap-2 mt-3">
-                        {isNewLineEntryMode ? (
-                            <Button
-                                label="Add"
-                                icon="pi pi-plus"
-                                className="app-action-compact"
-                                onClick={handleEditorAdd}
-                            />
-                        ) : (
-                            <Button
-                                label="Update"
-                                icon="pi pi-check"
-                                className="app-action-compact"
-                                onClick={handleEditorUpdate}
-                            />
-                        )}
                         <Button
-                            label="Cancel"
+                            label="Done"
+                            icon="pi pi-check"
+                            className="app-action-compact"
+                            onClick={handleDoneEditing}
+                        />
+                        <Button
+                            label="Add Next Line"
+                            icon="pi pi-plus"
+                            className="app-action-compact p-button-outlined"
+                            onClick={handleAddNextLine}
+                        />
+                        <Button
+                            label="Revert"
                             icon="pi pi-times"
                             className="app-action-compact p-button-outlined"
                             onClick={handleEditorCancel}

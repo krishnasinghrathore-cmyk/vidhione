@@ -8,6 +8,7 @@ export const voucherTypeFormSchema = z
         prefix: z.string(),
         suffix: z.string(),
         voucherStartNumber: z.number().int().nullable(),
+        defaultReportLookbackDays: z.number().int().min(1, 'Default report days must be at least 1').max(3650, 'Default report days must be 3650 or less').nullable(),
         isManualVoucherNo: z.boolean(),
         isLocked: z.boolean(),
         lockFromDate: z.date().nullable(),

@@ -3,6 +3,7 @@ import { Button } from 'primereact/button';
 import { SplitButton } from 'primereact/splitbutton';
 import type { MenuItem } from 'primereact/menuitem';
 import { formatReportLoadDuration, useReportLoadTime } from '@/lib/reportLoadTime';
+import { dispatchReportTableFilterReset } from '@/lib/reportTableFilterReset';
 
 type AppReportActionsProps = {
     onRefresh?: (event: React.MouseEvent<HTMLButtonElement>) => void;
@@ -116,6 +117,11 @@ const AppReportActions = ({
         blurActiveElement();
     };
 
+    const handleRefreshClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+        dispatchReportTableFilterReset(event.currentTarget);
+        onRefresh?.(event);
+    };
+
     return (
         <>
             {renderRefresh && (
@@ -124,7 +130,7 @@ const AppReportActions = ({
                     label="Refresh"
                     icon="pi pi-refresh"
                     className="p-button-text app-action-refresh"
-                    onClick={onRefresh}
+                    onClick={handleRefreshClick}
                     disabled={refreshDisabled}
                 />
             )}

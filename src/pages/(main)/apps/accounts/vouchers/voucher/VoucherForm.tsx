@@ -23,7 +23,8 @@ export function VoucherForm(props: VoucherViewProps) {
         paymentMode,
         voucherProfileKey,
         isCashMode,
-        searchInvoiceBills
+        searchInvoiceBills,
+        openBillWiseSelectionDialog
     } = props;
 
     const handleFormShortcut = React.useCallback(
@@ -31,6 +32,7 @@ export function VoucherForm(props: VoucherViewProps) {
             if (event.defaultPrevented) return;
             const hasSaveModifier = event.ctrlKey || event.metaKey;
             const hasCancelModifier = event.ctrlKey;
+            const hasBillSelectionModifier = event.ctrlKey || event.metaKey;
             const pressedKey = event.key.toLowerCase();
             const isEscapeKey = pressedKey === 'escape' || pressedKey === 'esc';
             if (pressedKey === 'f7') {
@@ -38,8 +40,15 @@ export function VoucherForm(props: VoucherViewProps) {
                 if (!supportsInvoiceShortcut || !isCashMode || !isFormActive || saving) {
                     return;
                 }
+                if (event.altKey || event.shiftKey) {
+                    return;
+                }
                 event.preventDefault();
                 event.stopPropagation();
+                if (hasBillSelectionModifier) {
+                    openBillWiseSelectionDialog();
+                    return;
+                }
                 searchInvoiceBills();
                 return;
             }
@@ -85,6 +94,7 @@ export function VoucherForm(props: VoucherViewProps) {
             runDrySaveCheck,
             save,
             saving,
+            openBillWiseSelectionDialog,
             searchInvoiceBills,
             voucherActions.cancelForm.disabled,
             voucherActions.cancelForm.visible,

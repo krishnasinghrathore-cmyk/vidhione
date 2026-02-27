@@ -18,5 +18,6 @@ Requirements:
 8) Keep loading/empty messaging in the table: emptyMessage '' while loading, then the proper empty text.
 9) Data fetching: use apply/skip pattern, `notifyOnNetworkStatusChange: true`, and prefer `fetchPolicy: 'cache-and-network'` with `nextFetchPolicy: 'cache-first'` so refresh keeps existing rows visible.
 10) Keyboard flow: Enter behaves like Tab inside report header filters; last filter should focus Refresh.
+11) Column filters and sorting standard: use Day Book style Excel-like menu filters (`filterDisplay='menu'`) with `Any` multi-select filter controls (`FilterMatchMode.IN`, show `Clear/Apply`), and keep sortable headers enabled on all report columns where sorting is meaningful.
 
 Please check legacy form <legacy-form-name> for fields/behavior and confirm GraphQL mapping to stored procedure (report list, totals, opening balance).

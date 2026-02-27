@@ -128,7 +128,31 @@ export const toDateText = (date: Date | null) => {
 
 export const formatDate = (value: string | null) => {
     if (!value) return '';
-    const parsed = new Date(value);
+    const trimmed = value.trim();
+    if (!trimmed) return '';
+    const compact = trimmed.match(/^(\d{8})(?:\D.*)?$/);
+    if (compact) {
+        const digits = compact[1];
+        const yearFirst = Number(digits.slice(0, 4));
+        const yearLast = Number(digits.slice(4, 8));
+        if (yearFirst >= 1900 && yearFirst <= 2200) {
+            return `${digits.slice(6, 8)}/${digits.slice(4, 6)}/${digits.slice(0, 4)}`;
+        }
+        if (yearLast >= 1900 && yearLast <= 2200) {
+            return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4, 8)}`;
+        }
+    }
+    const ymd = trimmed.match(/^(\d{4})[\/\-](\d{2})[\/\-](\d{2})(?:\D.*)?$/);
+    if (ymd) {
+        const [, yyyy, mm, dd] = ymd;
+        return `${dd}/${mm}/${yyyy}`;
+    }
+    const dmy = trimmed.match(/^(\d{2})[\/\-](\d{2})[\/\-](\d{4})(?:\D.*)?$/);
+    if (dmy) {
+        const [, dd, mm, yyyy] = dmy;
+        return `${dd}/${mm}/${yyyy}`;
+    }
+    const parsed = new Date(trimmed);
     if (Number.isNaN(parsed.getTime())) return value;
     return parsed.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
 };

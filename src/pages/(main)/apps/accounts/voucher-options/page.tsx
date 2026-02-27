@@ -25,6 +25,7 @@ const VOUCHER_TYPE_MASTERS = gql`
             prefix
             suffix
             voucherStartNumber
+            defaultReportLookbackDays
             isVoucherNoAutoFlag
             lockFromDateText
             lockToDateText
@@ -47,6 +48,7 @@ const UPDATE_VOUCHER_TYPE_MASTER = gql`
         $prefix: String
         $suffix: String
         $voucherStartNumber: Int
+        $defaultReportLookbackDays: Int
         $isVoucherNoAutoFlag: Boolean
         $lockFromDateText: String
         $lockToDateText: String
@@ -65,6 +67,7 @@ const UPDATE_VOUCHER_TYPE_MASTER = gql`
             prefix: $prefix
             suffix: $suffix
             voucherStartNumber: $voucherStartNumber
+            defaultReportLookbackDays: $defaultReportLookbackDays
             isVoucherNoAutoFlag: $isVoucherNoAutoFlag
             lockFromDateText: $lockFromDateText
             lockToDateText: $lockToDateText
@@ -113,8 +116,9 @@ export default function AccountsVoucherOptionsPage() {
             [
                 row.voucherTypeName,
                 row.displayName,
-                resolveFlag(row.isVoucherNoAutoFlag) ? 'manual' : 'auto',
+                resolveFlag(row.isVoucherNoAutoFlag) ? 'manual manual entry' : 'auto auto numbering',
                 row.voucherStartNumber,
+                row.defaultReportLookbackDays,
                 row.prefix,
                 row.suffix,
                 resolveFlag(row.isLockedFlag) ? 'locked' : 'unlocked',
@@ -140,6 +144,7 @@ export default function AccountsVoucherOptionsPage() {
             prefix: row.prefix ?? '',
             suffix: row.suffix ?? '',
             voucherStartNumber: row.voucherStartNumber ?? 1,
+            defaultReportLookbackDays: row.defaultReportLookbackDays ?? null,
             isManualVoucherNo: resolveFlag(row.isVoucherNoAutoFlag),
             isLocked: resolveFlag(row.isLockedFlag),
             lockFromDate: parseDateText(row.lockFromDateText),
@@ -210,6 +215,8 @@ export default function AccountsVoucherOptionsPage() {
                 prefix: toOptionalText(validated.prefix),
                 suffix: toOptionalText(validated.suffix),
                 voucherStartNumber: validated.voucherStartNumber == null ? null : Number(validated.voucherStartNumber),
+                defaultReportLookbackDays:
+                    validated.defaultReportLookbackDays == null ? null : Number(validated.defaultReportLookbackDays),
                 isVoucherNoAutoFlag: validated.isManualVoucherNo,
                 lockFromDateText: validated.isLocked ? toDateText(validated.lockFromDate) : null,
                 lockToDateText: validated.isLocked ? toDateText(validated.lockToDate) : null,
@@ -289,16 +296,22 @@ export default function AccountsVoucherOptionsPage() {
                 <Column field="displayName" header="Display" sortable style={{ minWidth: '14rem' }} />
                 <Column
                     field="isVoucherNoAutoFlag"
-                    header="Mode"
+                    header="Numbering"
                     sortable
                     body={(row: VoucherTypeMasterRow) => {
                         const isManual = resolveFlag(row.isVoucherNoAutoFlag);
                         return <Tag value={isManual ? 'Manual' : 'Auto'} severity={isManual ? 'warning' : 'success'} />;
                     }}
-                    style={{ width: '7rem', textAlign: 'center' }}
+                    style={{ width: '11rem', textAlign: 'center' }}
                 />
-                <Column field="voucherStartNumber" header="Start From" sortable style={{ width: '8rem', textAlign: 'right' }} />
                 <Column field="prefix" header="Prefix" sortable style={{ width: '8rem' }} />
+                <Column field="voucherStartNumber" header="Start From" sortable style={{ width: '8rem', textAlign: 'right' }} />
+                <Column
+                    field="defaultReportLookbackDays"
+                    header="Default Report Days"
+                    sortable
+                    style={{ width: '10rem', textAlign: 'right' }}
+                />
                 <Column field="suffix" header="Suffix" sortable style={{ width: '8rem' }} />
                 <Column
                     field="isLockedFlag"

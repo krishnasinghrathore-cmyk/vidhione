@@ -5,6 +5,7 @@ export interface VoucherTypeMasterRow {
     prefix: string | null;
     suffix: string | null;
     voucherStartNumber: number | null;
+    defaultReportLookbackDays: number | null;
     isVoucherNoAutoFlag: boolean | null;
     lockFromDateText: string | null;
     lockToDateText: string | null;
@@ -23,6 +24,7 @@ export type VoucherTypeFormState = {
     prefix: string;
     suffix: string;
     voucherStartNumber: number | null;
+    defaultReportLookbackDays: number | null;
     isManualVoucherNo: boolean;
     isLocked: boolean;
     lockFromDate: Date | null;
@@ -43,6 +45,7 @@ export const DEFAULT_FORM: VoucherTypeFormState = {
     prefix: '',
     suffix: '',
     voucherStartNumber: 1,
+    defaultReportLookbackDays: null,
     isManualVoucherNo: false,
     isLocked: false,
     lockFromDate: null,

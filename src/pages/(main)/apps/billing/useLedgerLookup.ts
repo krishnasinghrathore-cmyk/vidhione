@@ -36,7 +36,7 @@ export type LedgerOption = { label: string; value: number };
 
 export const useLedgerLookup = () => {
     const { data, loading, error } = useQuery(LEDGER_LOOKUP, {
-        variables: { search: null, limit: 500 },
+        variables: { search: null, limit: 2000 },
         ...ACCOUNT_MASTER_QUERY_OPTIONS
     });
 

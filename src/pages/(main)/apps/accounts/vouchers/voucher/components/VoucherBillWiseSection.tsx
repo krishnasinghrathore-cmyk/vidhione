@@ -6,6 +6,8 @@ import { Column } from "primereact/column";
 import { DataTable } from "primereact/datatable";
 import { Dialog } from "primereact/dialog";
 import type { InputNumberValueChangeEvent } from "primereact/inputnumber";
+import { Skeleton } from "primereact/skeleton";
+import AppDropdown from "@/components/AppDropdown";
 import AppInput from "@/components/AppInput";
 import type { VoucherViewProps } from "../useVoucherState";
 import { formatAmount, formatDate } from "../utils";
@@ -24,12 +26,16 @@ export function VoucherBillWiseSection({
     isBillWiseMode,
     isFormActive,
     billWisePartyLedgerId,
+    billWisePartyLedgerOption,
     billWiseInvoiceRows,
     billWiseSelectedRows,
     billWiseInvoicesLoading,
     refreshBillWiseInvoices,
     billWiseShowAdvanceBill,
     updateBillWiseShowAdvanceBill,
+    billWiseFiscalYearId,
+    billWiseFiscalYearOptions,
+    updateBillWiseFiscalYear,
     billWiseInvoiceSearchDialogVisible,
     billWiseInvoiceSearchTerm,
     updateBillWiseInvoiceSearchTerm,
@@ -186,6 +192,9 @@ export function VoucherBillWiseSection({
     billWiseTargetAmount > 0
       ? Math.max(billWiseTargetAmount - Number(billWiseAppliedTotal ?? 0), 0)
       : 0;
+  const selectedPartyName = billWisePartyLedgerOption?.label?.trim() || "";
+  const selectedPartyAddress =
+    billWisePartyLedgerOption?.address?.trim() || "Address not available";
 
   type BillWiseRow = (typeof billWiseInvoiceRows)[number];
   type BillWiseSearchRow = (typeof billWiseInvoiceSearchRows)[number];
@@ -196,6 +205,24 @@ export function VoucherBillWiseSection({
   };
   const searchPendingAmountBody = (row: BillWiseSearchRow) => (
     <span>{formatAmount(Math.abs(Number(row.dueAmount ?? 0)))}</span>
+  );
+  const billWiseSearchSkeletonRows = React.useMemo(
+    () => Array.from({ length: 5 }, (_, index) => ({ skeletonId: index })),
+    []
+  );
+  const billWiseInvoiceSelectionSkeletonRows = React.useMemo(
+    () => Array.from({ length: 8 }, (_, index) => ({ skeletonId: index })),
+    []
+  );
+  const invoiceSelectionFooter = (
+    <div className="flex justify-content-end w-full">
+      <Button
+        type="button"
+        label="Close"
+        className="p-button-text p-button-sm"
+        onClick={closeBillWiseSelectionDialog}
+      />
+    </div>
   );
 
   const appliedAmountEditorBody = (row: BillWiseRow) => (
@@ -224,9 +251,10 @@ export function VoucherBillWiseSection({
         <>
           <div className="flex justify-content-end flex-wrap gap-2 mb-3">
             <Button
+              id="voucher-billwise-select-invoices"
               type="button"
-              icon="pi pi-search"
-              label="Select Invoices"
+              icon="pi pi-list"
+              label="Select Invoices (Ctrl+F7)"
               className="p-button-sm"
               onClick={openBillWiseSelectionDialog}
               disabled={!isFormActive || !billWisePartyLedgerId}
@@ -329,6 +357,28 @@ export function VoucherBillWiseSection({
                       disabled={!isFormActive}
                     />
                   </div>
+                  <AppDropdown
+                    inputId="voucher-billwise-search-year"
+                    value={billWiseFiscalYearId}
+                    options={billWiseFiscalYearOptions}
+                    onChange={(event) => {
+                      const nextFiscalYearId =
+                        (event.value as number | null) ?? null;
+                      updateBillWiseFiscalYear(nextFiscalYearId);
+                      void runBillWiseInvoiceSearch(
+                        resolveBillWiseSearchInputValue(),
+                        {
+                          fiscalYearIdOverride: nextFiscalYearId,
+                        }
+                      );
+                    }}
+                    placeholder="Year"
+                    className="app-entry-control"
+                    style={{ width: "11rem" }}
+                    disabled={
+                      !isFormActive || billWiseFiscalYearOptions.length === 0
+                    }
+                  />
                   <Button
                     type="button"
                     icon="pi pi-search"
@@ -339,12 +389,12 @@ export function VoucherBillWiseSection({
                         resolveBillWiseSearchInputValue()
                       );
                     }}
-                    loading={billWiseInvoiceSearchLoading}
-                    disabled={!isFormActive}
+                    disabled={!isFormActive || billWiseInvoiceSearchLoading}
                   />
                 </div>
                 <small className="text-600">
-                  Search pending bills up to voucher date, then pick the party.
+                  Search bills up to voucher date in selected year. Shortcuts:
+                  F7 (party search), Ctrl+F7 (invoice selection).
                 </small>
               </div>
               <div
@@ -354,81 +404,129 @@ export function VoucherBillWiseSection({
                 onKeyDown={handleBillWiseSearchGridKeyDown}
                 onKeyDownCapture={handleBillWiseSearchGridKeyDown}
               >
-                <DataTable
-                  value={billWiseInvoiceSearchRows}
-                  dataKey="saleInvoiceId"
-                  size="small"
-                  stripedRows
-                  loading={billWiseInvoiceSearchLoading}
-                  emptyMessage={
-                    billWiseInvoiceSearchTerm.trim().length < 2
-                      ? "Enter at least 2 characters to search bill no."
-                      : "No pending bills found."
-                  }
-                  scrollable
-                  scrollHeight="30vh"
-                >
-                  <Column
-                    header="Type"
-                    body={(row: BillWiseSearchRow) => (
-                      <span>{row.isDebitNote ? "Debit Note" : "Invoice"}</span>
-                    )}
-                    style={{ width: "7rem" }}
-                  />
-                  <Column
-                    header="Doc No."
-                    body={(row: BillWiseSearchRow) => (
-                      <span>{row.invoiceNumber || row.saleInvoiceId}</span>
-                    )}
-                    style={{ width: "7.5rem" }}
-                  />
-                  <Column
-                    header="Date"
-                    body={(row: BillWiseSearchRow) => (
-                      <span>{formatDate(row.invoiceDate ?? null)}</span>
-                    )}
-                    style={{ width: "7.5rem" }}
-                  />
-                  <Column
-                    header="Party"
-                    body={(row: BillWiseSearchRow) => (
-                      <span>
-                        {row.ledgerName ||
-                          (row.ledgerId != null
-                            ? `Ledger ${row.ledgerId}`
-                            : "Unknown")}
-                      </span>
-                    )}
-                  />
-                  <Column
-                    header="Pending Amt"
-                    body={searchPendingAmountBody}
-                    headerClassName="app-entry-billwise-col-right"
-                    bodyClassName="app-entry-billwise-col-right"
-                    style={{ width: "8rem" }}
-                  />
-                  <Column
-                    header=""
-                    body={(row: BillWiseSearchRow) => (
-                      <Button
-                        type="button"
-                        label="Use Party"
-                        className="p-button-text p-button-sm"
-                        onClick={() => {
-                          selectBillWiseInvoiceSearchRow(
-                            Number(row.saleInvoiceId),
-                            {
-                              openSelectionDialog: false,
-                              focusNetAmount: true,
-                            }
-                          );
-                        }}
-                        disabled={!isFormActive}
-                      />
-                    )}
-                    style={{ width: "7rem" }}
-                  />
-                </DataTable>
+                {billWiseInvoiceSearchLoading ? (
+                  <DataTable
+                    value={billWiseSearchSkeletonRows}
+                    dataKey="skeletonId"
+                    size="small"
+                    stripedRows
+                    emptyMessage=""
+                    scrollable
+                    scrollHeight="30vh"
+                  >
+                    <Column
+                      header="Type"
+                      body={() => <Skeleton width="5rem" height="1rem" />}
+                      style={{ width: "7rem" }}
+                    />
+                    <Column
+                      header="Doc No."
+                      body={() => <Skeleton width="4.5rem" height="1rem" />}
+                      style={{ width: "7.5rem" }}
+                    />
+                    <Column
+                      header="Date"
+                      body={() => <Skeleton width="5.5rem" height="1rem" />}
+                      style={{ width: "7.5rem" }}
+                    />
+                    <Column
+                      header="Party"
+                      body={() => <Skeleton width="12rem" height="1rem" />}
+                    />
+                    <Column
+                      header="Bill Amt"
+                      body={() => <Skeleton width="5rem" height="1rem" />}
+                      headerClassName="app-entry-billwise-col-right"
+                      bodyClassName="app-entry-billwise-col-right"
+                      style={{ width: "8rem" }}
+                    />
+                    <Column
+                      header=""
+                      body={() => <Skeleton width="4.5rem" height="1rem" />}
+                      style={{ width: "7rem" }}
+                    />
+                  </DataTable>
+                ) : (
+                  <DataTable
+                    value={billWiseInvoiceSearchRows}
+                    dataKey="saleInvoiceId"
+                    size="small"
+                    stripedRows
+                    emptyMessage={
+                      billWiseInvoiceSearchTerm.trim().length < 2
+                        ? "Enter at least 2 characters to search bill no."
+                        : "No bills found."
+                    }
+                    scrollable
+                    scrollHeight="30vh"
+                  >
+                    <Column
+                      header="Type"
+                      body={(row: BillWiseSearchRow) => (
+                        <span>{row.isDebitNote ? "Debit Note" : "Invoice"}</span>
+                      )}
+                      style={{ width: "7rem" }}
+                    />
+                    <Column
+                      header="Doc No."
+                      body={(row: BillWiseSearchRow) => (
+                        <span>{row.invoiceNumber || row.saleInvoiceId}</span>
+                      )}
+                      style={{ width: "7.5rem" }}
+                    />
+                    <Column
+                      header="Date"
+                      body={(row: BillWiseSearchRow) => (
+                        <span>{formatDate(row.invoiceDate ?? null)}</span>
+                      )}
+                      style={{ width: "7.5rem" }}
+                    />
+                    <Column
+                      header="Party"
+                      body={(row: BillWiseSearchRow) => (
+                        <div className="flex flex-column gap-1">
+                          <span>
+                            {row.ledgerName ||
+                              (row.ledgerId != null
+                                ? `Ledger ${row.ledgerId}`
+                                : "Unknown")}
+                          </span>
+                          {row.ledgerAddress ? (
+                            <small className="text-600">{row.ledgerAddress}</small>
+                          ) : null}
+                        </div>
+                      )}
+                    />
+                    <Column
+                      header="Bill Amt"
+                      body={searchPendingAmountBody}
+                      headerClassName="app-entry-billwise-col-right"
+                      bodyClassName="app-entry-billwise-col-right"
+                      style={{ width: "8rem" }}
+                    />
+                    <Column
+                      header=""
+                      body={(row: BillWiseSearchRow) => (
+                        <Button
+                          type="button"
+                          label="Use Party"
+                          className="p-button-text p-button-sm"
+                          onClick={() => {
+                            selectBillWiseInvoiceSearchRow(
+                              Number(row.saleInvoiceId),
+                              {
+                                openSelectionDialog: false,
+                                focusNetAmount: true,
+                              }
+                            );
+                          }}
+                          disabled={!isFormActive}
+                        />
+                      )}
+                      style={{ width: "7rem" }}
+                    />
+                  </DataTable>
+                )}
               </div>
             </div>
           </Dialog>
@@ -438,6 +536,7 @@ export function VoucherBillWiseSection({
             onHide={closeBillWiseSelectionDialog}
             header="Invoice Selection"
             style={{ width: "min(760px, 92vw)" }}
+            footer={invoiceSelectionFooter}
             modal
           >
             <div className="grid">
@@ -450,7 +549,6 @@ export function VoucherBillWiseSection({
                       onChange={(event) => {
                         const nextEnabled = Boolean(event.checked);
                         updateBillWiseShowAdvanceBill(nextEnabled);
-                        void refreshBillWiseInvoices();
                       }}
                       disabled={!isFormActive}
                     />
@@ -477,73 +575,130 @@ export function VoucherBillWiseSection({
                   </span>
                 </div>
               </div>
+              {selectedPartyName ? (
+                <div className="col-12">
+                  <div className="flex flex-column gap-1 text-sm">
+                    <span>
+                      <strong>Party:</strong> {selectedPartyName}
+                    </span>
+                    <span className="text-600">
+                      <strong>Address:</strong> {selectedPartyAddress}
+                    </span>
+                  </div>
+                </div>
+              ) : null}
               <div className="col-12">
-                <DataTable
-                  value={billWiseInvoiceRows}
-                  dataKey="saleInvoiceId"
-                  size="small"
-                  stripedRows
-                  className="app-entry-billwise-invoice-table app-entry-billwise-invoice-table--popup"
-                  loading={billWiseInvoicesLoading}
-                  emptyMessage={
-                    billWisePartyLedgerId
-                      ? "No invoices found for this ledger/date."
-                      : "Select party ledger first."
-                  }
-                  scrollable
-                  scrollHeight="32vh"
-                >
-                  <Column
-                    header=""
-                    body={(row: BillWiseRow) => (
-                      <Checkbox
-                        inputId={`billwise-row-${row.saleInvoiceId}`}
-                        checked={Boolean(row.selected)}
-                        onChange={(event) => {
-                          setBillWiseInvoiceSelected(
-                            Number(row.saleInvoiceId),
-                            Boolean(event.checked)
-                          );
-                        }}
-                        disabled={!isFormActive}
-                      />
-                    )}
-                    style={{ width: "2.6rem", textAlign: "center" }}
-                  />
-                  <Column
-                    header="Type"
-                    body={(row: BillWiseRow) => (
-                      <span>{row.isDebitNote ? "Debit Note" : "Invoice"}</span>
-                    )}
-                    style={{ width: "6.5rem" }}
-                  />
-                  <Column
-                    header="Doc No."
-                    body={(row: BillWiseRow) => (
-                      <span>{row.invoiceNumber || row.saleInvoiceId}</span>
-                    )}
-                    style={{ width: "6rem" }}
-                  />
-                  <Column
-                    header="Date"
-                    body={(row: BillWiseRow) => (
-                      <span>{formatDate(row.invoiceDate ?? null)}</span>
-                    )}
-                    style={{ width: "7rem" }}
-                  />
-                  <Column
-                    header="Pending Amt"
-                    body={pendingAmountBody}
-                    headerClassName="app-entry-billwise-col-right app-entry-billwise-col-fixed"
-                    bodyClassName="app-entry-billwise-col-right app-entry-billwise-col-fixed"
-                  />
-                  <Column
-                    header="Adjust Amt"
-                    body={appliedAmountEditorBody}
-                    headerClassName="app-entry-billwise-col-right app-entry-billwise-col-fixed"
-                    bodyClassName="app-entry-billwise-col-right app-entry-billwise-col-fixed"
-                  />
-                </DataTable>
+                {billWiseInvoicesLoading ? (
+                  <DataTable
+                    value={billWiseInvoiceSelectionSkeletonRows}
+                    dataKey="skeletonId"
+                    size="small"
+                    stripedRows
+                    className="app-entry-billwise-invoice-table app-entry-billwise-invoice-table--popup"
+                    emptyMessage=""
+                    scrollable
+                    scrollHeight="32vh"
+                  >
+                    <Column
+                      header=""
+                      body={() => <Skeleton width="1.4rem" height="1.4rem" />}
+                      style={{ width: "2.6rem", textAlign: "center" }}
+                    />
+                    <Column
+                      header="Type"
+                      body={() => <Skeleton width="4.5rem" height="1rem" />}
+                      style={{ width: "6.5rem" }}
+                    />
+                    <Column
+                      header="Doc No."
+                      body={() => <Skeleton width="4.5rem" height="1rem" />}
+                      style={{ width: "6rem" }}
+                    />
+                    <Column
+                      header="Date"
+                      body={() => <Skeleton width="5rem" height="1rem" />}
+                      style={{ width: "7rem" }}
+                    />
+                    <Column
+                      header="Pending Amt"
+                      body={() => <Skeleton width="6rem" height="1rem" />}
+                      headerClassName="app-entry-billwise-col-right app-entry-billwise-col-fixed"
+                      bodyClassName="app-entry-billwise-col-right app-entry-billwise-col-fixed"
+                    />
+                    <Column
+                      header="Adjust Amt"
+                      body={() => <Skeleton width="6rem" height="1rem" />}
+                      headerClassName="app-entry-billwise-col-right app-entry-billwise-col-fixed"
+                      bodyClassName="app-entry-billwise-col-right app-entry-billwise-col-fixed"
+                    />
+                  </DataTable>
+                ) : (
+                  <DataTable
+                    value={billWiseInvoiceRows}
+                    dataKey="saleInvoiceId"
+                    size="small"
+                    stripedRows
+                    className="app-entry-billwise-invoice-table app-entry-billwise-invoice-table--popup"
+                    emptyMessage={
+                      billWisePartyLedgerId
+                        ? "No invoices found for this ledger/date."
+                        : "Select party ledger first."
+                    }
+                    scrollable
+                    scrollHeight="32vh"
+                  >
+                    <Column
+                      header=""
+                      body={(row: BillWiseRow) => (
+                        <Checkbox
+                          inputId={`billwise-row-${row.saleInvoiceId}`}
+                          checked={Boolean(row.selected)}
+                          onChange={(event) => {
+                            setBillWiseInvoiceSelected(
+                              Number(row.saleInvoiceId),
+                              Boolean(event.checked)
+                            );
+                          }}
+                          disabled={!isFormActive}
+                        />
+                      )}
+                      style={{ width: "2.6rem", textAlign: "center" }}
+                    />
+                    <Column
+                      header="Type"
+                      body={(row: BillWiseRow) => (
+                        <span>{row.isDebitNote ? "Debit Note" : "Invoice"}</span>
+                      )}
+                      style={{ width: "6.5rem" }}
+                    />
+                    <Column
+                      header="Doc No."
+                      body={(row: BillWiseRow) => (
+                        <span>{row.invoiceNumber || row.saleInvoiceId}</span>
+                      )}
+                      style={{ width: "6rem" }}
+                    />
+                    <Column
+                      header="Date"
+                      body={(row: BillWiseRow) => (
+                        <span>{formatDate(row.invoiceDate ?? null)}</span>
+                      )}
+                      style={{ width: "7rem" }}
+                    />
+                    <Column
+                      header="Pending Amt"
+                      body={pendingAmountBody}
+                      headerClassName="app-entry-billwise-col-right app-entry-billwise-col-fixed"
+                      bodyClassName="app-entry-billwise-col-right app-entry-billwise-col-fixed"
+                    />
+                    <Column
+                      header="Adjust Amt"
+                      body={appliedAmountEditorBody}
+                      headerClassName="app-entry-billwise-col-right app-entry-billwise-col-fixed"
+                      bodyClassName="app-entry-billwise-col-right app-entry-billwise-col-fixed"
+                    />
+                  </DataTable>
+                )}
                 {renderFormError("billWiseInvoiceRows")}
               </div>
             </div>

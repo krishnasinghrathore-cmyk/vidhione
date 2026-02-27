@@ -608,6 +608,16 @@ export function LedgerReportContainer() {
             displayLedger &&
             Number(displayLedger.ledgerId) === Number(selectedLedger.ledgerId)
     );
+    const currentBalanceTooltip = useMemo(() => {
+        if (!showBalanceBadges) return null;
+        if (balanceToDateText) {
+            const toDateLabel = formatDate(balanceToDateText);
+            return toDateLabel
+                ? `Current balance up to To Date (${toDateLabel})`
+                : 'Current balance up to selected To Date';
+        }
+        return 'Current balance as on current date';
+    }, [balanceToDateText, showBalanceBadges]);
 
     const rawRows: LedgerReportRow[] = useMemo(
         () => (hasApplied ? data?.ledgerReport?.items ?? [] : []),
@@ -1059,6 +1069,7 @@ export function LedgerReportContainer() {
             displayLedger={displayLedger}
             currentBalanceLabel={currentBalanceLabel}
             currentBalanceSeverity={currentBalanceSeverity}
+            currentBalanceTooltip={currentBalanceTooltip}
             showBalanceBadges={showBalanceBadges}
             voucherTypeId={voucherTypeId}
             voucherTypeOptions={voucherTypeOptions}
@@ -1079,17 +1090,19 @@ export function LedgerReportContainer() {
     );
 
     const headerRight = (
-        <AppReportActions
-            onRefresh={handleRefreshClick}
-            onStatement={handleStatementClick}
-            onPrint={handlePrintClick}
-            onExportCsv={handleExportCsv}
-            onExportExcel={handleExportExcel}
-            onExportPdf={handleExportPdf}
-            loadingState={reportLoading}
-            refreshDisabled={!canQuery}
-            exportDisabled={!reportReady || rowsWithBalance.length === 0}
-        />
+        <>
+            <AppReportActions
+                onRefresh={handleRefreshClick}
+                onStatement={handleStatementClick}
+                onPrint={handlePrintClick}
+                onExportCsv={handleExportCsv}
+                onExportExcel={handleExportExcel}
+                onExportPdf={handleExportPdf}
+                loadingState={reportLoading}
+                refreshDisabled={!canQuery}
+                exportDisabled={!reportReady || rowsWithBalance.length === 0}
+            />
+        </>
     );
 
     return (

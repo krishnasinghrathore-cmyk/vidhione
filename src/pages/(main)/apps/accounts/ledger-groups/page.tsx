@@ -13,6 +13,7 @@ import { gql, useApolloClient, useMutation, useQuery } from '@apollo/client';
 import AppDataTable from '@/components/AppDataTable';
 import AppDropdown from '@/components/AppDropdown';
 import AppInput from '@/components/AppInput';
+import AppPassword from '@/components/AppPassword';
 import { ACCOUNT_MASTER_QUERY_OPTIONS, invalidateAccountMasterLookups } from '@/lib/accounts/masterLookupCache';
 import { getLedgerGroupTypeLabel, getLedgerGroupTypeOptions } from '@/lib/accounts/ledgerGroupTypeLabels';
 import { getDeleteConfirmMessage, getDeleteFailureMessage } from '@/lib/deleteGuardrails';
@@ -186,6 +187,7 @@ export default function AccountsLedgerGroupsPage() {
     const [detailRow, setDetailRow] = useState<LedgerGroupRow | null>(null);
     const [form, setForm] = useState<FormState>(DEFAULT_FORM);
     const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+    const [showPassword, setShowPassword] = useState(false);
 
     const [dryEditDigest, setDryEditDigest] = useState('');
 
@@ -238,12 +240,18 @@ export default function AccountsLedgerGroupsPage() {
         return false;
     };
 
+    const closeDialog = () => {
+        setShowPassword(false);
+        setDialogVisible(false);
+    };
+
     const openNew = () => {
         setDryEditDigest('');
         if (!assertActionAllowed('add')) return;
         setEditing(null);
         setForm(DEFAULT_FORM);
         setFormErrors({});
+        setShowPassword(false);
         setDialogVisible(true);
     };
 
@@ -262,6 +270,7 @@ export default function AccountsLedgerGroupsPage() {
             editPassword: row.editPassword ?? ''
         });
         setFormErrors({});
+        setShowPassword(false);
         setDialogVisible(true);
     };
 
@@ -314,7 +323,7 @@ export default function AccountsLedgerGroupsPage() {
 
             invalidateAccountMasterLookups(apolloClient);
             await refetch();
-            setDialogVisible(false);
+            closeDialog();
             toastRef.current?.show({ severity: 'success', summary: 'Saved', detail: 'Ledger group saved.' });
         } catch (e: any) {
             toastRef.current?.show({ severity: 'error', summary: 'Error', detail: e?.message ?? 'Save failed.' });
@@ -540,10 +549,10 @@ export default function AccountsLedgerGroupsPage() {
                 header={editing ? 'Edit Ledger Group' : 'New Ledger Group'}
                 visible={dialogVisible}
                 style={{ width: 'min(720px, 96vw)' }}
-                onHide={() => setDialogVisible(false)}
+                onHide={closeDialog}
                 footer={
                     <div className="flex justify-content-end gap-2 w-full">
-                        <Button label="Cancel" className="p-button-text" onClick={() => setDialogVisible(false)} disabled={saving} />
+                        <Button label="Cancel" className="p-button-text" onClick={closeDialog} disabled={saving} />
                         <Button label={saveButtonLabel} icon="pi pi-check" onClick={save} disabled={saving} />
                     </div>
                 }
@@ -611,12 +620,15 @@ export default function AccountsLedgerGroupsPage() {
                     </div>
                     <div className="col-12 md:col-4">
                         <label className="block text-600 mb-1">Edit Password</label>
-                        <AppInput
-                            type="password"
+                        <AppPassword
                             value={form.editPassword}
                             onChange={(e) => setForm((s) => ({ ...s, editPassword: e.target.value }))}
+                            visible={showPassword}
+                            onToggleVisibility={() => setShowPassword((prev) => !prev)}
+                            compact
                             style={{ width: '100%' }}
-                            className={formErrors.editPassword ? 'p-invalid' : undefined}
+                            className="w-full"
+                            inputClassName={formErrors.editPassword ? 'w-full p-invalid' : 'w-full'}
                         />
                         {formErrors.editPassword && <small className="p-error">{formErrors.editPassword}</small>}
                     </div>
