@@ -3,13 +3,18 @@ import React, { useMemo, useRef, useState } from 'react';
 import { Column } from 'primereact/column';
 import { ConfirmPopup, confirmPopup } from 'primereact/confirmpopup';
 import { Dialog } from 'primereact/dialog';
-import { InputNumber } from 'primereact/inputnumber';
-import { InputText } from 'primereact/inputtext';
+import AppInput from '@/components/AppInput';
 import { Toast } from 'primereact/toast';
 import { Button } from 'primereact/button';
+import { AppHelpDialogButton } from '@/components/AppHelpDialogButton';
+import { getMasterPageHelp } from '@/lib/masterPageHelp';
 import { gql, useMutation, useQuery } from '@apollo/client';
 import AppDataTable from '@/components/AppDataTable';
-import AppDropdown from '@/components/AppDropdown';
+import { MasterDetailDialogFooter, MasterEditDialogFooter } from '@/components/MasterDialogFooter';
+import { MasterDetailCard } from '@/components/MasterDetailCard';
+import { MasterDetailGrid } from '@/components/MasterDetailLayout';
+import { findMasterRowIndex, getMasterRowByDirection, type MasterDialogDirection } from '@/lib/masterDialogNavigation';
+import { MASTER_DETAIL_DIALOG_WIDTHS, MASTER_EDIT_DIALOG_WIDTHS } from '@/lib/masterDialogLayout';
 import { z } from 'zod';
 import { apolloClient } from '@/lib/apolloClient';
 
@@ -76,11 +81,6 @@ const DEFAULT_FORM: FormState = {
     menuName: ''
 };
 
-const limitOptions = [50, 100, 250, 500, 1000, 2000].map((value) => ({
-    label: String(value),
-    value
-}));
-
 const toOptionalText = (value: string) => {
     const trimmed = value.trim();
     return trimmed ? trimmed : null;
@@ -91,12 +91,16 @@ export default function AccountsFormsPage() {
     const dtRef = useRef<any>(null);
 
     const [search, setSearch] = useState('');
-    const [limit, setLimit] = useState(2000);
+    const limit = 2000;
     const [dialogVisible, setDialogVisible] = useState(false);
     const [saving, setSaving] = useState(false);
     const [editing, setEditing] = useState<FormRow | null>(null);
+    const [detailVisible, setDetailVisible] = useState(false);
+    const [detailRow, setDetailRow] = useState<FormRow | null>(null);
     const [form, setForm] = useState<FormState>(DEFAULT_FORM);
+    const [initialForm, setInitialForm] = useState<FormState>(DEFAULT_FORM);
     const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+    const [isBulkMode, setIsBulkMode] = useState(false);
 
     const { data, loading, error, refetch } = useQuery(FORMS, {
         client: apolloClient,
@@ -107,6 +111,9 @@ export default function AccountsFormsPage() {
     const [deleteForm] = useMutation(DELETE_FORM, { client: apolloClient });
 
     const rows: FormRow[] = useMemo(() => data?.forms ?? [], [data]);
+    const isFormDirty = useMemo(() => JSON.stringify(form) !== JSON.stringify(initialForm), [form, initialForm]);
+    const editingIndex = useMemo(() => findMasterRowIndex(rows, editing), [rows, editing]);
+    const detailIndex = useMemo(() => findMasterRowIndex(rows, detailRow), [rows, detailRow]);
 
     const filteredRows = useMemo(() => {
         const term = search.trim().toLowerCase();
@@ -136,6 +143,23 @@ export default function AccountsFormsPage() {
         });
         setFormErrors({});
         setDialogVisible(true);
+    };
+
+    const openView = (row: FormRow) => {
+        setDetailRow(row);
+        setDetailVisible(true);
+    };
+
+    const navigateEditRecord = (direction: MasterDialogDirection) => {
+        const nextRow = getMasterRowByDirection(rows, editingIndex, direction);
+        if (!nextRow) return;
+        openEdit(nextRow);
+    };
+
+    const navigateDetailRecord = (direction: MasterDialogDirection) => {
+        const nextRow = getMasterRowByDirection(rows, detailIndex, direction);
+        if (!nextRow) return;
+        openView(nextRow);
     };
 
     const save = async () => {
@@ -171,7 +195,10 @@ export default function AccountsFormsPage() {
             }
 
             await refetch();
-            setDialogVisible(false);
+            setInitialForm(form);
+            if (!isBulkMode) {
+                setDialogVisible(false);
+            }
             toastRef.current?.show({
                 severity: 'success',
                 summary: 'Saved',
@@ -212,9 +239,9 @@ export default function AccountsFormsPage() {
             message: 'Delete this form?',
             icon: 'pi pi-exclamation-triangle',
             acceptClassName: 'p-button-danger',
-            acceptLabel: 'Delete',
-            rejectLabel: 'Cancel',
-            defaultFocus: 'none',
+            acceptLabel: 'Yes',
+            rejectLabel: 'No',
+            defaultFocus: 'reject',
             dismissable: true,
             accept: () => handleDelete(row.formId)
         });
@@ -222,6 +249,7 @@ export default function AccountsFormsPage() {
 
     const actionsBody = (row: FormRow) => (
         <div className="flex gap-2">
+            <Button icon="pi pi-eye" className="p-button-text" onClick={() => openView(row)} />
             <Button icon="pi pi-pencil" className="p-button-text" onClick={() => openEdit(row)} />
             <Button icon="pi pi-trash" className="p-button-text" severity="danger" onClick={(e) => confirmDelete(e, row)} />
         </div>
@@ -238,8 +266,9 @@ export default function AccountsFormsPage() {
                         <h2 className="m-0">Forms</h2>
                         <p className="mt-2 mb-0 text-600">Maintain form master entries and menu ordering.</p>
                     </div>
-                    <div className="flex gap-2 flex-wrap">
-                        <Button label="New Form" icon="pi pi-plus" onClick={openNew} />
+                    <div className="flex gap-2 flex-wrap justify-content-end align-items-start">
+                        <Button className="app-action-compact" label="New Form" icon="pi pi-plus" onClick={openNew} />
+                        <AppHelpDialogButton {...getMasterPageHelp('forms')} buttonAriaLabel="Open Forms help" />
                     </div>
                 </div>
                 {error && <p className="text-red-500 m-0">Error loading forms: {error.message}</p>}
@@ -259,7 +288,7 @@ export default function AccountsFormsPage() {
                 headerLeft={
                     <span className="p-input-icon-left" style={{ minWidth: '320px' }}>
                         <i className="pi pi-search" />
-                        <InputText
+                        <AppInput
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                             placeholder="Search forms"
@@ -270,23 +299,24 @@ export default function AccountsFormsPage() {
                 headerRight={
                     <>
                         <Button
+                            label="Refresh"
+                            icon="pi pi-refresh"
+                            className="p-button-text"
+                            onClick={() => refetch()}
+                        />
+                        <Button
+                            label="Print"
+                            icon="pi pi-print"
+                            className="p-button-text"
+                            onClick={() => window.print()}
+                        />
+                        <Button
                             label="Export"
                             icon="pi pi-download"
                             className="p-button-info"
                             onClick={() => dtRef.current?.exportCSV()}
                             disabled={filteredRows.length === 0}
                         />
-                        <Button label="Print" icon="pi pi-print" className="p-button-text" onClick={() => window.print()} />
-                        <Button label="Refresh" icon="pi pi-refresh" className="p-button-text" onClick={() => refetch()} />
-                        <span className="flex align-items-center gap-2">
-                            <span className="text-600 text-sm">Limit</span>
-                            <AppDropdown
-                                value={limit}
-                                options={limitOptions}
-                                onChange={(e) => setLimit(e.value ?? 2000)}
-                                className="w-6rem"
-                            />
-                        </span>
                         <span className="text-600 text-sm">
                             Showing {filteredRows.length} form{filteredRows.length === 1 ? '' : 's'}
                         </span>
@@ -304,24 +334,28 @@ export default function AccountsFormsPage() {
             <Dialog
                 header={editing ? 'Edit Form' : 'New Form'}
                 visible={dialogVisible}
-                style={{ width: 'min(720px, 96vw)' }}
+                style={{ width: MASTER_EDIT_DIALOG_WIDTHS.medium }}
+                onShow={() => setInitialForm(form)}
                 onHide={() => setDialogVisible(false)}
                 footer={
-                    <div className="flex justify-content-end gap-2 w-full">
-                        <Button
-                            label="Cancel"
-                            className="p-button-text"
-                            onClick={() => setDialogVisible(false)}
-                            disabled={saving}
-                        />
-                        <Button label={saving ? 'Saving...' : 'Save'} icon="pi pi-check" onClick={save} disabled={saving} />
-                    </div>
+                    <MasterEditDialogFooter
+                        index={editingIndex}
+                        total={rows.length}
+                        onNavigate={navigateEditRecord}
+                        navigateDisabled={saving}
+                        bulkMode={{ checked: isBulkMode, onChange: setIsBulkMode, disabled: saving }}
+                        onCancel={() => setDialogVisible(false)}
+                        cancelDisabled={saving}
+                        onSave={save}
+                        saveLabel={saving ? 'Saving...' : 'Save'}
+                        saveDisabled={saving || !isFormDirty}
+                    />
                 }
             >
                 <div className="grid">
                     <div className="col-12">
                         <label className="block text-600 mb-1">Name</label>
-                        <InputText
+                        <AppInput
                             value={form.name}
                             onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))}
                             style={{ width: '100%' }}
@@ -331,7 +365,7 @@ export default function AccountsFormsPage() {
                     </div>
                     <div className="col-12 md:col-6">
                         <label className="block text-600 mb-1">Form Type</label>
-                        <InputText
+                        <AppInput
                             value={form.formType}
                             onChange={(e) => setForm((s) => ({ ...s, formType: e.target.value }))}
                             style={{ width: '100%' }}
@@ -339,7 +373,7 @@ export default function AccountsFormsPage() {
                     </div>
                     <div className="col-12 md:col-6">
                         <label className="block text-600 mb-1">Menu Name</label>
-                        <InputText
+                        <AppInput
                             value={form.menuName}
                             onChange={(e) => setForm((s) => ({ ...s, menuName: e.target.value }))}
                             style={{ width: '100%' }}
@@ -347,7 +381,7 @@ export default function AccountsFormsPage() {
                     </div>
                     <div className="col-12 md:col-6">
                         <label className="block text-600 mb-1">Order No</label>
-                        <InputNumber
+                        <AppInput inputType="number"
                             value={form.orderNo}
                             onValueChange={(e) =>
                                 setForm((s) => ({
@@ -360,6 +394,30 @@ export default function AccountsFormsPage() {
                         />
                     </div>
                 </div>
+            </Dialog>
+
+            <Dialog
+                header="Form Details"
+                visible={detailVisible}
+                style={{ width: MASTER_DETAIL_DIALOG_WIDTHS.medium }}
+                onHide={() => setDetailVisible(false)}
+                footer={
+                    <MasterDetailDialogFooter
+                        index={detailIndex}
+                        total={rows.length}
+                        onNavigate={navigateDetailRecord}
+                        onClose={() => setDetailVisible(false)}
+                    />
+                }
+            >
+                {detailRow && (
+                    <MasterDetailGrid columns={2}>
+                        <MasterDetailCard label="Name" value={detailRow.name ?? '-'} />
+                        <MasterDetailCard label="Type" value={detailRow.formType ?? '-'} />
+                        <MasterDetailCard label="Menu" value={detailRow.menuName ?? '-'} />
+                        <MasterDetailCard label="Order" value={detailRow.orderNo ?? '-'} />
+                    </MasterDetailGrid>
+                )}
             </Dialog>
         </div>
     );

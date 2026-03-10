@@ -2,6 +2,8 @@
 import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { type DataTableFilterEvent, type DataTableFilterMeta, type DataTablePageEvent } from 'primereact/datatable';
 import { type AutoComplete } from 'primereact/autocomplete';
+import { Button } from 'primereact/button';
+import { Toast } from 'primereact/toast';
 import { useSearchParams } from 'react-router-dom';
 import { useApolloClient, useLazyQuery, useQuery } from '@apollo/client';
 import { ReportPrintHeader } from '@/components/ReportPrintHeader';
@@ -33,6 +35,8 @@ import {
     LEDGER_LOOKUP,
     LEDGER_OPENING_BALANCE,
     LEDGER_REPORT,
+    SEND_LEDGER_STATEMENT_SMS,
+    SEND_LEDGER_STATEMENT_WHATSAPP,
     CITIES
 } from './graphql';
 import type {
@@ -43,6 +47,8 @@ import type {
     LedgerLookupRow,
     LedgerReportFilters,
     LedgerReportRow,
+    LedgerStatementSmsResult,
+    LedgerStatementWhatsAppResult,
     SelectOption
 } from './types';
 import {
@@ -120,6 +126,8 @@ export function LedgerReportContainer() {
     const [tableFirst, setTableFirst] = useState(0);
     const [tableRowsPerPage, setTableRowsPerPage] = useState(10);
     const [isPrinting, setIsPrinting] = useState(false);
+    const [isSendingSms, setIsSendingSms] = useState(false);
+    const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false);
     const [printRows, setPrintRows] = useState<Array<LedgerReportRow & { running: number }> | null>(null);
     const [appliedFilters, setAppliedFilters] = useState<LedgerReportFilters | null>(null);
     const [columnFilters, setColumnFilters] = useState<DataTableFilterMeta>(() => buildDefaultColumnFilters());
@@ -162,6 +170,7 @@ export function LedgerReportContainer() {
     const ledgerEnterRef = useRef(false);
     const hasTouchedDatesRef = useRef(false);
     const autoRefreshRef = useRef(false);
+    const toastRef = useRef<Toast>(null);
 
     const focusInputAndSelect = (ref: React.RefObject<HTMLInputElement>) => {
         const input = ref.current;
@@ -822,7 +831,118 @@ export function LedgerReportContainer() {
         void triggerPrint();
     };
 
+    const sendLedgerStatementSms = useCallback(async () => {
+        if (!appliedFilters?.ledgerId || !appliedFilters.fromDate || !appliedFilters.toDate) return;
+
+        const fromDateText = toDateText(appliedFilters.fromDate);
+        const toDateTextValue = toDateText(appliedFilters.toDate);
+        if (!fromDateText || !toDateTextValue) return;
+
+        setIsSendingSms(true);
+        try {
+            const result = await apolloClient.mutate<{ sendLedgerStatementSms: LedgerStatementSmsResult }>({
+                mutation: SEND_LEDGER_STATEMENT_SMS,
+                variables: {
+                    ledgerId: appliedFilters.ledgerId,
+                    fromDate: fromDateText,
+                    toDate: toDateTextValue,
+                    voucherTypeId: appliedFilters.voucherTypeId,
+                    cancelled: appliedFilters.cancelled
+                }
+            });
+            const payload = result.data?.sendLedgerStatementSms;
+            if (!payload) {
+                throw new Error('Failed to send ledger statement SMS');
+            }
+
+            const ledgerName =
+                appliedLedger?.name ??
+                appliedLedger?.label ??
+                payload.recipientName ??
+                `Ledger ${payload.ledgerId}`;
+            const detail = payload.duplicate
+                ? payload.note ?? `Ledger statement SMS was already prepared for ${ledgerName}.`
+                : `SMS ${payload.status} for ${ledgerName} to ${payload.recipientPhone}.`;
+            toastRef.current?.show({
+                severity: payload.duplicate ? 'warn' : 'success',
+                summary: 'SMS',
+                detail
+            });
+        } catch (nextError) {
+            toastRef.current?.show({
+                severity: 'error',
+                summary: 'SMS failed',
+                detail: nextError instanceof Error ? nextError.message : 'Failed to send ledger statement SMS'
+            });
+        } finally {
+            setIsSendingSms(false);
+        }
+    }, [apolloClient, appliedFilters, appliedLedger]);
+
+    const sendLedgerStatementWhatsApp = useCallback(async () => {
+        if (!appliedFilters?.ledgerId || !appliedFilters.fromDate || !appliedFilters.toDate) return;
+
+        const fromDateText = toDateText(appliedFilters.fromDate);
+        const toDateTextValue = toDateText(appliedFilters.toDate);
+        if (!fromDateText || !toDateTextValue) return;
+
+        setIsSendingWhatsApp(true);
+        try {
+            const result = await apolloClient.mutate<{ sendLedgerStatementWhatsApp: LedgerStatementWhatsAppResult }>({
+                mutation: SEND_LEDGER_STATEMENT_WHATSAPP,
+                variables: {
+                    ledgerId: appliedFilters.ledgerId,
+                    fromDate: fromDateText,
+                    toDate: toDateTextValue,
+                    voucherTypeId: appliedFilters.voucherTypeId,
+                    cancelled: appliedFilters.cancelled,
+                    sendNow: true
+                }
+            });
+            const payload = result.data?.sendLedgerStatementWhatsApp;
+            if (!payload) {
+                throw new Error('Failed to send ledger statement WhatsApp message');
+            }
+
+            const ledgerName =
+                appliedLedger?.name ??
+                appliedLedger?.label ??
+                payload.recipientName ??
+                `Ledger ${payload.ledgerId}`;
+            const templateLabel = payload.templateName ?? payload.templateKey ?? payload.bindingKey;
+            toastRef.current?.show({
+                severity: 'success',
+                summary: 'WhatsApp',
+                detail: `WhatsApp message ${payload.status} for ${ledgerName} to ${payload.recipientPhone} using ${templateLabel}.`
+            });
+        } catch (nextError) {
+            toastRef.current?.show({
+                severity: 'error',
+                summary: 'WhatsApp failed',
+                detail: nextError instanceof Error ? nextError.message : 'Failed to send ledger statement WhatsApp message'
+            });
+        } finally {
+            setIsSendingWhatsApp(false);
+        }
+    }, [apolloClient, appliedFilters, appliedLedger]);
+
+    const handleSendLedgerStatementSmsClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+        event.currentTarget.blur();
+        void sendLedgerStatementSms();
+    };
+
+    const handleSendLedgerStatementWhatsAppClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+        event.currentTarget.blur();
+        void sendLedgerStatementWhatsApp();
+    };
+
     const canQuery = Boolean(ledgerId && fromDate && toDate);
+    const canSendLedgerStatementSms = Boolean(
+        reportReady && appliedFilters?.ledgerId && appliedFilters.fromDate && appliedFilters.toDate
+    );
+    const canSendLedgerStatementWhatsApp = Boolean(
+        reportReady && appliedFilters?.ledgerId && appliedFilters.fromDate && appliedFilters.toDate
+    );
     const isFormatTwo = reportFormat === 2;
 
     const resolveParticularsText = useCallback(
@@ -1091,6 +1211,22 @@ export function LedgerReportContainer() {
 
     const headerRight = (
         <>
+            <Button
+                label="SMS"
+                icon="pi pi-mobile"
+                className="p-button-text"
+                onClick={handleSendLedgerStatementSmsClick}
+                disabled={!canSendLedgerStatementSms || isSendingSms}
+                loading={isSendingSms}
+            />
+            <Button
+                label="WhatsApp"
+                icon="pi pi-comments"
+                className="p-button-text"
+                onClick={handleSendLedgerStatementWhatsAppClick}
+                disabled={!canSendLedgerStatementWhatsApp || isSendingWhatsApp}
+                loading={isSendingWhatsApp}
+            />
             <AppReportActions
                 onRefresh={handleRefreshClick}
                 onStatement={handleStatementClick}
@@ -1106,7 +1242,9 @@ export function LedgerReportContainer() {
     );
 
     return (
-        <div className="card app-gradient-card">
+        <>
+            <Toast ref={toastRef} />
+            <div className="card app-gradient-card">
             <ReportPrintHeader
                 className="mb-3"
                 companyName={companyInfo.name}
@@ -1161,6 +1299,7 @@ export function LedgerReportContainer() {
                     {appliedLedger.groupName ? <span> | {appliedLedger.groupName}</span> : null}
                 </div>
             )}
-        </div>
+            </div>
+        </>
     );
 }

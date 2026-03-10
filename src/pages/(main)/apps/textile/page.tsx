@@ -1,13 +1,23 @@
 'use client';
 import React from 'react';
+import { useAuth } from '@/lib/auth/context';
+import { defaultTextilePresetKey, isTextileIndustry, resolveTextileCapabilities } from '@/lib/textile/config';
+import { TextileWorkspaceView } from './TextileWorkspaceView';
 
 export default function TextileAppPage() {
+    const { tenantIndustryKey, tenantSettings } = useAuth();
+    const textileTenant = isTextileIndustry(tenantIndustryKey);
+    const presetKey = textileTenant
+        ? tenantSettings?.textilePresetKey ?? defaultTextilePresetKey(tenantIndustryKey)
+        : null;
+    const capabilities = resolveTextileCapabilities(presetKey, tenantSettings?.textileCapabilities ?? null);
+
     return (
-        <div className="card">
-            <h2 className="mb-2">Textile</h2>
-            <p className="text-600">
-                Textile-specific flows (mills, traders, brokers, job work, dyeing, finishing) will be built here.
-            </p>
-        </div>
+        <TextileWorkspaceView
+            isTextileTenant={textileTenant}
+            salesProfileKey={tenantSettings?.salesInvoiceProfileKey ?? null}
+            presetKey={presetKey}
+            capabilities={capabilities}
+        />
     );
 }

@@ -19,10 +19,8 @@ export const BILLING_MENU_GROUPS: BillingMenuGroup[] = [
         label: 'Sales',
         icon: 'pi pi-shopping-cart',
         items: [
-            { slug: 'invoice-form', label: 'Invoice Form', icon: 'pi pi-file-edit' },
-            { slug: 'estimates', label: 'Estimates', icon: 'pi pi-file' },
-            { slug: 'gst-sales-invoices', label: 'GST Sales Invoices', icon: 'pi pi-percentage' },
-            { slug: 'gst-sales-returns', label: 'GST Sales Return Invoices', icon: 'pi pi-percentage' }
+            { slug: 'sale-book', label: 'Sale Book', icon: 'pi pi-book' },
+            { slug: 'sales-return-book', label: 'Sale Return Book', icon: 'pi pi-book' }
         ]
     },
     {
@@ -30,8 +28,8 @@ export const BILLING_MENU_GROUPS: BillingMenuGroup[] = [
         label: 'Purchases',
         icon: 'pi pi-shopping-bag',
         items: [
-            { slug: 'gst-purchase-invoices', label: 'GST Purchase Invoices', icon: 'pi pi-percentage' },
-            { slug: 'gst-purchase-returns', label: 'GST Purchase Return Invoices', icon: 'pi pi-percentage' }
+            { slug: 'purchase-book', label: 'Purchase Book', icon: 'pi pi-book' },
+            { slug: 'purchase-return-book', label: 'Purchase Return Book', icon: 'pi pi-book' }
         ]
     },
     {
@@ -41,6 +39,8 @@ export const BILLING_MENU_GROUPS: BillingMenuGroup[] = [
         items: [
             { slug: 'delivery-process', label: 'Delivery Process', icon: 'pi pi-truck' },
             { slug: 'bill-collection', label: 'Bill Collection', icon: 'pi pi-wallet' },
+            { slug: 'money-receipt-cash', label: 'Money Receipt (Cash)', icon: 'pi pi-money-bill' },
+            { slug: 'money-receipt-bank', label: 'Money Receipt (Bank)', icon: 'pi pi-building-columns' },
             { slug: 'receipt-book-issue', label: 'Receipt Book Issue', icon: 'pi pi-book' }
         ]
     },
@@ -59,11 +59,7 @@ export const BILLING_MENU_GROUPS: BillingMenuGroup[] = [
         label: 'Reports',
         icon: 'pi pi-chart-line',
         items: [
-            { slug: 'sales-book', label: 'Sales Book', icon: 'pi pi-book' },
-            { slug: 'sales-return-book', label: 'Sales Return Book', icon: 'pi pi-book' },
             { slug: 'estimate-book', label: 'Estimate Book', icon: 'pi pi-book' },
-            { slug: 'purchase-book', label: 'Purchase Book', icon: 'pi pi-book' },
-            { slug: 'purchase-return-book', label: 'Purchase Return Book', icon: 'pi pi-book' },
             { slug: 'delivery-process-book', label: 'Delivery Process Book', icon: 'pi pi-book' },
             { slug: 'bill-collection-book', label: 'Bill Collection Book', icon: 'pi pi-book' },
             { slug: 'money-receipt-cash-book', label: 'Money Receipt Cash Book', icon: 'pi pi-book' },

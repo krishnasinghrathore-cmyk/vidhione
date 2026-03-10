@@ -1,19 +1,24 @@
 'use client';
 import React, { useMemo, useRef, useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Column } from 'primereact/column';
-import { Checkbox } from 'primereact/checkbox';
+import { ConfirmDialog } from 'primereact/confirmdialog';
 import { ConfirmPopup, confirmPopup } from 'primereact/confirmpopup';
 import { Dialog } from 'primereact/dialog';
-import { DataTable } from 'primereact/datatable';
-import { InputNumber } from 'primereact/inputnumber';
 import { Tag } from 'primereact/tag';
 import { TabPanel, TabView } from 'primereact/tabview';
 import { Toast } from 'primereact/toast';
 import { Button } from 'primereact/button';
+import { AppHelpDialogButton } from '@/components/AppHelpDialogButton';
+import { getMasterPageHelp } from '@/lib/masterPageHelp';
 import { gql, useLazyQuery, useMutation, useQuery } from '@apollo/client';
 import AppDataTable from '@/components/AppDataTable';
 import AppDropdown from '@/components/AppDropdown';
 import AppInput from '@/components/AppInput';
+import { MasterDetailDialogFooter, MasterEditDialogFooter } from '@/components/MasterDialogFooter';
+import { MasterDetailCard } from '@/components/MasterDetailCard';
+import { MasterDetailGrid, MasterDetailSection } from '@/components/MasterDetailLayout';
+import { findMasterRowIndex, getMasterRowByDirection, type MasterDialogDirection } from '@/lib/masterDialogNavigation';
 import { z } from 'zod';
 import { inventoryApolloClient } from '@/lib/inventoryApolloClient';
 import { apolloClient } from '@/lib/apolloClient';
@@ -27,6 +32,25 @@ import {
     useMasterActionPermissions
 } from '@/lib/masterActionPermissions';
 import { ensureDryEditCheck } from '@/lib/masterDryRun';
+import {
+    confirmMasterDialogClose,
+    focusElementByIdNextFrame,
+    getMasterSaveButtonLabel
+} from '@/lib/masterFormDialog';
+import { MASTER_DETAIL_DIALOG_WIDTHS } from '@/lib/masterDialogLayout';
+import { ProductBasicDetailsTab } from './components/ProductBasicDetailsTab';
+import { ProductOfferBatchSmsDialog } from './components/ProductOfferBatchSmsDialog';
+import { ProductOfferSmsDialog } from './components/ProductOfferSmsDialog';
+import { ProductUnitsTaxesTab } from './components/ProductUnitsTaxesTab';
+import { isValidDateText } from './productFormDate';
+import { getProductTaxFieldId, getProductUnitFieldId } from './productFormNavigation';
+import type {
+    FormState,
+    ProductAttributeOption,
+    ProductAttributeSelectionDraft,
+    SalesTaxDraft,
+    UnitDraft
+} from './productFormTypes';
 
 interface ProductRow {
     productId: number;
@@ -74,9 +98,32 @@ interface ProductAttributeSelectionRow {
     orderNo: number | null;
 }
 
-interface ProductAttributeOption {
-    productAttributeId: number;
-    detail: string | null;
+interface ProductOfferSmsResult {
+    productId: number;
+    productName: string | null;
+    bindingKey: string;
+    id: string;
+    status: string;
+    duplicate: boolean;
+    providerMessageId: string | null;
+    note: string | null;
+    recipientPhone: string;
+    recipientName: string | null;
+    templateKey: string | null;
+}
+
+interface ProductOfferBatchSmsResult {
+    productId: number;
+    productName: string | null;
+    bindingKey: string;
+    maxRecipients: number;
+    totalMappedLedgers: number;
+    eligibleRecipients: number;
+    sentCount: number;
+    duplicateCount: number;
+    skippedCount: number;
+    failedCount: number;
+    templateKey: string | null;
 }
 
 type ProductStatusFilter = 'all' | 'active' | 'inactive';
@@ -91,7 +138,6 @@ const SEARCH_TYPE_OPTIONS = [
     { label: 'Name / Id', value: 0 },
     { label: 'Detailed', value: 1 }
 ] as { label: string; value: ProductSearchTypeFilter }[];
-const LIMIT_OPTIONS = [100, 250, 500, 1000, 2000].map((value) => ({ label: String(value), value }));
 const MASTER_LOOKUP_LIMIT = 10000;
 
 const PRODUCTS = gql`
@@ -258,6 +304,64 @@ const DELETE_PRODUCT = gql`
     }
 `;
 
+const SEND_PRODUCT_OFFER_SMS = gql`
+    mutation SendProductOfferSms(
+        $productId: Int!
+        $recipientPhone: String!
+        $recipientName: String
+        $messageText: String
+        $templateKey: String
+    ) {
+        sendProductOfferSms(
+            productId: $productId
+            recipientPhone: $recipientPhone
+            recipientName: $recipientName
+            messageText: $messageText
+            templateKey: $templateKey
+        ) {
+            productId
+            productName
+            bindingKey
+            id
+            status
+            duplicate
+            providerMessageId
+            note
+            recipientPhone
+            recipientName
+            templateKey
+        }
+    }
+`;
+
+const SEND_PRODUCT_OFFER_BATCH_SMS = gql`
+    mutation SendProductOfferBatchSms(
+        $productId: Int!
+        $messageText: String
+        $templateKey: String
+        $maxRecipients: Int
+    ) {
+        sendProductOfferBatchSms(
+            productId: $productId
+            messageText: $messageText
+            templateKey: $templateKey
+            maxRecipients: $maxRecipients
+        ) {
+            productId
+            productName
+            bindingKey
+            maxRecipients
+            totalMappedLedgers
+            eligibleRecipients
+            sentCount
+            duplicateCount
+            skippedCount
+            failedCount
+            templateKey
+        }
+    }
+`;
+
 const PRODUCT_GROUPS = gql`
     query ProductGroups {
         productGroups {
@@ -325,50 +429,6 @@ const LEDGER_OPTIONS = gql`
     }
 `;
 
-type UnitDraft = {
-    key: number;
-    unitId: number | null;
-    equalUnitId: number | null;
-    quantity: number | null;
-    effectiveDateText: string;
-};
-
-type SalesTaxDraft = {
-    key: number;
-    ledgerTaxId: number | null;
-    ledgerTax2Id: number | null;
-    ledgerTax3Id: number | null;
-    mrp: number | null;
-    margin: number | null;
-    sellingRate: number | null;
-    beforeVatRate: number | null;
-    beforeVatRate2: number | null;
-    effectiveDateText: string;
-    isActiveFlag: boolean;
-};
-
-type ProductAttributeSelectionDraft = {
-    productAttributeId: number;
-    detail: string | null;
-    orderNo: number | null;
-};
-
-type FormState = {
-    name: string;
-    code: string;
-    productGroupId: number | null;
-    productBrandId: number | null;
-    productAttributeTypeId: number | null;
-    hsnCodeId: number | null;
-    openingQty: number | null;
-    landingCost: number | null;
-    remarks: string;
-    isActiveFlag: boolean;
-    showOnlyInTransportFlag: boolean;
-    units: UnitDraft[];
-    salesTaxes: SalesTaxDraft[];
-};
-
 const formSchema = z.object({
     name: z.string().trim().min(1, 'Name is required')
 });
@@ -389,6 +449,17 @@ const DEFAULT_FORM: FormState = {
     salesTaxes: []
 };
 
+const DEFAULT_PRODUCT_OFFER_SMS_FORM = {
+    recipientName: '',
+    recipientPhone: '',
+    messageText: ''
+};
+
+const DEFAULT_PRODUCT_OFFER_BATCH_SMS_FORM = {
+    maxRecipients: 25,
+    messageText: ''
+};
+
 const flagToBool = (value: number | null | undefined, defaultValue = false) => {
     if (value == null) return defaultValue;
     return Number(value || 0) === 1;
@@ -400,30 +471,22 @@ const toOptionalText = (value: string) => {
     return trimmed ? trimmed : null;
 };
 
-const isValidDateText = (value: string) => {
-    const trimmed = value.trim();
-    if (!trimmed) return true;
-    const yyyymmdd = trimmed.match(/^(\d{4})(\d{2})(\d{2})$/);
-    if (yyyymmdd) {
-        const date = new Date(`${yyyymmdd[1]}-${yyyymmdd[2]}-${yyyymmdd[3]}`);
-        return !Number.isNaN(date.getTime());
-    }
-    const iso = trimmed.match(/^(\d{4})[-/](\d{2})[-/](\d{2})$/);
-    if (iso) {
-        const date = new Date(`${iso[1]}-${iso[2]}-${iso[3]}`);
-        return !Number.isNaN(date.getTime());
-    }
-    const slash = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-    if (slash) {
-        const dd = slash[1].padStart(2, '0');
-        const mm = slash[2].padStart(2, '0');
-        const date = new Date(`${slash[3]}-${mm}-${dd}`);
-        return !Number.isNaN(date.getTime());
-    }
-    return false;
-};
-
 export default function InventoryProductsPage() {
+    const productGroupInputId = 'product-group-input';
+    const productBrandInputId = 'product-brand-input';
+    const productCodeInputId = 'product-code-input';
+    const productNameInputId = 'product-name-input';
+    const productHsnInputId = 'product-hsn-input';
+    const productOpeningQtyInputId = 'product-opening-qty-input';
+    const productLandingCostInputId = 'product-landing-cost-input';
+    const productRemarksInputId = 'product-remarks-input';
+    const productTransportOnlyInputId = 'product-transport-only-input';
+    const productActiveInputId = 'product-active-input';
+    const productAttributeTypeInputId = 'product-attribute-type-input';
+    const productAttributeDetailInputId = 'product-attribute-detail-input';
+    const productAttributeAddButtonId = 'product-attribute-add-button';
+    const productSaveButtonId = 'product-save-button';
+    const navigate = useNavigate();
     const toastRef = useRef<Toast>(null);
     const dtRef = useRef<any>(null);
     const unitKeyRef = useRef(1);
@@ -434,7 +497,7 @@ export default function InventoryProductsPage() {
     const [statusFilter, setStatusFilter] = useState<ProductStatusFilter>('active');
     const [productBrandFilterId, setProductBrandFilterId] = useState<number | null>(null);
     const [mrpFilter, setMrpFilter] = useState<number | null>(null);
-    const [limit, setLimit] = useState(2000);
+    const limit = 2000;
     const [dialogVisible, setDialogVisible] = useState(false);
     const [saving, setSaving] = useState(false);
     const [editing, setEditing] = useState<ProductRow | null>(null);
@@ -443,11 +506,21 @@ export default function InventoryProductsPage() {
     const [detailsLoaded, setDetailsLoaded] = useState(true);
     const [form, setForm] = useState<FormState>(DEFAULT_FORM);
     const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+    const [isBulkMode, setIsBulkMode] = useState(false);
+    const [productOfferDialogVisible, setProductOfferDialogVisible] = useState(false);
+    const [productOfferSending, setProductOfferSending] = useState(false);
+    const [productOfferRow, setProductOfferRow] = useState<ProductRow | null>(null);
+    const [productOfferForm, setProductOfferForm] = useState(DEFAULT_PRODUCT_OFFER_SMS_FORM);
+    const [productOfferBatchDialogVisible, setProductOfferBatchDialogVisible] = useState(false);
+    const [productOfferBatchSending, setProductOfferBatchSending] = useState(false);
+    const [productOfferBatchRow, setProductOfferBatchRow] = useState<ProductRow | null>(null);
+    const [productOfferBatchForm, setProductOfferBatchForm] = useState(DEFAULT_PRODUCT_OFFER_BATCH_SMS_FORM);
 
     const [dryEditDigest, setDryEditDigest] = useState('');
     const [productAttributeOptions, setProductAttributeOptions] = useState<ProductAttributeOption[]>([]);
     const [productAttributeSelections, setProductAttributeSelections] = useState<ProductAttributeSelectionDraft[]>([]);
     const [attributeToAdd, setAttributeToAdd] = useState<number | null>(null);
+    const [initialFormSnapshot, setInitialFormSnapshot] = useState('');
 
     const clearFormError = (key: string) => {
         setFormErrors((prev) => {
@@ -483,6 +556,12 @@ export default function InventoryProductsPage() {
     const [createProduct] = useMutation(CREATE_PRODUCT, { client: inventoryApolloClient });
     const [updateProduct] = useMutation(UPDATE_PRODUCT, { client: inventoryApolloClient });
     const [deleteProduct] = useMutation(DELETE_PRODUCT, { client: inventoryApolloClient });
+    const [sendProductOfferSmsMutation] = useMutation<{ sendProductOfferSms: ProductOfferSmsResult }>(SEND_PRODUCT_OFFER_SMS, {
+        client: inventoryApolloClient
+    });
+    const [sendProductOfferBatchSmsMutation] = useMutation<{ sendProductOfferBatchSms: ProductOfferBatchSmsResult }>(SEND_PRODUCT_OFFER_BATCH_SMS, {
+        client: inventoryApolloClient
+    });
     const { permissions: masterPermissions } = useMasterActionPermissions(inventoryApolloClient);
 
     const { data: productGroupsData } = useQuery(PRODUCT_GROUPS, { client: inventoryApolloClient });
@@ -497,6 +576,28 @@ export default function InventoryProductsPage() {
     });
 
     const rows: ProductRow[] = useMemo(() => data?.products ?? [], [data]);
+    const formSnapshot = useMemo(
+        () =>
+            JSON.stringify({
+                form,
+                productAttributeSelections: productAttributeSelections.map((entry) => ({
+                    productAttributeId: entry.productAttributeId,
+                    orderNo: entry.orderNo ?? null
+                }))
+            }),
+        [form, productAttributeSelections]
+    );
+    const isFormDirty = useMemo(() => formSnapshot !== initialFormSnapshot, [formSnapshot, initialFormSnapshot]);
+    const editingIndex = useMemo(() => findMasterRowIndex(rows, editing), [rows, editing]);
+    const detailIndex = useMemo(() => findMasterRowIndex(rows, detailRow), [rows, detailRow]);
+    const isDryEditReady = useMemo(
+        () => Boolean(editing && dryEditDigest && dryEditDigest === formSnapshot),
+        [dryEditDigest, editing, formSnapshot]
+    );
+    const saveButtonLabel = useMemo(
+        () => getMasterSaveButtonLabel(Boolean(editing), saving, isDryEditReady),
+        [editing, isDryEditReady, saving]
+    );
 
     const assertActionAllowed = (action: MasterAction) => {
         if (isMasterActionAllowed(masterPermissions, action)) return true;
@@ -506,6 +607,131 @@ export default function InventoryProductsPage() {
             detail: getMasterActionDeniedDetail(action)
         });
         return false;
+    };
+
+    const closeDialog = () => {
+        confirmMasterDialogClose({
+            saving,
+            isDirty: isFormDirty,
+            onDiscard: () => {
+                setDialogVisible(false);
+                setFormErrors({});
+            }
+        });
+    };
+
+    const closeProductOfferDialog = () => {
+        setProductOfferDialogVisible(false);
+        setProductOfferRow(null);
+        setProductOfferForm(DEFAULT_PRODUCT_OFFER_SMS_FORM);
+    };
+
+    const closeProductOfferBatchDialog = () => {
+        setProductOfferBatchDialogVisible(false);
+        setProductOfferBatchRow(null);
+        setProductOfferBatchForm(DEFAULT_PRODUCT_OFFER_BATCH_SMS_FORM);
+    };
+
+    const openProductOfferDialog = (row: ProductRow) => {
+        if (!assertActionAllowed('edit')) return;
+        setProductOfferRow(row);
+        setProductOfferForm(DEFAULT_PRODUCT_OFFER_SMS_FORM);
+        setProductOfferDialogVisible(true);
+    };
+
+    const openProductOfferBatchDialog = (row: ProductRow) => {
+        if (!assertActionAllowed('edit')) return;
+        if (!row.productBrandId) {
+            toastRef.current?.show({
+                severity: 'warn',
+                summary: 'Brand Required',
+                detail: 'Assign a product brand and brand ledgers before sending a batch product-offer SMS.'
+            });
+            return;
+        }
+        setProductOfferBatchRow(row);
+        setProductOfferBatchForm(DEFAULT_PRODUCT_OFFER_BATCH_SMS_FORM);
+        setProductOfferBatchDialogVisible(true);
+    };
+
+    const sendProductOfferSms = async () => {
+        if (!productOfferRow) return;
+        const recipientPhone = productOfferForm.recipientPhone.trim();
+        if (!recipientPhone) {
+            toastRef.current?.show({
+                severity: 'warn',
+                summary: 'Recipient Required',
+                detail: 'Enter a recipient phone number before sending the product offer SMS.'
+            });
+            return;
+        }
+
+        setProductOfferSending(true);
+        try {
+            const response = await sendProductOfferSmsMutation({
+                variables: {
+                    productId: productOfferRow.productId,
+                    recipientPhone,
+                    recipientName: toOptionalText(productOfferForm.recipientName),
+                    messageText: toOptionalText(productOfferForm.messageText),
+                    templateKey: null
+                }
+            });
+            const result = response.data?.sendProductOfferSms;
+            if (!result) throw new Error('Product offer SMS was not returned by the server.');
+            closeProductOfferDialog();
+            toastRef.current?.show({
+                severity: result.duplicate ? 'warn' : 'success',
+                summary: result.duplicate ? 'Duplicate Offer' : 'Offer Sent',
+                detail:
+                    result.note ??
+                    (result.duplicate
+                        ? `A recent product offer SMS already exists for ${result.recipientPhone}.`
+                        : `Product offer SMS ${result.status} for ${result.recipientPhone}.`)
+            });
+        } catch (e: any) {
+            toastRef.current?.show({
+                severity: 'error',
+                summary: 'Send Failed',
+                detail: e?.message ?? 'Failed to send product offer SMS.'
+            });
+        } finally {
+            setProductOfferSending(false);
+        }
+    };
+
+    const sendProductOfferBatchSms = async () => {
+        if (!productOfferBatchRow) return;
+
+        setProductOfferBatchSending(true);
+        try {
+            const response = await sendProductOfferBatchSmsMutation({
+                variables: {
+                    productId: productOfferBatchRow.productId,
+                    messageText: toOptionalText(productOfferBatchForm.messageText),
+                    templateKey: null,
+                    maxRecipients: productOfferBatchForm.maxRecipients
+                }
+            });
+            const result = response.data?.sendProductOfferBatchSms;
+            if (!result) throw new Error('Batch product offer SMS result was not returned by the server.');
+            closeProductOfferBatchDialog();
+
+            const detail = `${result.sentCount} sent, ${result.duplicateCount} duplicate, ${result.skippedCount} skipped, ${result.failedCount} failed across ${result.totalMappedLedgers} mapped ledgers. Eligible ${result.eligibleRecipients}, cap ${result.maxRecipients}.`;
+            toastRef.current?.show({
+                severity: result.sentCount > 0 ? 'success' : 'warn',
+                summary: result.sentCount > 0 ? 'Batch Offer Sent' : 'No Eligible Recipients',
+                detail
+            });
+        } catch (e: any) {
+            toastRef.current?.show({
+                severity: 'error',
+                summary: 'Batch Send Failed',
+                detail: e?.message ?? 'Failed to send batch product offer SMS.'
+            });
+        } finally {
+            setProductOfferBatchSending(false);
+        }
     };
 
     const productGroups = useMemo(() => productGroupsData?.productGroups ?? [], [productGroupsData]);
@@ -567,7 +793,7 @@ export default function InventoryProductsPage() {
     const hsnMap = useMemo(() => {
         const map = new Map<number, string>();
         hsnCodes.forEach((hsn: { hsnCodeId: number; name: string | null; code: string | null }) => {
-            const label = [hsn.name, hsn.code ? `(${hsn.code})` : null].filter(Boolean).join(' ');
+            const label = hsn.code?.trim() || hsn.name?.trim() || '';
             map.set(hsn.hsnCodeId, label || `#${hsn.hsnCodeId}`);
         });
         return map;
@@ -672,6 +898,18 @@ export default function InventoryProductsPage() {
         setDetailVisible(true);
     };
 
+    const navigateEditRecord = (direction: MasterDialogDirection) => {
+        const nextRow = getMasterRowByDirection(rows, editingIndex, direction);
+        if (!nextRow) return;
+        openEdit(nextRow);
+    };
+
+    const navigateDetailRecord = (direction: MasterDialogDirection) => {
+        const nextRow = getMasterRowByDirection(rows, detailIndex, direction);
+        if (!nextRow) return;
+        openView(nextRow);
+    };
+
     useEffect(() => {
         if (!dialogVisible || !editing) return;
         loadProduct({ variables: { productId: editing.productId } });
@@ -699,7 +937,7 @@ export default function InventoryProductsPage() {
                 return a.productAttributeId - b.productAttributeId;
             });
 
-        setForm({
+        const nextForm: FormState = {
             name: detailRow.name ?? '',
             code: detailRow.code ?? '',
             productGroupId: detailRow.productGroupId ?? null,
@@ -713,8 +951,18 @@ export default function InventoryProductsPage() {
             showOnlyInTransportFlag: flagToBool(detailRow.showOnlyInTransportFlag, false),
             units: unitsDrafts,
             salesTaxes: taxDrafts
-        });
+        };
+        setForm(nextForm);
         setProductAttributeSelections(detailSelections);
+        setInitialFormSnapshot(
+            JSON.stringify({
+                form: nextForm,
+                productAttributeSelections: detailSelections.map((entry) => ({
+                    productAttributeId: entry.productAttributeId,
+                    orderNo: entry.orderNo ?? null
+                }))
+            })
+        );
         setAttributeToAdd(null);
         setDetailsLoaded(true);
 
@@ -785,7 +1033,9 @@ export default function InventoryProductsPage() {
     };
 
     const addUnit = () => {
-        setForm((prev) => ({ ...prev, units: [...prev.units, createUnitDraft()] }));
+        const nextUnit = createUnitDraft();
+        setForm((prev) => ({ ...prev, units: [...prev.units, nextUnit] }));
+        focusElementByIdNextFrame(getProductUnitFieldId(nextUnit.key, 'unit'));
     };
 
     const updateUnit = (key: number, updates: Partial<UnitDraft>) => {
@@ -800,7 +1050,9 @@ export default function InventoryProductsPage() {
     };
 
     const addTax = () => {
-        setForm((prev) => ({ ...prev, salesTaxes: [...prev.salesTaxes, createTaxDraft()] }));
+        const nextTax = createTaxDraft();
+        setForm((prev) => ({ ...prev, salesTaxes: [...prev.salesTaxes, nextTax] }));
+        focusElementByIdNextFrame(getProductTaxFieldId(nextTax.key, 'ledger-tax'));
     };
 
     const updateTax = (key: number, updates: Partial<SalesTaxDraft>) => {
@@ -832,6 +1084,7 @@ export default function InventoryProductsPage() {
             });
             setFormErrors(nextErrors);
             toastRef.current?.show({ severity: 'warn', summary: 'Please fix validation errors' });
+            focusElementByIdNextFrame(productNameInputId);
             return;
         }
         const nextErrors: Record<string, string> = {};
@@ -852,7 +1105,7 @@ export default function InventoryProductsPage() {
         if (!ensureDryEditCheck({
             isEditing: Boolean(editing),
             lastDigest: dryEditDigest,
-            currentDigest: JSON.stringify(form),
+            currentDigest: formSnapshot,
             setLastDigest: setDryEditDigest,
             toastRef,
             entityLabel: 'record'
@@ -925,7 +1178,10 @@ export default function InventoryProductsPage() {
             }
 
             await refetch();
-            setDialogVisible(false);
+            setInitialFormSnapshot(formSnapshot);
+            if (!isBulkMode) {
+                setDialogVisible(false);
+            }
             toastRef.current?.show({
                 severity: 'success',
                 summary: 'Saved',
@@ -978,9 +1234,9 @@ export default function InventoryProductsPage() {
             message: `Dry Delete Check passed. ${getDeleteConfirmMessage('product')}`,
             icon: 'pi pi-exclamation-triangle',
             acceptClassName: 'p-button-danger',
-            acceptLabel: 'Delete',
-            rejectLabel: 'Cancel',
-            defaultFocus: 'none',
+            acceptLabel: 'Yes',
+            rejectLabel: 'No',
+            defaultFocus: 'reject',
             dismissable: true,
             accept: () => handleDelete(row.productId)
         });
@@ -1014,6 +1270,9 @@ export default function InventoryProductsPage() {
     const actionsBody = (row: ProductRow) => (
         <div className="flex gap-2">
             <Button icon="pi pi-eye" className="p-button-text" onClick={() => openView(row)} disabled={!masterPermissions.canView} />
+            <Button icon="pi pi-send" className="p-button-text" onClick={() => openProductOfferDialog(row)} aria-label="Send product offer SMS" disabled={!masterPermissions.canEdit} />
+            <Button icon="pi pi-megaphone" className="p-button-text" onClick={() => openProductOfferBatchDialog(row)} aria-label="Send batch product offer SMS" disabled={!masterPermissions.canEdit || !row.productBrandId} />
+            <Button icon="pi pi-barcode" className="p-button-text" onClick={() => navigate(`/apps/inventory/barcode?productId=${row.productId}`)} aria-label="Open barcode center" />
             <Button icon="pi pi-pencil" className="p-button-text" onClick={() => openEdit(row)} disabled={!masterPermissions.canEdit} />
             <Button icon="pi pi-trash" className="p-button-text" severity="danger" onClick={(e) => { void confirmDelete(e, row); }} disabled={!masterPermissions.canDelete} />
         </div>
@@ -1025,10 +1284,17 @@ export default function InventoryProductsPage() {
             ? `Edit Product - ${editingName}`
             : 'Edit Product'
         : 'New Product';
+    const productOfferLabel = productOfferRow
+        ? `${productOfferRow.name?.trim() || `Product #${productOfferRow.productId}`}${productOfferRow.code?.trim() ? ` (${productOfferRow.code.trim()})` : ''}`
+        : '';
+    const productOfferBatchLabel = productOfferBatchRow
+        ? `${productOfferBatchRow.name?.trim() || `Product #${productOfferBatchRow.productId}`}${productOfferBatchRow.code?.trim() ? ` (${productOfferBatchRow.code.trim()})` : ''}`
+        : '';
 
     return (
         <div className="card">
             <Toast ref={toastRef} />
+            <ConfirmDialog />
             <ConfirmPopup />
 
             <div className="flex flex-column gap-2 mb-3">
@@ -1039,8 +1305,9 @@ export default function InventoryProductsPage() {
                             Maintain product masters with units, taxes, and attribute details.
                         </p>
                     </div>
-                    <div className="flex gap-2 flex-wrap">
-                        <Button label="New Product" icon="pi pi-plus" onClick={openNew} disabled={!masterPermissions.canAdd} />
+                    <div className="flex gap-2 flex-wrap justify-content-end align-items-start">
+                        <Button className="app-action-compact" label="New Product" icon="pi pi-plus" onClick={openNew} disabled={!masterPermissions.canAdd} />
+                        <AppHelpDialogButton {...getMasterPageHelp('products')} buttonAriaLabel="Open Products help" />
                     </div>
                 </div>
                 {error && <p className="text-red-500 m-0">Error loading products: {error.message}</p>}
@@ -1087,7 +1354,7 @@ export default function InventoryProductsPage() {
                             filter
                             style={{ minWidth: '200px' }}
                         />
-                        <InputNumber
+                        <AppInput inputType="number"
                             value={mrpFilter}
                             onValueChange={(e) =>
                                 setMrpFilter(typeof e.value === 'number' ? e.value : null)
@@ -1110,11 +1377,10 @@ export default function InventoryProductsPage() {
                 headerRight={
                     <>
                         <Button
-                            label="Export"
-                            icon="pi pi-download"
-                            className="p-button-info"
-                            onClick={() => dtRef.current?.exportCSV()}
-                            disabled={rows.length === 0}
+                            label="Refresh"
+                            icon="pi pi-refresh"
+                            className="p-button-text"
+                            onClick={() => refetch()}
                         />
                         <Button
                             label="Print"
@@ -1123,22 +1389,12 @@ export default function InventoryProductsPage() {
                             onClick={() => window.print()}
                         />
                         <Button
-                            label="Refresh"
-                            icon="pi pi-refresh"
-                            className="p-button-text"
-                            onClick={() => refetch()}
+                            label="Export"
+                            icon="pi pi-download"
+                            className="p-button-info"
+                            onClick={() => dtRef.current?.exportCSV()}
+                            disabled={rows.length === 0}
                         />
-                        <span className="flex align-items-center gap-2">
-                            <span className="text-600 text-sm">Limit</span>
-                            <AppDropdown
-                                value={limit}
-                                options={LIMIT_OPTIONS}
-                                optionLabel="label"
-                                optionValue="value"
-                                onChange={(e) => setLimit(e.value ?? 2000)}
-                                style={{ width: '6rem' }}
-                            />
-                        </span>
                         <span className="text-600 text-sm">
                             Showing {rows.length} product{rows.length === 1 ? '' : 's'}
                         </span>
@@ -1154,631 +1410,209 @@ export default function InventoryProductsPage() {
                 {searchType === 1 && <Column header="Type" body={typeBody} />}
                 {searchType === 1 && <Column header="HSN" body={hsnBody} />}
                 <Column header="Status" body={statusBody} />
-                <Column header="Actions" body={actionsBody} style={{ width: '11rem' }} />
+                <Column header="Actions" body={actionsBody} style={{ width: '18rem' }} />
             </AppDataTable>
 
             <Dialog
                 header={dialogTitle}
                 visible={dialogVisible}
                 style={{ width: 'min(960px, 96vw)' }}
-                onHide={() => setDialogVisible(false)}
+                onShow={() => {
+                    setInitialFormSnapshot(formSnapshot);
+                    focusElementByIdNextFrame(productGroupInputId);
+                }}
+                onHide={closeDialog}
                 footer={
-                    <div className="flex justify-content-end gap-2 w-full">
-                        <Button
-                            label="Cancel"
-                            className="p-button-text"
-                            onClick={() => setDialogVisible(false)}
-                            disabled={saving}
-                        />
-                        <Button
-                            label={saving ? 'Saving...' : 'Save'}
-                            icon="pi pi-check"
-                            onClick={save}
-                            disabled={saving || Boolean(editing && !detailsLoaded)}
-                        />
-                    </div>
+                    <MasterEditDialogFooter
+                        index={editingIndex}
+                        total={rows.length}
+                        onNavigate={navigateEditRecord}
+                        navigateDisabled={saving}
+                        bulkMode={{
+                            checked: isBulkMode,
+                            onChange: setIsBulkMode,
+                            onLabel: 'Bulk',
+                            offLabel: 'Standard',
+                            disabled: saving
+                        }}
+                        onCancel={closeDialog}
+                        cancelDisabled={saving}
+                        onSave={save}
+                        saveDisabled={saving || Boolean(editing && !detailsLoaded) || !isFormDirty}
+                        saveLabel={saveButtonLabel}
+                        saveButtonId={productSaveButtonId}
+                    />
                 }
             >
                 <div className="flex flex-column gap-3">
+                    {editing && (
+                        <div
+                            className={`p-2 border-round text-sm ${
+                                isDryEditReady ? 'surface-100 text-green-700' : 'surface-100 text-700'
+                            }`}
+                        >
+                            {isDryEditReady
+                                ? 'Dry check passed. Click Apply Changes to save.'
+                                : 'Dry save flow: first click runs dry check, second click saves changes.'}
+                        </div>
+                    )}
                     {productLoading && <div className="text-500">Loading product details...</div>}
                     {productError && <div className="text-red-500">Error: {productError.message}</div>}
                     <TabView>
                         <TabPanel header="Basic Details">
-                            <div className="grid">
-                                <div className="col-12 lg:col-7">
-                                    <div className="grid">
-                                        <div className="col-12">
-                                            <label className="block text-600 mb-1">Product Group</label>
-                                            <AppDropdown
-                                                value={form.productGroupId}
-                                                options={productGroups}
-                                                optionLabel="name"
-                                                optionValue="productGroupId"
-                                                onChange={(e) => setForm((s) => ({ ...s, productGroupId: e.value ?? null }))}
-                                                placeholder="Select product group"
-                                                showClear
-                                                filter
-                                                style={{ width: '100%' }}
-                                            />
-                                        </div>
-                                        <div className="col-12">
-                                            <label className="block text-600 mb-1">Product Brand</label>
-                                            <AppDropdown
-                                                value={form.productBrandId}
-                                                options={productBrands}
-                                                optionLabel="name"
-                                                optionValue="productBrandId"
-                                                onChange={(e) => setForm((s) => ({ ...s, productBrandId: e.value ?? null }))}
-                                                placeholder="Select product brand"
-                                                showClear
-                                                filter
-                                                style={{ width: '100%' }}
-                                            />
-                                        </div>
-                                        <div className="col-12">
-                                            <label className="block text-600 mb-1">Code</label>
-                                            <AppInput
-                                                value={form.code}
-                                                onChange={(e) => setForm((s) => ({ ...s, code: e.target.value }))}
-                                                style={{ width: '100%' }}
-                                            />
-                                        </div>
-                                        <div className="col-12">
-                                            <label className="block text-600 mb-1">Name</label>
-                                            <AppInput
-                                                value={form.name}
-                                                onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))}
-                                                style={{ width: '100%' }}
-                                                className={formErrors.name ? 'p-invalid' : undefined}
-                                            />
-                                            {formErrors.name && <small className="p-error">{formErrors.name}</small>}
-                                        </div>
-                                        <div className="col-12">
-                                            <label className="block text-600 mb-1">HSN Code</label>
-                                            <AppDropdown
-                                                value={form.hsnCodeId}
-                                                options={hsnCodes}
-                                                optionLabel="name"
-                                                optionValue="hsnCodeId"
-                                                itemTemplate={(option) => (
-                                                    <span>
-                                                        {option.name}
-                                                        {option.code ? ` (${option.code})` : ''}
-                                                    </span>
-                                                )}
-                                                onChange={(e) => setForm((s) => ({ ...s, hsnCodeId: e.value ?? null }))}
-                                                placeholder="Select HSN code"
-                                                showClear
-                                                filter
-                                                style={{ width: '100%' }}
-                                            />
-                                        </div>
-                                        <div className="col-12">
-                                            <label className="block text-600 mb-1">Remarks</label>
-                                            <AppInput
-                                                value={form.remarks}
-                                                onChange={(e) => setForm((s) => ({ ...s, remarks: e.target.value }))}
-                                                style={{ width: '100%' }}
-                                            />
-                                        </div>
-                                        <div className="col-12">
-                                            <div className="flex flex-column gap-2">
-                                                <span className="flex align-items-center gap-2">
-                                                    <Checkbox
-                                                        inputId="productTransportOnly"
-                                                        checked={form.showOnlyInTransportFlag}
-                                                        onChange={(e) =>
-                                                            setForm((s) => ({ ...s, showOnlyInTransportFlag: !!e.checked }))
-                                                        }
-                                                    />
-                                                    <label htmlFor="productTransportOnly" className="text-sm text-600">
-                                                        Show Only In Transport
-                                                    </label>
-                                                </span>
-                                                <span className="flex align-items-center gap-2">
-                                                    <Checkbox
-                                                        inputId="productActive"
-                                                        checked={form.isActiveFlag}
-                                                        onChange={(e) => setForm((s) => ({ ...s, isActiveFlag: !!e.checked }))}
-                                                    />
-                                                    <label htmlFor="productActive" className="text-sm text-600">
-                                                        Active
-                                                    </label>
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="col-12 lg:col-5">
-                                    <div className="grid">
-                                        <div className="col-12">
-                                            <label className="block text-600 mb-1">Product Attribute Type</label>
-                                            <AppDropdown
-                                                value={form.productAttributeTypeId}
-                                                options={productAttributeTypes}
-                                                optionLabel="name"
-                                                optionValue="productAttributeTypeId"
-                                                onChange={(e) => handleProductAttributeTypeChange(e.value ?? null)}
-                                                placeholder="Select product attribute type"
-                                                showClear
-                                                filter
-                                                style={{ width: '100%' }}
-                                            />
-                                        </div>
-                                        <div className="col-12">
-                                            <div className="flex align-items-center justify-content-between mb-2">
-                                                <h4 className="m-0 text-600">Type Details</h4>
-                                            </div>
-                                            {!form.productAttributeTypeId ? (
-                                                <small className="text-500">Select a product attribute type to manage attributes.</small>
-                                            ) : attributeOptionsLoading ? (
-                                                <small className="text-500">Loading type details...</small>
-                                            ) : attributeOptionsError ? (
-                                                <small className="text-red-500">Type details error: {attributeOptionsError.message}</small>
-                                            ) : (
-                                                <>
-                                                    <div className="flex flex-column sm:flex-row align-items-stretch gap-2 mb-2">
-                                                        <AppDropdown
-                                                            value={attributeToAdd}
-                                                            options={availableAttributeOptions}
-                                                            optionLabel="detail"
-                                                            optionValue="productAttributeId"
-                                                            onChange={(e) => setAttributeToAdd(e.value ?? null)}
-                                                            placeholder="Select detail"
-                                                            showClear
-                                                            filter
-                                                            disabled={availableAttributeOptions.length === 0}
-                                                            itemTemplate={(option) => (
-                                                                <span>{option.detail ?? `Detail ${option.productAttributeId}`}</span>
-                                                            )}
-                                                            valueTemplate={(option) =>
-                                                                option ? (
-                                                                    <span>{option.detail ?? `Detail ${option.productAttributeId}`}</span>
-                                                                ) : (
-                                                                    <span className="text-500">Select detail</span>
-                                                                )
-                                                            }
-                                                            style={{ width: '100%' }}
-                                                        />
-                                                        <Button
-                                                            label="Add Detail"
-                                                            icon="pi pi-plus"
-                                                            className="p-button-sm"
-                                                            onClick={addProductAttributeDetail}
-                                                            disabled={!attributeToAdd}
-                                                        />
-                                                    </div>
-                                                    <DataTable
-                                                        value={productAttributeRows}
-                                                        dataKey="productAttributeId"
-                                                        scrollable
-                                                        scrollHeight="460px"
-                                                        size="small"
-                                                        className="p-datatable-sm"
-                                                        responsiveLayout="scroll"
-                                                        emptyMessage="No details added."
-                                                        reorderableRows
-                                                        onRowReorder={handleAttributeReorder}
-                                                    >
-                                                        <Column rowReorder style={{ width: '3rem' }} />
-                                                        <Column
-                                                            header="Detail"
-                                                            body={(row: ProductAttributeSelectionDraft) => (
-                                                                <span className="text-600">
-                                                                    {productAttributeOptionMap.get(row.productAttributeId) ??
-                                                                        row.detail ??
-                                                                        `Detail ${row.productAttributeId}`}
-                                                                </span>
-                                                            )}
-                                                            style={{ minWidth: '12rem' }}
-                                                        />
-                                                        <Column
-                                                            header="Remove"
-                                                            body={(row: ProductAttributeSelectionDraft) => (
-                                                                <Button
-                                                                    icon="pi pi-times"
-                                                                    className="p-button-text p-button-danger p-button-sm"
-                                                                    onClick={() => removeProductAttributeDetail(row.productAttributeId)}
-                                                                />
-                                                            )}
-                                                            bodyStyle={{ textAlign: 'center' }}
-                                                            style={{ width: '6rem' }}
-                                                        />
-                                                    </DataTable>
-                                                </>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                            <ProductBasicDetailsTab
+                                form={form}
+                                formErrors={formErrors}
+                                productGroups={productGroups}
+                                productBrands={productBrands}
+                                hsnCodes={hsnCodes}
+                                productAttributeTypes={productAttributeTypes}
+                                productAttributeRows={productAttributeRows}
+                                productAttributeOptionMap={productAttributeOptionMap}
+                                availableAttributeOptions={availableAttributeOptions}
+                                attributeToAdd={attributeToAdd}
+                                attributeOptionsLoading={attributeOptionsLoading}
+                                attributeOptionsErrorMessage={attributeOptionsError?.message ?? null}
+                                fieldIds={{
+                                    productGroup: productGroupInputId,
+                                    productBrand: productBrandInputId,
+                                    productCode: productCodeInputId,
+                                    productName: productNameInputId,
+                                    productHsn: productHsnInputId,
+                                    productOpeningQty: productOpeningQtyInputId,
+                                    productLandingCost: productLandingCostInputId,
+                                    productRemarks: productRemarksInputId,
+                                    productTransportOnly: productTransportOnlyInputId,
+                                    productActive: productActiveInputId,
+                                    productAttributeType: productAttributeTypeInputId,
+                                    productAttributeDetail: productAttributeDetailInputId,
+                                    productAttributeAdd: productAttributeAddButtonId,
+                                    productSave: productSaveButtonId
+                                }}
+                                onProductGroupChange={(value) => setForm((s) => ({ ...s, productGroupId: value }))}
+                                onProductBrandChange={(value) => setForm((s) => ({ ...s, productBrandId: value }))}
+                                onCodeChange={(value) => setForm((s) => ({ ...s, code: value }))}
+                                onNameChange={(value) => setForm((s) => ({ ...s, name: value }))}
+                                onHsnCodeChange={(value) => setForm((s) => ({ ...s, hsnCodeId: value }))}
+                                onOpeningQtyChange={(value) => setForm((s) => ({ ...s, openingQty: value }))}
+                                onLandingCostChange={(value) => setForm((s) => ({ ...s, landingCost: value }))}
+                                onRemarksChange={(value) => setForm((s) => ({ ...s, remarks: value }))}
+                                onShowOnlyInTransportChange={(value) =>
+                                    setForm((s) => ({ ...s, showOnlyInTransportFlag: value }))
+                                }
+                                onActiveChange={(value) => setForm((s) => ({ ...s, isActiveFlag: value }))}
+                                onProductAttributeTypeChange={handleProductAttributeTypeChange}
+                                onAttributeToAddChange={setAttributeToAdd}
+                                onAddProductAttributeDetail={addProductAttributeDetail}
+                                onRemoveProductAttributeDetail={removeProductAttributeDetail}
+                                onAttributeReorder={handleAttributeReorder}
+                            />
                         </TabPanel>
                         <TabPanel header="Units & Taxes">
-                            <div className="grid">
-                                <div className="col-12">
-                                    <div className="flex align-items-center justify-content-between mb-2">
-                                        <h4 className="m-0 text-600">Units</h4>
-                                        <Button
-                                            label="Add Unit"
-                                            icon="pi pi-plus"
-                                            className="p-button-text p-button-sm"
-                                            onClick={addUnit}
-                                            disabled={saving}
-                                        />
-                                    </div>
-                                    <DataTable
-                                        value={form.units}
-                                        dataKey="key"
-                                        scrollable
-                                        scrollHeight="240px"
-                                        size="small"
-                                        className="p-datatable-sm"
-                                        responsiveLayout="scroll"
-                                        emptyMessage="No unit rows added."
-                                    >
-                                        <Column
-                                            header="#"
-                                            body={(_row: UnitDraft, options) =>
-                                                options.rowIndex != null ? options.rowIndex + 1 : 1
-                                            }
-                                            style={{ width: '3rem' }}
-                                        />
-                                        <Column
-                                            header="Unit"
-                                            body={(row: UnitDraft) => (
-                                            <AppDropdown
-                                                value={row.unitId}
-                                                options={unitDropdownOptions}
-                                                optionLabel="label"
-                                                optionValue="value"
-                                                appendTo={gridDropdownAppendTo}
-                                                onChange={(e) => updateUnit(row.key, { unitId: e.value ?? null })}
-                                                placeholder="Select unit"
-                                                showClear
-                                                filter
-                                                filterBy="label"
-                                                className="p-inputtext-sm"
-                                                style={{ width: '100%' }}
-                                            />
-                                        )}
-                                            style={{ minWidth: '10rem' }}
-                                        />
-                                        <Column
-                                            header="Equal Unit"
-                                            body={(row: UnitDraft) => (
-                                                <AppDropdown
-                                                    value={row.equalUnitId}
-                                                    options={unitDropdownOptions}
-                                                    optionLabel="label"
-                                                    optionValue="value"
-                                                    appendTo={gridDropdownAppendTo}
-                                                    onChange={(e) => updateUnit(row.key, { equalUnitId: e.value ?? null })}
-                                                    placeholder="Select equal unit"
-                                                    showClear
-                                                    filter
-                                                    filterBy="label"
-                                                    className="p-inputtext-sm"
-                                                    style={{ width: '100%' }}
-                                                />
-                                            )}
-                                            style={{ minWidth: '10rem' }}
-                                        />
-                                        <Column
-                                            header="Qty"
-                                            body={(row: UnitDraft) => (
-                                                <InputNumber
-                                                    value={row.quantity}
-                                                    onValueChange={(e) =>
-                                                        updateUnit(row.key, {
-                                                            quantity: typeof e.value === 'number' ? e.value : null
-                                                        })
-                                                    }
-                                                    useGrouping={false}
-                                                    inputClassName="p-inputtext-sm"
-                                                    style={{ width: '100%' }}
-                                                />
-                                            )}
-                                            style={{ width: '6rem' }}
-                                        />
-                                        <Column
-                                            header="Effective Date"
-                                            body={(row: UnitDraft) => {
-                                                const errorKey = `units.${row.key}.effectiveDateText`;
-                                                const error = formErrors[errorKey];
-                                                return (
-                                                    <div className="flex flex-column gap-1">
-                                                        <AppInput
-                                                            value={row.effectiveDateText}
-                                                            onChange={(e) => {
-                                                                updateUnit(row.key, { effectiveDateText: e.target.value });
-                                                                clearFormError(errorKey);
-                                                            }}
-                                                            className={error ? 'p-inputtext-sm p-invalid' : 'p-inputtext-sm'}
-                                                            style={{ width: '100%' }}
-                                                        />
-                                                        {error && <small className="text-red-500">{error}</small>}
-                                                    </div>
-                                                );
-                                            }}
-                                            style={{ minWidth: '10rem' }}
-                                        />
-                                        <Column
-                                            header="Delete"
-                                            body={(row: UnitDraft) => (
-                                                <Button
-                                                    icon="pi pi-times"
-                                                    className="p-button-text p-button-danger p-button-sm"
-                                                    onClick={() => removeUnit(row.key)}
-                                                />
-                                            )}
-                                            bodyStyle={{ textAlign: 'center' }}
-                                            style={{ width: '5rem' }}
-                                        />
-                                    </DataTable>
-                                </div>
-
-                                <div className="col-12">
-                                    <div className="flex align-items-center justify-content-between mb-2">
-                                        <h4 className="m-0 text-600">Sales Taxes</h4>
-                                        <Button
-                                            label="Add Tax"
-                                            icon="pi pi-plus"
-                                            className="p-button-text p-button-sm"
-                                            onClick={addTax}
-                                            disabled={saving}
-                                        />
-                                    </div>
-                                    {ledgerOptionsError && (
-                                        <small className="text-red-500 block mb-2">
-                                            Ledger options error: {ledgerOptionsError.message}
-                                        </small>
-                                    )}
-                                    <DataTable
-                                        value={form.salesTaxes}
-                                        dataKey="key"
-                                        scrollable
-                                        scrollHeight="260px"
-                                        size="small"
-                                        className="p-datatable-sm"
-                                        responsiveLayout="scroll"
-                                        emptyMessage="No tax rows added."
-                                    >
-                                        <Column
-                                            header="#"
-                                            body={(_row: SalesTaxDraft, options) =>
-                                                options.rowIndex != null ? options.rowIndex + 1 : 1
-                                            }
-                                            style={{ width: '3rem' }}
-                                        />
-                                        <Column
-                                            header="Tax Ledger"
-                                            body={(row: SalesTaxDraft) => (
-                                                <AppDropdown
-                                                    value={row.ledgerTaxId}
-                                                    options={ledgerDropdownOptions}
-                                                    optionLabel="label"
-                                                    optionValue="value"
-                                                    appendTo={gridDropdownAppendTo}
-                                                    onChange={(e) => updateTax(row.key, { ledgerTaxId: e.value ?? null })}
-                                                    placeholder="Select ledger"
-                                                    showClear
-                                                    filter
-                                                    filterBy="label"
-                                                    className="p-inputtext-sm"
-                                                    style={{ width: '100%' }}
-                                                />
-                                            )}
-                                            style={{ minWidth: '10rem' }}
-                                        />
-                                        <Column
-                                            header="Tax Ledger 2"
-                                            body={(row: SalesTaxDraft) => (
-                                                <AppDropdown
-                                                    value={row.ledgerTax2Id}
-                                                    options={ledgerDropdownOptions}
-                                                    optionLabel="label"
-                                                    optionValue="value"
-                                                    appendTo={gridDropdownAppendTo}
-                                                    onChange={(e) => updateTax(row.key, { ledgerTax2Id: e.value ?? null })}
-                                                    placeholder="Select ledger"
-                                                    showClear
-                                                    filter
-                                                    filterBy="label"
-                                                    className="p-inputtext-sm"
-                                                    style={{ width: '100%' }}
-                                                />
-                                            )}
-                                            style={{ minWidth: '10rem' }}
-                                        />
-                                        <Column
-                                            header="Tax Ledger 3"
-                                            body={(row: SalesTaxDraft) => (
-                                                <AppDropdown
-                                                    value={row.ledgerTax3Id}
-                                                    options={ledgerDropdownOptions}
-                                                    optionLabel="label"
-                                                    optionValue="value"
-                                                    appendTo={gridDropdownAppendTo}
-                                                    onChange={(e) => updateTax(row.key, { ledgerTax3Id: e.value ?? null })}
-                                                    placeholder="Select ledger"
-                                                    showClear
-                                                    filter
-                                                    filterBy="label"
-                                                    className="p-inputtext-sm"
-                                                    style={{ width: '100%' }}
-                                                />
-                                            )}
-                                            style={{ minWidth: '10rem' }}
-                                        />
-                                        <Column
-                                            header="MRP"
-                                            body={(row: SalesTaxDraft) => (
-                                                <InputNumber
-                                                    value={row.mrp}
-                                                    onValueChange={(e) =>
-                                                        updateTax(row.key, {
-                                                            mrp: typeof e.value === 'number' ? e.value : null
-                                                        })
-                                                    }
-                                                    useGrouping={false}
-                                                    inputClassName="p-inputtext-sm"
-                                                    style={{ width: '100%' }}
-                                                />
-                                            )}
-                                            style={{ width: '7rem' }}
-                                        />
-                                        <Column
-                                            header="Margin"
-                                            body={(row: SalesTaxDraft) => (
-                                                <InputNumber
-                                                    value={row.margin}
-                                                    onValueChange={(e) =>
-                                                        updateTax(row.key, {
-                                                            margin: typeof e.value === 'number' ? e.value : null
-                                                        })
-                                                    }
-                                                    useGrouping={false}
-                                                    inputClassName="p-inputtext-sm"
-                                                    style={{ width: '100%' }}
-                                                />
-                                            )}
-                                            style={{ width: '7rem' }}
-                                        />
-                                        <Column
-                                            header="Selling Rate"
-                                            body={(row: SalesTaxDraft) => (
-                                                <InputNumber
-                                                    value={row.sellingRate}
-                                                    onValueChange={(e) =>
-                                                        updateTax(row.key, {
-                                                            sellingRate: typeof e.value === 'number' ? e.value : null
-                                                        })
-                                                    }
-                                                    useGrouping={false}
-                                                    inputClassName="p-inputtext-sm"
-                                                    style={{ width: '100%' }}
-                                                />
-                                            )}
-                                            style={{ width: '8rem' }}
-                                        />
-                                        <Column
-                                            header="Before VAT Rate"
-                                            body={(row: SalesTaxDraft) => (
-                                                <InputNumber
-                                                    value={row.beforeVatRate}
-                                                    onValueChange={(e) =>
-                                                        updateTax(row.key, {
-                                                            beforeVatRate: typeof e.value === 'number' ? e.value : null
-                                                        })
-                                                    }
-                                                    useGrouping={false}
-                                                    inputClassName="p-inputtext-sm"
-                                                    style={{ width: '100%' }}
-                                                />
-                                            )}
-                                            style={{ width: '9rem' }}
-                                        />
-                                        <Column
-                                            header="Before VAT Rate 2"
-                                            body={(row: SalesTaxDraft) => (
-                                                <InputNumber
-                                                    value={row.beforeVatRate2}
-                                                    onValueChange={(e) =>
-                                                        updateTax(row.key, {
-                                                            beforeVatRate2: typeof e.value === 'number' ? e.value : null
-                                                        })
-                                                    }
-                                                    useGrouping={false}
-                                                    inputClassName="p-inputtext-sm"
-                                                    style={{ width: '100%' }}
-                                                />
-                                            )}
-                                            style={{ width: '9rem' }}
-                                        />
-                                        <Column
-                                            header="Effective Date"
-                                            body={(row: SalesTaxDraft) => {
-                                                const errorKey = `salesTaxes.${row.key}.effectiveDateText`;
-                                                const error = formErrors[errorKey];
-                                                return (
-                                                    <div className="flex flex-column gap-1">
-                                                        <AppInput
-                                                            value={row.effectiveDateText}
-                                                            onChange={(e) => {
-                                                                updateTax(row.key, { effectiveDateText: e.target.value });
-                                                                clearFormError(errorKey);
-                                                            }}
-                                                            className={error ? 'p-inputtext-sm p-invalid' : 'p-inputtext-sm'}
-                                                            style={{ width: '100%' }}
-                                                        />
-                                                        {error && <small className="text-red-500">{error}</small>}
-                                                    </div>
-                                                );
-                                            }}
-                                            style={{ minWidth: '10rem' }}
-                                        />
-                                        <Column
-                                            header="Active"
-                                            body={(row: SalesTaxDraft) => (
-                                                <div className="flex align-items-center gap-2">
-                                                    <Checkbox
-                                                        inputId={`taxActive-${row.key}`}
-                                                        checked={row.isActiveFlag}
-                                                        onChange={(e) => updateTax(row.key, { isActiveFlag: !!e.checked })}
-                                                    />
-                                                    <label htmlFor={`taxActive-${row.key}`} className="text-sm text-600">
-                                                        Active
-                                                    </label>
-                                                </div>
-                                            )}
-                                            style={{ width: '9rem' }}
-                                        />
-                                        <Column
-                                            header="Delete"
-                                            body={(row: SalesTaxDraft) => (
-                                                <Button
-                                                    icon="pi pi-times"
-                                                    className="p-button-text p-button-danger p-button-sm"
-                                                    onClick={() => removeTax(row.key)}
-                                                />
-                                            )}
-                                            bodyStyle={{ textAlign: 'center' }}
-                                            style={{ width: '5rem' }}
-                                        />
-                                    </DataTable>
-                                </div>
-                            </div>
+                            <ProductUnitsTaxesTab
+                                form={form}
+                                formErrors={formErrors}
+                                saving={saving}
+                                unitDropdownOptions={unitDropdownOptions}
+                                ledgerDropdownOptions={ledgerDropdownOptions}
+                                gridDropdownAppendTo={gridDropdownAppendTo}
+                                ledgerOptionsErrorMessage={ledgerOptionsError?.message ?? null}
+                                fieldIds={{ save: productSaveButtonId }}
+                                onClearFormError={clearFormError}
+                                onAddUnit={addUnit}
+                                onUpdateUnit={updateUnit}
+                                onRemoveUnit={removeUnit}
+                                onAddTax={addTax}
+                                onUpdateTax={updateTax}
+                                onRemoveTax={removeTax}
+                            />
                         </TabPanel>
                     </TabView>
                 </div>
             </Dialog>
 
+            <ProductOfferSmsDialog
+                visible={productOfferDialogVisible}
+                productLabel={productOfferLabel}
+                recipientName={productOfferForm.recipientName}
+                recipientPhone={productOfferForm.recipientPhone}
+                messageText={productOfferForm.messageText}
+                sending={productOfferSending}
+                onHide={closeProductOfferDialog}
+                onRecipientNameChange={(value) => setProductOfferForm((current) => ({ ...current, recipientName: value }))}
+                onRecipientPhoneChange={(value) => setProductOfferForm((current) => ({ ...current, recipientPhone: value }))}
+                onMessageTextChange={(value) => setProductOfferForm((current) => ({ ...current, messageText: value }))}
+                onSend={() => void sendProductOfferSms()}
+            />
+
+            <ProductOfferBatchSmsDialog
+                visible={productOfferBatchDialogVisible}
+                productLabel={productOfferBatchLabel}
+                maxRecipients={productOfferBatchForm.maxRecipients}
+                messageText={productOfferBatchForm.messageText}
+                sending={productOfferBatchSending}
+                onHide={closeProductOfferBatchDialog}
+                onMaxRecipientsChange={(value) => setProductOfferBatchForm((current) => ({ ...current, maxRecipients: value }))}
+                onMessageTextChange={(value) => setProductOfferBatchForm((current) => ({ ...current, messageText: value }))}
+                onSend={() => void sendProductOfferBatchSms()}
+            />
+
             <Dialog
                 header="Product Details"
                 visible={detailVisible}
-                style={{ width: 'min(760px, 96vw)' }}
+                style={{ width: MASTER_DETAIL_DIALOG_WIDTHS.standard }}
                 onHide={() => setDetailVisible(false)}
                 footer={
-                    <div className="flex justify-content-end w-full">
-                        <Button label="Close" className="p-button-text" onClick={() => setDetailVisible(false)} />
-                    </div>
+                    <MasterDetailDialogFooter
+                        index={detailIndex}
+                        total={rows.length}
+                        onNavigate={navigateDetailRecord}
+                        onClose={() => setDetailVisible(false)}
+                    />
                 }
             >
                 {detailRow && (
-                    <div className="flex flex-column gap-2">
-                        <div><strong>Name:</strong> {detailRow.name ?? '-'}</div>
-                        <div><strong>Code:</strong> {detailRow.code ?? '-'}</div>
-                        <div><strong>Group:</strong> {groupBody(detailRow)}</div>
-                        <div><strong>Brand:</strong> {brandBody(detailRow)}</div>
-                        <div><strong>Type:</strong> {typeBody(detailRow)}</div>
-                        <div><strong>HSN:</strong> {hsnBody(detailRow)}</div>
-                        <div><strong>Opening Qty:</strong> {detailRow.openingQty ?? '-'}</div>
-                        <div><strong>Landing Cost:</strong> {detailRow.landingCost ?? '-'}</div>
-                        <div><strong>Remarks:</strong> {detailRow.remarks || '-'}</div>
-                        <div><strong>Show Only In Transport:</strong> {flagToBool(detailRow.showOnlyInTransportFlag, false) ? 'Yes' : 'No'}</div>
-                        <div><strong>Status:</strong> {flagToBool(detailRow.isActiveFlag, true) ? 'Active' : 'Inactive'}</div>
+                    <div className="flex flex-column gap-3">
+                        <MasterDetailSection title="Basic Info">
+                            <MasterDetailGrid columns={2}>
+                                <MasterDetailCard label="Name" value={detailRow.name ?? '-'} />
+                                <MasterDetailCard label="Code" value={detailRow.code ?? '-'} />
+                                <MasterDetailCard label="Group" value={groupBody(detailRow)} />
+                                <MasterDetailCard label="Brand" value={brandBody(detailRow)} />
+                                <MasterDetailCard label="Type" value={typeBody(detailRow)} />
+                                <MasterDetailCard label="HSN" value={hsnBody(detailRow)} />
+                            </MasterDetailGrid>
+                        </MasterDetailSection>
+                        <MasterDetailSection title="Stock & Pricing">
+                            <MasterDetailGrid columns={2}>
+                                <MasterDetailCard label="Opening Qty" value={detailRow.openingQty ?? '-'} />
+                                <MasterDetailCard label="Landing Cost" value={detailRow.landingCost ?? '-'} />
+                                <MasterDetailCard label="Remarks" value={detailRow.remarks || '-'} />
+                            </MasterDetailGrid>
+                        </MasterDetailSection>
+                        <MasterDetailSection title="Flags">
+                            <MasterDetailGrid columns={2}>
+                                <MasterDetailCard
+                                    label="Show Only In Transport"
+                                    value={flagToBool(detailRow.showOnlyInTransportFlag, false) ? 'Yes' : 'No'}
+                                />
+                                <MasterDetailCard
+                                    label="Status"
+                                    value={flagToBool(detailRow.isActiveFlag, true) ? 'Active' : 'Inactive'}
+                                />
+                            </MasterDetailGrid>
+                        </MasterDetailSection>
                     </div>
                 )}
             </Dialog>
         </div>
     );
 }
+
+
+
+
+
+
+
+

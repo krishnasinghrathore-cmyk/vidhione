@@ -54,16 +54,29 @@ const requestInvoicingGraphql = async <T>(
     return json.data;
 };
 
+const LEGACY_SALE_INVOICES_FETCH_LIMIT = 2000;
+
+const isMissingSaleInvoicesFilterArgError = (error: unknown) =>
+    error instanceof Error
+    && /Unknown argument "(ledgerId|textileJobberLedgerId)" on field "Query\.saleInvoices"/.test(error.message);
+
 export type SaleInvoiceListItem = {
     saleInvoiceId: number;
     voucherNumber: string | null;
     voucherDateText: string | null;
     billNumber: string | null;
     estimateId: number | null;
+    estimateRefText: string | null;
     ledgerId: number | null;
     ledgerName: string | null;
+    ledgerGstin?: string | null;
+    ledgerAddress: string | null;
     ledgerGroupId: number | null;
     ledgerGroupName: string | null;
+    textileJobberLedgerId?: number | null;
+    textileJobberChallanNo?: string | null;
+    textileJobberChallanDateText?: string | null;
+    textileRemarkForStatement?: string | null;
     otherLedgerId: number | null;
     remarks: string | null;
     isVatIncluded: boolean;
@@ -71,14 +84,19 @@ export type SaleInvoiceListItem = {
     hasScheme: boolean;
     isChecked: boolean;
     deliveryStatus: string | null;
+    gstStopDate?: string | null;
     hasLedgerGst: boolean;
     productGroupNames: string[];
     productBrandNames: string[];
     productNames: string[];
+    productAttributeIds?: number[];
+    mrpValues?: number[];
     isDisputed: boolean;
     isCancelled: boolean;
     linkedCreditNoteCount: number;
     linkedDebitNoteCount: number;
+    linkedCreditNoteRefText: string | null;
+    linkedDebitNoteRefText: string | null;
     totalProductDiscountAmount: number;
     totalDisplayAmount: number;
     totalCashDiscountAmount: number;
@@ -97,11 +115,56 @@ export type SaleInvoiceListItem = {
     totalNetAmount: number;
     cashReceiptAmount: number;
     bankReceiptAmount: number;
+    loyaltyAppliedAmount: number;
+    loyaltyPointsRedeemed: number;
+    giftCertificateAppliedAmount: number;
+    giftCertificateApplicationCount: number;
+    settlementAppliedAmount: number;
+    cashReceiptNumbers: string | null;
+    bankReceiptNumbers: string | null;
+    cashReceiptDates: string | null;
+    bankReceiptDates: string | null;
+    cashReceiptDetailText?: string | null;
+    bankReceiptDetailText?: string | null;
     creditNoteAmount: number;
     voucherBillAmount: number;
     returnAmount: number;
     paidAmount: number;
     dueAmount: number;
+};
+
+export type ListSaleInvoicesInput = {
+    fromDate?: string | null;
+    toDate?: string | null;
+    ledgerId?: number | null;
+    textileJobberLedgerId?: number | null;
+    search?: string | null;
+    includeCancelled?: boolean | null;
+    includeProductNames?: boolean | null;
+    limit?: number | null;
+    offset?: number | null;
+};
+
+type SaleInvoicesResponse = {
+    saleInvoices: { items: SaleInvoiceListItem[] };
+};
+
+const hasSaleInvoiceLedgerFilter = (value: number | null | undefined) =>
+    typeof value === 'number' && Number.isFinite(value) && value > 0;
+
+const filterLegacySaleInvoiceItems = (items: SaleInvoiceListItem[], input?: ListSaleInvoicesInput) => {
+    const ledgerId = hasSaleInvoiceLedgerFilter(input?.ledgerId) ? Number(input?.ledgerId) : null;
+    const textileJobberLedgerId = hasSaleInvoiceLedgerFilter(input?.textileJobberLedgerId)
+        ? Number(input?.textileJobberLedgerId)
+        : null;
+
+    if (ledgerId == null && textileJobberLedgerId == null) return items;
+
+    return items.filter((item) => {
+        if (ledgerId != null && Number(item.ledgerId ?? 0) !== ledgerId) return false;
+        if (textileJobberLedgerId != null && Number(item.textileJobberLedgerId ?? 0) !== textileJobberLedgerId) return false;
+        return true;
+    });
 };
 
 export type EstimateLookupItem = {
@@ -111,6 +174,22 @@ export type EstimateLookupItem = {
     ledgerName: string | null;
     totalNetAmount: number;
     isCancelled: boolean;
+};
+
+export type EstimateBookRow = {
+    estimateId: number;
+    voucherNumber: string | null;
+    voucherDateText: string | null;
+    ledgerId: number | null;
+    ledgerName: string | null;
+    totalNetAmount: number;
+    isCancelled: boolean;
+};
+
+export type EstimateBookPage = {
+    items: EstimateBookRow[];
+    totalCount: number;
+    totalNetAmount: number;
 };
 
 export type DebitNoteLookupItem = {
@@ -240,6 +319,7 @@ export type SaleInvoiceLine = {
     isManualQpsDiscount: boolean | null;
     tmpTypeId: number | null;
     estimateLineId: number | null;
+    textileJobberLedgerId: number | null;
     inventoryWarehouseId: number | null;
     inventoryBatchNo: string | null;
     inventoryExpiryDateText: string | null;
@@ -278,6 +358,7 @@ export type SaleInvoiceTypeDetail = {
     saleInvoiceTypeDetailId: number;
     itemId: number | null;
     typeDetailId: number | null;
+    typeDetailName: string | null;
     quantity: number | null;
     tmpTypeId: number | null;
 };
@@ -293,6 +374,23 @@ export type SaleInvoiceDebitNote = {
     voucherId: number | null;
 };
 
+export type SaleInvoiceGiftCertificateApplication = {
+    giftCertificateId: string;
+    certificateCode: string;
+    redeemedAmount: string;
+    balanceAmount: string;
+    status: string;
+    notes: string | null;
+};
+
+export type SaleInvoiceLoyaltyApplication = {
+    programId: string | null;
+    programName: string | null;
+    pointsRedeemed: string;
+    amountApplied: string;
+    referenceNote: string | null;
+};
+
 export type SaleInvoice = {
     saleInvoiceId: number;
     voucherNumber: string | null;
@@ -303,6 +401,21 @@ export type SaleInvoice = {
     ledgerName: string | null;
     ledgerGroupId: number | null;
     ledgerGroupName: string | null;
+    salesmanId: number | null;
+    salesmanName: string | null;
+    salesman2Id: number | null;
+    salesman2Name: string | null;
+    transportIsApplied: boolean | null;
+    transporterId: number | null;
+    transporterName: string | null;
+    transportFreightLedgerId: number | null;
+    transportFreightAmount: number | null;
+    transportFreightTaxLedgerId: number | null;
+    transportFreightTaxAmount: number | null;
+    textileJobberLedgerId: number | null;
+    textileJobberChallanNo: string | null;
+    textileJobberChallanDateText: string | null;
+    textileRemarkForStatement: string | null;
     otherLedgerId: number | null;
     itemBrandId: number | null;
     remarks: string | null;
@@ -334,6 +447,8 @@ export type SaleInvoice = {
     g1IsAmountMatched: boolean;
     g1Remark: string | null;
     isCancelled: boolean;
+    loyaltyApplication: SaleInvoiceLoyaltyApplication | null;
+    giftCertificateApplications: SaleInvoiceGiftCertificateApplication[];
     lines: SaleInvoiceLine[];
     taxLines: SaleInvoiceTaxLine[];
     additionalTaxations: SaleInvoiceAdditionalTaxation[];
@@ -384,6 +499,7 @@ export type SaleInvoiceLineInput = {
     isManualQpsDiscount?: boolean | null;
     tmpTypeId?: number | null;
     estimateLineId?: number | null;
+    textileJobberLedgerId?: number | null;
     remarks?: string | null;
     inventoryWarehouseId?: number | null;
     inventoryBatchNo?: string | null;
@@ -432,6 +548,18 @@ export type SaleInvoiceDebitNoteInput = {
     voucherId?: number | null;
 };
 
+export type SaleInvoiceGiftCertificateApplicationInput = {
+    giftCertificateId: string;
+    redeemedAmount?: number | null;
+    notes?: string | null;
+};
+
+export type SaleInvoiceLoyaltyApplicationInput = {
+    pointsRedeemed?: number | null;
+    amountApplied?: number | null;
+    notes?: string | null;
+};
+
 export type CreateSaleInvoiceInput = {
     voucherDateText: string;
     voucherNumber?: string | null;
@@ -450,6 +578,18 @@ export type CreateSaleInvoiceInput = {
     hasScheme?: boolean | null;
     isChecked?: boolean | null;
     isDisputed?: boolean | null;
+    salesmanId?: number | null;
+    salesman2Id?: number | null;
+    transportIsApplied?: boolean | null;
+    transporterId?: number | null;
+    transportFreightLedgerId?: number | null;
+    transportFreightAmount?: number | null;
+    transportFreightTaxLedgerId?: number | null;
+    transportFreightTaxAmount?: number | null;
+    textileJobberLedgerId?: number | null;
+    textileJobberChallanNo?: string | null;
+    textileJobberChallanDateText?: string | null;
+    textileRemarkForStatement?: string | null;
     totalProductDiscountAmount?: number | null;
     totalDisplayAmount?: number | null;
     totalCashDiscountAmount?: number | null;
@@ -479,6 +619,8 @@ export type CreateSaleInvoiceInput = {
     typeDetails?: SaleInvoiceTypeDetailInput[] | null;
     creditNotes?: SaleInvoiceCreditNoteInput[] | null;
     debitNotes?: SaleInvoiceDebitNoteInput[] | null;
+    loyaltyApplication?: SaleInvoiceLoyaltyApplicationInput | null;
+    giftCertificateApplications?: SaleInvoiceGiftCertificateApplicationInput[] | null;
 };
 
 export type UpdateSaleInvoiceInput = CreateSaleInvoiceInput & {
@@ -488,6 +630,46 @@ export type UpdateSaleInvoiceInput = CreateSaleInvoiceInput & {
 
 export type CreateSaleInvoicesBatchInput = {
     invoices: CreateSaleInvoiceInput[];
+};
+
+export type SaleInvoiceDueSmsResult = {
+    saleInvoiceId: number;
+    id: string;
+    status: string;
+    duplicate: boolean;
+    providerMessageId: string | null;
+    note: string | null;
+    recipientPhone: string;
+    recipientName: string | null;
+    dueAmount: number;
+    templateKey: string | null;
+};
+
+export type SaleInvoiceCreatedSmsResult = {
+    saleInvoiceId: number;
+    id: string;
+    status: string;
+    duplicate: boolean;
+    providerMessageId: string | null;
+    note: string | null;
+    recipientPhone: string;
+    recipientName: string | null;
+    totalNetAmount: number;
+    dueAmount: number;
+    templateKey: string | null;
+};
+
+export type SaleInvoiceWhatsAppResult = {
+    saleInvoiceId: number;
+    bindingKey: string;
+    id: string;
+    status: string;
+    waMessageId: string | null;
+    recipientPhone: string;
+    recipientName: string | null;
+    dueAmount: number;
+    templateKey: string | null;
+    templateName: string | null;
 };
 
 export type SalesBookRow = {
@@ -529,6 +711,11 @@ export type SalesBookRow = {
     diffFinalAmount: number;
     cashReceiptAmount: number;
     bankReceiptAmount: number;
+    loyaltyAppliedAmount: number;
+    loyaltyPointsRedeemed: number;
+    giftCertificateAppliedAmount: number;
+    giftCertificateApplicationCount: number;
+    settlementAppliedAmount: number;
     paidAmount: number;
     returnAmount: number;
     dueAmount: number;
@@ -889,20 +1076,32 @@ export const fetchAgencyDashboardSummary = async (input?: {
     return data.agencyDashboardSummary;
 };
 
-export const listSaleInvoices = async () => {
-    const data = await requestInvoicingGraphql<{ saleInvoices: { items: SaleInvoiceListItem[] } }>(
-        `query SaleInvoices {
-            saleInvoices {
-                items {
+export const listSaleInvoices = async (input?: ListSaleInvoicesInput) => {
+    const includeProductNames = input?.includeProductNames !== false;
+    const productNameFields = includeProductNames
+        ? `
+                    productGroupNames
+                    productBrandNames
+                    productNames
+        `
+        : '';
+    const saleInvoiceItemFields = `
                     saleInvoiceId
                     voucherNumber
                     voucherDateText
                     billNumber
                     estimateId
+                    estimateRefText
                     ledgerId
                     ledgerName
+                    ledgerGstin
+                    ledgerAddress
                     ledgerGroupId
                     ledgerGroupName
+                    textileJobberLedgerId
+                    textileJobberChallanNo
+                    textileJobberChallanDateText
+                    textileRemarkForStatement
                     otherLedgerId
                     remarks
                     isVatIncluded
@@ -910,14 +1109,17 @@ export const listSaleInvoices = async () => {
                     hasScheme
                     isChecked
                     deliveryStatus
+                    gstStopDate
                     hasLedgerGst
-                    productGroupNames
-                    productBrandNames
-                    productNames
+${productNameFields}
+                    productAttributeIds
+                    mrpValues
                     isDisputed
                     isCancelled
                     linkedCreditNoteCount
                     linkedDebitNoteCount
+                    linkedCreditNoteRefText
+                    linkedDebitNoteRefText
                     totalProductDiscountAmount
                     totalDisplayAmount
                     totalCashDiscountAmount
@@ -936,16 +1138,93 @@ export const listSaleInvoices = async () => {
                     totalNetAmount
                     cashReceiptAmount
                     bankReceiptAmount
+                    loyaltyAppliedAmount
+                    loyaltyPointsRedeemed
+                    giftCertificateAppliedAmount
+                    giftCertificateApplicationCount
+                    settlementAppliedAmount
+                    cashReceiptNumbers
+                    bankReceiptNumbers
+                    cashReceiptDates
+                    bankReceiptDates
+                    cashReceiptDetailText
+                    bankReceiptDetailText
                     creditNoteAmount
                     voucherBillAmount
                     returnAmount
                     paidAmount
                     dueAmount
+    `;
+    const variables = {
+        fromDate: input?.fromDate?.trim() || null,
+        toDate: input?.toDate?.trim() || null,
+        ledgerId: input?.ledgerId ?? null,
+        textileJobberLedgerId: input?.textileJobberLedgerId ?? null,
+        search: input?.search?.trim() || null,
+        includeCancelled: input?.includeCancelled ?? null,
+        includeProductNames,
+        limit: input?.limit ?? null,
+        offset: input?.offset ?? null
+    };
+
+    try {
+        const data = await requestInvoicingGraphql<SaleInvoicesResponse>(
+            `query SaleInvoices($fromDate: String, $toDate: String, $ledgerId: Int, $textileJobberLedgerId: Int, $search: String, $includeCancelled: Boolean, $includeProductNames: Boolean, $limit: Int, $offset: Int) {
+                saleInvoices(fromDate: $fromDate, toDate: $toDate, ledgerId: $ledgerId, textileJobberLedgerId: $textileJobberLedgerId, search: $search, includeCancelled: $includeCancelled, includeProductNames: $includeProductNames, limit: $limit, offset: $offset) {
+                    items {
+${saleInvoiceItemFields}
+                    }
                 }
+            }`,
+            variables
+        );
+        return data.saleInvoices;
+    } catch (error) {
+        if (!isMissingSaleInvoicesFilterArgError(error)) throw error;
+
+        const needsClientSideLedgerFiltering =
+            hasSaleInvoiceLedgerFilter(input?.ledgerId) || hasSaleInvoiceLedgerFilter(input?.textileJobberLedgerId);
+
+        const legacyData = await requestInvoicingGraphql<SaleInvoicesResponse>(
+            `query SaleInvoices($fromDate: String, $toDate: String, $search: String, $includeCancelled: Boolean, $includeProductNames: Boolean, $limit: Int, $offset: Int) {
+                saleInvoices(fromDate: $fromDate, toDate: $toDate, search: $search, includeCancelled: $includeCancelled, includeProductNames: $includeProductNames, limit: $limit, offset: $offset) {
+                    items {
+${saleInvoiceItemFields}
+                    }
+                }
+            }`,
+            {
+                fromDate: variables.fromDate,
+                toDate: variables.toDate,
+                search: variables.search,
+                includeCancelled: variables.includeCancelled,
+                includeProductNames: variables.includeProductNames,
+                limit: needsClientSideLedgerFiltering
+                    ? LEGACY_SALE_INVOICES_FETCH_LIMIT
+                    : variables.limit,
+                offset: needsClientSideLedgerFiltering ? 0 : variables.offset
             }
-        }`
-    );
-    return data.saleInvoices;
+        );
+
+        if (!needsClientSideLedgerFiltering) return legacyData.saleInvoices;
+
+        const filteredItems = filterLegacySaleInvoiceItems(legacyData.saleInvoices.items, input);
+        const offset =
+            typeof input?.offset === 'number' && Number.isFinite(input.offset)
+                ? Math.max(Math.trunc(input.offset), 0)
+                : 0;
+        const limit =
+            typeof input?.limit === 'number' && Number.isFinite(input.limit) && input.limit >= 0
+                ? Math.trunc(input.limit)
+            : null;
+
+        return {
+            items:
+                limit == null
+                    ? filteredItems.slice(offset)
+                    : filteredItems.slice(offset, offset + limit)
+        };
+    }
 };
 
 export const listEstimateLookups = async (input?: {
@@ -1077,6 +1356,52 @@ export const getEstimateImport = async (estimateId: number) => {
     return data.estimateImport;
 };
 
+export const fetchEstimateBook = async (input: {
+    fromDate?: string | null;
+    toDate?: string | null;
+    ledgerId?: number | null;
+    cancelled?: number | null;
+    search?: string | null;
+    limit?: number | null;
+    offset?: number | null;
+}) => {
+    const data = await requestInvoicingGraphql<{ estimateBook: EstimateBookPage }>(
+        `query EstimateBook(
+            $fromDate: String
+            $toDate: String
+            $ledgerId: Int
+            $cancelled: Int
+            $search: String
+            $limit: Int
+            $offset: Int
+        ) {
+            estimateBook(
+                fromDate: $fromDate
+                toDate: $toDate
+                ledgerId: $ledgerId
+                cancelled: $cancelled
+                search: $search
+                limit: $limit
+                offset: $offset
+            ) {
+                items {
+                    estimateId
+                    voucherNumber
+                    voucherDateText
+                    ledgerId
+                    ledgerName
+                    totalNetAmount
+                    isCancelled
+                }
+                totalCount
+                totalNetAmount
+            }
+        }`,
+        input ?? undefined
+    );
+    return data.estimateBook;
+};
+
 export const fetchSalesBook = async (input: {
     fromDate?: string | null;
     toDate?: string | null;
@@ -1127,6 +1452,11 @@ export const fetchSalesBook = async (input: {
                     diffFinalAmount
                     cashReceiptAmount
                     bankReceiptAmount
+                    loyaltyAppliedAmount
+                    loyaltyPointsRedeemed
+                    giftCertificateAppliedAmount
+                    giftCertificateApplicationCount
+                    settlementAppliedAmount
                     paidAmount
                     returnAmount
                     dueAmount
@@ -1285,6 +1615,21 @@ export const getSaleInvoice = async (saleInvoiceId: number) => {
                     ledgerId
                     ledgerName
                     ledgerGroupId
+                    salesmanId
+                    salesmanName
+                    salesman2Id
+                    salesman2Name
+                    transportIsApplied
+                    transporterId
+                    transporterName
+                    transportFreightLedgerId
+                    transportFreightAmount
+                    transportFreightTaxLedgerId
+                    transportFreightTaxAmount
+                    textileJobberLedgerId
+                    textileJobberChallanNo
+                    textileJobberChallanDateText
+                    textileRemarkForStatement
                     otherLedgerId
                     itemBrandId
                     remarks
@@ -1316,6 +1661,21 @@ export const getSaleInvoice = async (saleInvoiceId: number) => {
                     g1IsAmountMatched
                     g1Remark
                     isCancelled
+                    loyaltyApplication {
+                        programId
+                        programName
+                        pointsRedeemed
+                        amountApplied
+                        referenceNote
+                    }
+                    giftCertificateApplications {
+                        giftCertificateId
+                        certificateCode
+                        redeemedAmount
+                        balanceAmount
+                        status
+                        notes
+                    }
                     lines {
                         saleInvoiceLineId
                         lineNumber
@@ -1359,6 +1719,7 @@ export const getSaleInvoice = async (saleInvoiceId: number) => {
                         isManualQpsDiscount
                         tmpTypeId
                         estimateLineId
+                        textileJobberLedgerId
                         inventoryWarehouseId
                         inventoryBatchNo
                         inventoryExpiryDateText
@@ -1393,6 +1754,7 @@ export const getSaleInvoice = async (saleInvoiceId: number) => {
                         saleInvoiceTypeDetailId
                         itemId
                         typeDetailId
+                        typeDetailName
                         quantity
                         tmpTypeId
                     }
@@ -1444,6 +1806,126 @@ export const setSaleInvoiceCancelled = async (input: { saleInvoiceId: number; ca
         }
     );
     return Boolean(data.setSaleInvoiceCancelled);
+};
+
+export const sendSaleInvoiceDueSms = async (input: {
+    saleInvoiceId: number;
+    messageText?: string | null;
+    templateKey?: string | null;
+}) => {
+    const data = await requestInvoicingGraphql<{ sendSaleInvoiceDueSms: SaleInvoiceDueSmsResult }>(
+        `mutation SendSaleInvoiceDueSms($saleInvoiceId: Int!, $messageText: String, $templateKey: String) {
+            sendSaleInvoiceDueSms(saleInvoiceId: $saleInvoiceId, messageText: $messageText, templateKey: $templateKey) {
+                saleInvoiceId
+                id
+                status
+                duplicate
+                providerMessageId
+                note
+                recipientPhone
+                recipientName
+                dueAmount
+                templateKey
+            }
+        }`,
+        {
+            saleInvoiceId: Number(input.saleInvoiceId),
+            messageText: input.messageText ?? null,
+            templateKey: input.templateKey ?? null
+        }
+    );
+    return data.sendSaleInvoiceDueSms;
+};
+
+export const sendSaleInvoiceCreatedSms = async (input: {
+    saleInvoiceId: number;
+    messageText?: string | null;
+    templateKey?: string | null;
+}) => {
+    const data = await requestInvoicingGraphql<{ sendSaleInvoiceCreatedSms: SaleInvoiceCreatedSmsResult }>(
+        `mutation SendSaleInvoiceCreatedSms($saleInvoiceId: Int!, $messageText: String, $templateKey: String) {
+            sendSaleInvoiceCreatedSms(saleInvoiceId: $saleInvoiceId, messageText: $messageText, templateKey: $templateKey) {
+                saleInvoiceId
+                id
+                status
+                duplicate
+                providerMessageId
+                note
+                recipientPhone
+                recipientName
+                totalNetAmount
+                dueAmount
+                templateKey
+            }
+        }`,
+        {
+            saleInvoiceId: Number(input.saleInvoiceId),
+            messageText: input.messageText ?? null,
+            templateKey: input.templateKey ?? null
+        }
+    );
+    return data.sendSaleInvoiceCreatedSms;
+};
+
+export const sendSaleInvoiceWhatsApp = async (input: {
+    saleInvoiceId: number;
+    bindingKey?: string | null;
+    accountId?: string | null;
+    recipientPhone?: string | null;
+    recipientName?: string | null;
+    campaignKey?: string | null;
+    idempotencyKey?: string | null;
+    scheduledAt?: string | null;
+    sendNow?: boolean | null;
+}) => {
+    const data = await requestInvoicingGraphql<{ sendSaleInvoiceWhatsApp: SaleInvoiceWhatsAppResult }>(
+        `mutation SendSaleInvoiceWhatsApp(
+            $saleInvoiceId: Int!
+            $bindingKey: String
+            $accountId: String
+            $recipientPhone: String
+            $recipientName: String
+            $campaignKey: String
+            $idempotencyKey: String
+            $scheduledAt: String
+            $sendNow: Boolean
+        ) {
+            sendSaleInvoiceWhatsApp(
+                saleInvoiceId: $saleInvoiceId
+                bindingKey: $bindingKey
+                accountId: $accountId
+                recipientPhone: $recipientPhone
+                recipientName: $recipientName
+                campaignKey: $campaignKey
+                idempotencyKey: $idempotencyKey
+                scheduledAt: $scheduledAt
+                sendNow: $sendNow
+            ) {
+                saleInvoiceId
+                bindingKey
+                id
+                status
+                waMessageId
+                recipientPhone
+                recipientName
+                dueAmount
+                templateKey
+                templateName
+            }
+        }`,
+        {
+            saleInvoiceId: Number(input.saleInvoiceId),
+            bindingKey: input.bindingKey ?? null,
+            accountId: input.accountId ?? null,
+            recipientPhone: input.recipientPhone ?? null,
+            recipientName: input.recipientName ?? null,
+            campaignKey: input.campaignKey ?? null,
+            idempotencyKey: input.idempotencyKey ?? null,
+            scheduledAt: input.scheduledAt ?? null,
+            sendNow: input.sendNow ?? null
+        }
+    );
+    return data.sendSaleInvoiceWhatsApp;
 };
 
 export const createSaleInvoicesBatch = async (input: CreateSaleInvoicesBatchInput) => {
@@ -1521,3 +2003,8 @@ export const createPurchaseInvoice = async (input: {
     );
     return data.createPurchaseInvoice;
 };
+
+
+
+
+

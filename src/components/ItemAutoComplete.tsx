@@ -150,10 +150,60 @@ const ItemAutoComplete = forwardRef<AutoComplete, ItemAutoCompleteProps>((
 
     const handleKeyDown = (event: React.KeyboardEvent<HTMLSpanElement>) => {
         onKeyDown?.(event);
-        if (event.defaultPrevented || event.key !== 'Enter' || !onSelectNext) return;
+        if (event.defaultPrevented || event.key !== 'Enter') return;
+
+        const commitSelection = (option: ItemOption | null) => {
+            if (!option) return false;
+            setQuery('');
+            onChange(option.value ?? null, option);
+            if (onSelectNext) {
+                window.setTimeout(onSelectNext, 0);
+            }
+            return true;
+        };
+
         const overlay = autoCompleteRef.current?.getOverlay?.();
         const overlayVisible = Boolean(overlay && overlay.offsetParent !== null);
-        if (overlayVisible) return;
+        if (overlayVisible) {
+            const highlighted = overlay?.querySelector(
+                'li[data-p-highlight="true"], li.p-highlight, li[aria-selected="true"]'
+            ) as HTMLElement | null;
+            const indexAttr = highlighted?.getAttribute('data-index') ?? highlighted?.getAttribute('index');
+            const index = indexAttr ? Number(indexAttr) : NaN;
+            const highlightedOption = Number.isFinite(index) ? suggestions[index] ?? null : null;
+            const fallbackOption = suggestions[0] ?? null;
+            const optionToSelect =
+                query.trim().length > 0
+                    ? highlightedOption ?? fallbackOption
+                    : highlightedOption;
+            if (optionToSelect) {
+                event.preventDefault();
+                event.stopPropagation();
+                autoCompleteRef.current?.hide?.();
+                if (commitSelection(optionToSelect)) {
+                    return;
+                }
+            }
+            if (!onSelectNext) return;
+            event.preventDefault();
+            event.stopPropagation();
+            autoCompleteRef.current?.hide?.();
+            window.setTimeout(onSelectNext, 0);
+            return;
+        }
+
+        const currentQuery = query.trim();
+        if (currentQuery.length > 0) {
+            const match = findExactMatch(options, currentQuery);
+            if (match) {
+                event.preventDefault();
+                event.stopPropagation();
+                if (commitSelection(match)) {
+                    return;
+                }
+            }
+        }
+        if (!onSelectNext) return;
         event.preventDefault();
         event.stopPropagation();
         window.setTimeout(onSelectNext, 0);

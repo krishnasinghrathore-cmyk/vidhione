@@ -46,6 +46,7 @@ export function VoucherFormFooter({ viewProps, renderFormError }: VoucherFormFoo
         handleDelete,
         runDryDeleteCheck,
         handleCancelVoucherToggle,
+        handleTemplateVoucherPrint,
         cancelledChecked,
         editingId,
         saveButtonId,
@@ -240,7 +241,7 @@ export function VoucherFormFooter({ viewProps, renderFormError }: VoucherFormFoo
                             label="Print Voucher"
                             icon="pi pi-print"
                             className="app-action-compact p-button-text"
-                            onClick={() => window.print()}
+                            onClick={handleTemplateVoucherPrint}
                             disabled={voucherActions.printVoucher.disabled}
                         />
                     ) : null}

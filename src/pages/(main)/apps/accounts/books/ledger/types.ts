@@ -46,6 +46,40 @@ export type LedgerReportFilters = {
     toDate: Date | null;
 };
 
+export interface LedgerStatementSmsResult {
+    ledgerId: number;
+    id: string;
+    status: string;
+    duplicate: boolean;
+    providerMessageId: string | null;
+    note: string | null;
+    recipientPhone: string;
+    recipientName: string | null;
+    fromDate: string;
+    toDate: string;
+    totalCount: number;
+    closingAmount: number;
+    closingDrCr: string;
+    templateKey: string | null;
+}
+
+export interface LedgerStatementWhatsAppResult {
+    ledgerId: number;
+    bindingKey: string;
+    id: string;
+    status: string;
+    waMessageId: string | null;
+    recipientPhone: string;
+    recipientName: string | null;
+    fromDate: string;
+    toDate: string;
+    totalCount: number;
+    closingAmount: number;
+    closingDrCr: string;
+    templateKey: string | null;
+    templateName: string | null;
+}
+
 export type FilterOption<T extends string | number> = {
     label: string;
     value: T;

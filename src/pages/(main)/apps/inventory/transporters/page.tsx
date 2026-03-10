@@ -1,14 +1,21 @@
 'use client';
 import React, { useMemo, useRef, useState } from 'react';
 import { Column } from 'primereact/column';
+import { ConfirmDialog } from 'primereact/confirmdialog';
 import { ConfirmPopup, confirmPopup } from 'primereact/confirmpopup';
 import { Dialog } from 'primereact/dialog';
-import { InputText } from 'primereact/inputtext';
+import AppInput from '@/components/AppInput';
 import { Toast } from 'primereact/toast';
 import { Button } from 'primereact/button';
+import { AppHelpDialogButton } from '@/components/AppHelpDialogButton';
+import { getMasterPageHelp } from '@/lib/masterPageHelp';
 import { gql, useMutation, useQuery } from '@apollo/client';
 import AppDataTable from '@/components/AppDataTable';
 import AppDropdown from '@/components/AppDropdown';
+import { MasterDetailDialogFooter, MasterEditDialogFooter } from '@/components/MasterDialogFooter';
+import { MasterDetailCard } from '@/components/MasterDetailCard';
+import { MasterDetailGrid, MasterDetailSection } from '@/components/MasterDetailLayout';
+import { findMasterRowIndex, getMasterRowByDirection, type MasterDialogDirection } from '@/lib/masterDialogNavigation';
 import { z } from 'zod';
 import { inventoryApolloClient } from '@/lib/inventoryApolloClient';
 import { useGeoCityOptions } from '@/lib/accounts/cities';
@@ -21,6 +28,13 @@ import {
     useMasterActionPermissions
 } from '@/lib/masterActionPermissions';
 import { ensureDryEditCheck } from '@/lib/masterDryRun';
+import {
+    confirmMasterDialogClose,
+    focusElementById,
+    focusElementByIdNextFrame,
+    getMasterSaveButtonLabel
+} from '@/lib/masterFormDialog';
+import { MASTER_DETAIL_DIALOG_WIDTHS } from '@/lib/masterDialogLayout';
 
 interface TransporterRow {
     transporterId: number;
@@ -179,26 +193,40 @@ const DEFAULT_FORM: FormState = {
     mobileNumber: ''
 };
 
-const limitOptions = [100, 250, 500, 1000, 2000].map((value) => ({ label: String(value), value }));
-
 const toOptionalText = (value: string) => {
     const trimmed = value.trim();
     return trimmed ? trimmed : null;
 };
 
 export default function InventoryTransportersPage() {
+    const nameInputId = 'transporter-name-input';
+    const aliasInputId = 'transporter-alias-input';
+    const address1InputId = 'transporter-address1-input';
+    const address2InputId = 'transporter-address2-input';
+    const address3InputId = 'transporter-address3-input';
+    const cityInputId = 'transporter-city-input';
+    const postalInputId = 'transporter-postal-input';
+    const mobileInputId = 'transporter-mobile-input';
+    const emailInputId = 'transporter-email-input';
+    const websiteInputId = 'transporter-website-input';
+    const officePhoneInputId = 'transporter-office-phone-input';
+    const residencePhoneInputId = 'transporter-residence-phone-input';
+    const saveButtonId = 'transporter-save-button';
+
     const toastRef = useRef<Toast>(null);
     const dtRef = useRef<any>(null);
 
     const [search, setSearch] = useState('');
-    const [limit, setLimit] = useState(2000);
+    const limit = 2000;
     const [dialogVisible, setDialogVisible] = useState(false);
     const [saving, setSaving] = useState(false);
     const [editing, setEditing] = useState<TransporterRow | null>(null);
     const [detailVisible, setDetailVisible] = useState(false);
     const [detailRow, setDetailRow] = useState<TransporterRow | null>(null);
     const [form, setForm] = useState<FormState>(DEFAULT_FORM);
+    const [initialForm, setInitialForm] = useState<FormState>(DEFAULT_FORM);
     const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+    const [isBulkMode, setIsBulkMode] = useState(false);
 
     const [dryEditDigest, setDryEditDigest] = useState('');
 
@@ -214,6 +242,18 @@ export default function InventoryTransportersPage() {
     const { options: cityOptions, error: cityError, refetch: refetchCities } = useGeoCityOptions({ limit: 2000 });
 
     const rows: TransporterRow[] = useMemo(() => data?.transporters ?? [], [data]);
+    const currentFormDigest = useMemo(() => JSON.stringify(form), [form]);
+    const isFormDirty = useMemo(() => currentFormDigest !== JSON.stringify(initialForm), [currentFormDigest, initialForm]);
+    const editingIndex = useMemo(() => findMasterRowIndex(rows, editing), [rows, editing]);
+    const detailIndex = useMemo(() => findMasterRowIndex(rows, detailRow), [rows, detailRow]);
+    const isDryEditReady = useMemo(
+        () => Boolean(editing && dryEditDigest && dryEditDigest === currentFormDigest),
+        [currentFormDigest, dryEditDigest, editing]
+    );
+    const saveButtonLabel = useMemo(
+        () => getMasterSaveButtonLabel(Boolean(editing), saving, isDryEditReady),
+        [editing, isDryEditReady, saving]
+    );
 
     const assertActionAllowed = (action: MasterAction) => {
         if (isMasterActionAllowed(masterPermissions, action)) return true;
@@ -224,6 +264,18 @@ export default function InventoryTransportersPage() {
         });
         return false;
     };
+
+    const closeDialog = () => {
+        confirmMasterDialogClose({
+            saving,
+            isDirty: isFormDirty,
+            onDiscard: () => {
+                setDialogVisible(false);
+                setFormErrors({});
+            }
+        });
+    };
+
     const cityMap = useMemo(() => {
         const map = new Map<number, string>();
         cityOptions.forEach((city) => {
@@ -273,6 +325,18 @@ export default function InventoryTransportersPage() {
         setDetailVisible(true);
     };
 
+    const navigateEditRecord = (direction: MasterDialogDirection) => {
+        const nextRow = getMasterRowByDirection(rows, editingIndex, direction);
+        if (!nextRow) return;
+        openEdit(nextRow);
+    };
+
+    const navigateDetailRecord = (direction: MasterDialogDirection) => {
+        const nextRow = getMasterRowByDirection(rows, detailIndex, direction);
+        if (!nextRow) return;
+        openView(nextRow);
+    };
+
     const save = async () => {
         const parsed = formSchema.safeParse(form);
         if (!parsed.success) {
@@ -282,13 +346,14 @@ export default function InventoryTransportersPage() {
             });
             setFormErrors(nextErrors);
             toastRef.current?.show({ severity: 'warn', summary: 'Please fix validation errors' });
+            focusElementByIdNextFrame(nameInputId);
             return;
         }
 
         if (!ensureDryEditCheck({
             isEditing: Boolean(editing),
             lastDigest: dryEditDigest,
-            currentDigest: JSON.stringify(form),
+            currentDigest: currentFormDigest,
             setLastDigest: setDryEditDigest,
             toastRef,
             entityLabel: 'record'
@@ -323,7 +388,10 @@ export default function InventoryTransportersPage() {
             }
 
             await refetch();
-            setDialogVisible(false);
+            setInitialForm(form);
+            if (!isBulkMode) {
+                setDialogVisible(false);
+            }
             toastRef.current?.show({
                 severity: 'success',
                 summary: 'Saved',
@@ -358,7 +426,7 @@ export default function InventoryTransportersPage() {
         }
     };
 
-    const confirmDelete = async () => {
+    const confirmDelete = async (event: React.MouseEvent<HTMLButtonElement>, row: TransporterRow) => {
         if (!assertActionAllowed('delete')) return;
         const impact = await fetchInventoryMasterDeleteImpact('TRANSPORTER', row.transporterId);
         if (!impact.canDelete) {
@@ -376,9 +444,9 @@ export default function InventoryTransportersPage() {
             message: `Dry Delete Check passed. ${getDeleteConfirmMessage('transporter')}`,
             icon: 'pi pi-exclamation-triangle',
             acceptClassName: 'p-button-danger',
-            acceptLabel: 'Delete',
-            rejectLabel: 'Cancel',
-            defaultFocus: 'none',
+            acceptLabel: 'Yes',
+            rejectLabel: 'No',
+            defaultFocus: 'reject',
             dismissable: true,
             accept: () => handleDelete(row.transporterId)
         });
@@ -391,7 +459,7 @@ export default function InventoryTransportersPage() {
 
     const actionsBody = (row: TransporterRow) => (
         <div className="flex gap-2">
-            <Button icon="pi pi-eye" className="p-button-text" onClick={() => openView(row)} disabled={!masterPermissions.canView} />
+                        <Button icon="pi pi-eye" className="p-button-text" onClick={() => openView(row)} disabled={!masterPermissions.canView} />
             <Button icon="pi pi-pencil" className="p-button-text" onClick={() => openEdit(row)} disabled={!masterPermissions.canEdit} />
             <Button icon="pi pi-trash" className="p-button-text" severity="danger" onClick={(e) => { void confirmDelete(e, row); }} disabled={!masterPermissions.canDelete} />
         </div>
@@ -400,18 +468,20 @@ export default function InventoryTransportersPage() {
     return (
         <div className="card">
             <Toast ref={toastRef} />
+            <ConfirmDialog />
             <ConfirmPopup />
 
             <div className="flex flex-column gap-2 mb-3">
                 <div className="flex flex-column md:flex-row md:align-items-start md:justify-content-between gap-3">
                     <div>
-                        <h2 className="m-0">Transport</h2>
+                        <h2 className="m-0">Transporters</h2>
                         <p className="mt-2 mb-0 text-600">
                             Maintain transporter records for the agency inventory masters.
                         </p>
                     </div>
-                    <div className="flex gap-2 flex-wrap">
-                        <Button label="New Transporter" icon="pi pi-plus" onClick={openNew} disabled={!masterPermissions.canAdd} />
+                    <div className="flex gap-2 flex-wrap justify-content-end align-items-start">
+                        <Button className="app-action-compact" label="New Transporter" icon="pi pi-plus" onClick={openNew} disabled={!masterPermissions.canAdd} />
+                        <AppHelpDialogButton {...getMasterPageHelp('transporters')} buttonAriaLabel="Open Transporters help" />
                     </div>
                 </div>
                 {error && <p className="text-red-500 m-0">Error loading transporters: {error.message}</p>}
@@ -432,7 +502,7 @@ export default function InventoryTransportersPage() {
                 headerLeft={
                     <span className="p-input-icon-left" style={{ minWidth: '320px' }}>
                         <i className="pi pi-search" />
-                        <InputText
+                        <AppInput
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                             placeholder="Search transporters"
@@ -443,19 +513,6 @@ export default function InventoryTransportersPage() {
                 headerRight={
                     <>
                         <Button
-                            label="Export"
-                            icon="pi pi-download"
-                            className="p-button-info"
-                            onClick={() => dtRef.current?.exportCSV()}
-                            disabled={rows.length === 0}
-                        />
-                        <Button
-                            label="Print"
-                            icon="pi pi-print"
-                            className="p-button-text"
-                            onClick={() => window.print()}
-                        />
-                        <Button
                             label="Refresh"
                             icon="pi pi-refresh"
                             className="p-button-text"
@@ -464,15 +521,19 @@ export default function InventoryTransportersPage() {
                                 refetchCities();
                             }}
                         />
-                        <span className="flex align-items-center gap-2">
-                            <span className="text-600 text-sm">Limit</span>
-                            <AppDropdown
-                                value={limit}
-                                options={limitOptions}
-                                onChange={(e) => setLimit(e.value ?? 2000)}
-                                className="w-6rem"
-                            />
-                        </span>
+                        <Button
+                            label="Print"
+                            icon="pi pi-print"
+                            className="p-button-text"
+                            onClick={() => window.print()}
+                        />
+                        <Button
+                            label="Export"
+                            icon="pi pi-download"
+                            className="p-button-info"
+                            onClick={() => dtRef.current?.exportCSV()}
+                            disabled={rows.length === 0}
+                        />
                         <span className="text-600 text-sm">
                             Showing {rows.length} transporter{rows.length === 1 ? '' : 's'}
                         </span>
@@ -491,25 +552,53 @@ export default function InventoryTransportersPage() {
                 header={editing ? 'Edit Transporter' : 'New Transporter'}
                 visible={dialogVisible}
                 style={{ width: 'min(820px, 96vw)' }}
-                onHide={() => setDialogVisible(false)}
+                onShow={() => {
+                    setInitialForm(form);
+                    focusElementByIdNextFrame(nameInputId);
+                }}
+                onHide={closeDialog}
                 footer={
-                    <div className="flex justify-content-end gap-2 w-full">
-                        <Button
-                            label="Cancel"
-                            className="p-button-text"
-                            onClick={() => setDialogVisible(false)}
-                            disabled={saving}
-                        />
-                        <Button label={saving ? 'Saving...' : 'Save'} icon="pi pi-check" onClick={save} disabled={saving} />
-                    </div>
+                    <MasterEditDialogFooter
+                        index={editingIndex}
+                        total={rows.length}
+                        onNavigate={navigateEditRecord}
+                        navigateDisabled={saving}
+                        bulkMode={{
+                            checked: isBulkMode,
+                            onChange: setIsBulkMode,
+                            onLabel: 'Bulk',
+                            offLabel: 'Standard',
+                            disabled: saving
+                        }}
+                        onCancel={closeDialog}
+                        cancelDisabled={saving}
+                        onSave={save}
+                        saveDisabled={saving || !isFormDirty}
+                        saveLabel={saveButtonLabel}
+                        saveButtonId={saveButtonId}
+                    />
                 }
             >
+                {editing && (
+                    <div
+                        className={`mb-3 p-2 border-round text-sm ${
+                            isDryEditReady ? 'surface-100 text-green-700' : 'surface-100 text-700'
+                        }`}
+                    >
+                        {isDryEditReady
+                            ? 'Dry check passed. Click Apply Changes to save.'
+                            : 'Dry save flow: first click runs dry check, second click saves changes.'}
+                    </div>
+                )}
                 <div className="grid">
                     <div className="col-12 md:col-6">
                         <label className="block text-600 mb-1">Name</label>
-                        <InputText
+                        <AppInput
+                            id={nameInputId}
+                            autoFocus
                             value={form.name}
                             onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))}
+                            onEnterNext={() => focusElementById(aliasInputId)}
                             style={{ width: '100%' }}
                             className={formErrors.name ? 'p-invalid' : undefined}
                         />
@@ -517,42 +606,52 @@ export default function InventoryTransportersPage() {
                     </div>
                     <div className="col-12 md:col-6">
                         <label className="block text-600 mb-1">Alias</label>
-                        <InputText
+                        <AppInput
+                            id={aliasInputId}
                             value={form.alias}
                             onChange={(e) => setForm((s) => ({ ...s, alias: e.target.value }))}
+                            onEnterNext={() => focusElementById(address1InputId)}
                             style={{ width: '100%' }}
                         />
                     </div>
                     <div className="col-12">
                         <label className="block text-600 mb-1">Address Line 1</label>
-                        <InputText
+                        <AppInput
+                            id={address1InputId}
                             value={form.addressLine1}
                             onChange={(e) => setForm((s) => ({ ...s, addressLine1: e.target.value }))}
+                            onEnterNext={() => focusElementById(address2InputId)}
                             style={{ width: '100%' }}
                         />
                     </div>
                     <div className="col-12">
                         <label className="block text-600 mb-1">Address Line 2</label>
-                        <InputText
+                        <AppInput
+                            id={address2InputId}
                             value={form.addressLine2}
                             onChange={(e) => setForm((s) => ({ ...s, addressLine2: e.target.value }))}
+                            onEnterNext={() => focusElementById(address3InputId)}
                             style={{ width: '100%' }}
                         />
                     </div>
                     <div className="col-12">
                         <label className="block text-600 mb-1">Address Line 3</label>
-                        <InputText
+                        <AppInput
+                            id={address3InputId}
                             value={form.addressLine3}
                             onChange={(e) => setForm((s) => ({ ...s, addressLine3: e.target.value }))}
+                            onEnterNext={() => focusElementById(cityInputId)}
                             style={{ width: '100%' }}
                         />
                     </div>
                     <div className="col-12 md:col-4">
                         <label className="block text-600 mb-1">City</label>
                         <AppDropdown
+                            inputId={cityInputId}
                             value={form.cityId}
                             options={cityDropdownOptions}
                             onChange={(e) => setForm((s) => ({ ...s, cityId: e.value ?? null }))}
+                            onEnterNext={() => focusElementById(postalInputId)}
                             placeholder="Select city"
                             filter
                             showClear
@@ -561,49 +660,61 @@ export default function InventoryTransportersPage() {
                     </div>
                     <div className="col-12 md:col-4">
                         <label className="block text-600 mb-1">Postal Code</label>
-                        <InputText
+                        <AppInput
+                            id={postalInputId}
                             value={form.postalCode}
                             onChange={(e) => setForm((s) => ({ ...s, postalCode: e.target.value }))}
+                            onEnterNext={() => focusElementById(mobileInputId)}
                             style={{ width: '100%' }}
                         />
                     </div>
                     <div className="col-12 md:col-4">
                         <label className="block text-600 mb-1">Mobile</label>
-                        <InputText
+                        <AppInput
+                            id={mobileInputId}
                             value={form.mobileNumber}
                             onChange={(e) => setForm((s) => ({ ...s, mobileNumber: e.target.value }))}
+                            onEnterNext={() => focusElementById(emailInputId)}
                             style={{ width: '100%' }}
                         />
                     </div>
                     <div className="col-12 md:col-6">
                         <label className="block text-600 mb-1">Email</label>
-                        <InputText
+                        <AppInput
+                            id={emailInputId}
                             value={form.email}
                             onChange={(e) => setForm((s) => ({ ...s, email: e.target.value }))}
+                            onEnterNext={() => focusElementById(websiteInputId)}
                             style={{ width: '100%' }}
                         />
                     </div>
                     <div className="col-12 md:col-6">
                         <label className="block text-600 mb-1">Website</label>
-                        <InputText
+                        <AppInput
+                            id={websiteInputId}
                             value={form.website}
                             onChange={(e) => setForm((s) => ({ ...s, website: e.target.value }))}
+                            onEnterNext={() => focusElementById(officePhoneInputId)}
                             style={{ width: '100%' }}
                         />
                     </div>
                     <div className="col-12 md:col-6">
                         <label className="block text-600 mb-1">Office Phone</label>
-                        <InputText
+                        <AppInput
+                            id={officePhoneInputId}
                             value={form.officePhone}
                             onChange={(e) => setForm((s) => ({ ...s, officePhone: e.target.value }))}
+                            onEnterNext={() => focusElementById(residencePhoneInputId)}
                             style={{ width: '100%' }}
                         />
                     </div>
                     <div className="col-12 md:col-6">
                         <label className="block text-600 mb-1">Residence Phone</label>
-                        <InputText
+                        <AppInput
+                            id={residencePhoneInputId}
                             value={form.residencePhone}
                             onChange={(e) => setForm((s) => ({ ...s, residencePhone: e.target.value }))}
+                            onEnterNext={() => focusElementById(saveButtonId)}
                             style={{ width: '100%' }}
                         />
                     </div>
@@ -613,26 +724,47 @@ export default function InventoryTransportersPage() {
             <Dialog
                 header="Transporter Details"
                 visible={detailVisible}
-                style={{ width: 'min(760px, 96vw)' }}
+                style={{ width: MASTER_DETAIL_DIALOG_WIDTHS.standard }}
                 onHide={() => setDetailVisible(false)}
                 footer={
-                    <div className="flex justify-content-end w-full">
-                        <Button label="Close" className="p-button-text" onClick={() => setDetailVisible(false)} />
-                    </div>
+                    <MasterDetailDialogFooter
+                        index={detailIndex}
+                        total={rows.length}
+                        onNavigate={navigateDetailRecord}
+                        onClose={() => setDetailVisible(false)}
+                    />
                 }
             >
                 {detailRow && (
-                    <div className="flex flex-column gap-2">
-                        <div><strong>Name:</strong> {detailRow.name ?? '-'}</div>
-                        <div><strong>Alias:</strong> {detailRow.alias || '-'}</div>
-                        <div><strong>Address:</strong> {[detailRow.addressLine1, detailRow.addressLine2, detailRow.addressLine3].filter(Boolean).join(', ') || '-'}</div>
-                        <div><strong>City:</strong> {detailRow.cityId ? cityMap.get(detailRow.cityId) ?? detailRow.cityId : '-'}</div>
-                        <div><strong>Postal Code:</strong> {detailRow.postalCode || '-'}</div>
-                        <div><strong>Mobile:</strong> {detailRow.mobileNumber || '-'}</div>
-                        <div><strong>Office Phone:</strong> {detailRow.officePhone || '-'}</div>
-                        <div><strong>Residence Phone:</strong> {detailRow.residencePhone || '-'}</div>
-                        <div><strong>Email:</strong> {detailRow.email || '-'}</div>
-                        <div><strong>Website:</strong> {detailRow.website || '-'}</div>
+                    <div className="flex flex-column gap-3">
+                        <MasterDetailSection title="Basic Info">
+                            <MasterDetailGrid columns={2}>
+                                <MasterDetailCard label="Name" value={detailRow.name ?? '-'} />
+                                <MasterDetailCard label="Alias" value={detailRow.alias || '-'} />
+                                <MasterDetailCard
+                                    label="City"
+                                    value={detailRow.cityId ? cityMap.get(detailRow.cityId) ?? detailRow.cityId : '-'}
+                                />
+                                <MasterDetailCard label="Postal Code" value={detailRow.postalCode || '-'} />
+                            </MasterDetailGrid>
+                        </MasterDetailSection>
+                        <MasterDetailSection title="Address">
+                            <MasterDetailGrid columns={1}>
+                                <MasterDetailCard
+                                    label="Address"
+                                    value={[detailRow.addressLine1, detailRow.addressLine2, detailRow.addressLine3].filter(Boolean).join(', ') || '-'}
+                                />
+                            </MasterDetailGrid>
+                        </MasterDetailSection>
+                        <MasterDetailSection title="Contact">
+                            <MasterDetailGrid columns={2}>
+                                <MasterDetailCard label="Mobile" value={detailRow.mobileNumber || '-'} />
+                                <MasterDetailCard label="Office Phone" value={detailRow.officePhone || '-'} />
+                                <MasterDetailCard label="Residence Phone" value={detailRow.residencePhone || '-'} />
+                                <MasterDetailCard label="Email" value={detailRow.email || '-'} />
+                                <MasterDetailCard label="Website" value={detailRow.website || '-'} />
+                            </MasterDetailGrid>
+                        </MasterDetailSection>
                     </div>
                 )}
             </Dialog>

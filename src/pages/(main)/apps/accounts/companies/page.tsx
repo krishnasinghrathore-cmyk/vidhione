@@ -3,22 +3,28 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Column } from 'primereact/column';
 import { ConfirmPopup, confirmPopup } from 'primereact/confirmpopup';
 import { Dialog } from 'primereact/dialog';
-import { InputText } from 'primereact/inputtext';
+import AppInput from '@/components/AppInput';
 import { Toast } from 'primereact/toast';
 import { Button } from 'primereact/button';
+import { AppHelpDialogButton } from '@/components/AppHelpDialogButton';
+import { getMasterPageHelp } from '@/lib/masterPageHelp';
 import { gql, useMutation, useQuery } from '@apollo/client';
 import AppDataTable from '@/components/AppDataTable';
 import AppDropdown from '@/components/AppDropdown';
 import AppMultiSelect from '@/components/AppMultiSelect';
 import AppDateInput from '@/components/AppDateInput';
+import { MasterDetailCard } from '@/components/MasterDetailCard';
+import { MasterDetailDialogFooter, MasterEditDialogFooter } from '@/components/MasterDialogFooter';
+import { MasterDetailGrid, MasterDetailSection } from '@/components/MasterDetailLayout';
+import { findMasterRowIndex, getMasterRowByDirection, type MasterDialogDirection } from '@/lib/masterDialogNavigation';
 import GeoImportDialog from '@/components/GeoImportDialog';
 import { z } from 'zod';
 import { apolloClient } from '@/lib/apolloClient';
 import { Checkbox } from 'primereact/checkbox';
-import { InputNumber } from 'primereact/inputnumber';
 import { useAuth } from '@/lib/auth/context';
 import { resolveFiscalRange } from '@/lib/fiscalRange';
 import { validateSingleDate } from '@/lib/reportDateValidation';
+import { MASTER_DETAIL_DIALOG_WIDTHS, MASTER_EDIT_DIALOG_WIDTHS } from '@/lib/masterDialogLayout';
 
 interface CompanyRow {
     companyId: number;
@@ -449,11 +455,6 @@ const DEFAULT_FORM: FormState = {
     extraFields: {}
 };
 
-const limitOptions = [50, 100, 250, 500, 1000, 2000].map((value) => ({
-    label: String(value),
-    value
-}));
-
 const toOptionalText = (value: string) => {
     const trimmed = value.trim();
     return trimmed ? trimmed : null;
@@ -498,13 +499,17 @@ export default function AccountsCompaniesPage() {
     const { companyContext } = useAuth();
 
     const [search, setSearch] = useState('');
-    const [limit, setLimit] = useState(2000);
+    const limit = 2000;
     const [dialogVisible, setDialogVisible] = useState(false);
     const [saving, setSaving] = useState(false);
     const [editing, setEditing] = useState<CompanyRow | null>(null);
+    const [detailVisible, setDetailVisible] = useState(false);
+    const [detailRow, setDetailRow] = useState<CompanyRow | null>(null);
     const [form, setForm] = useState<FormState>(DEFAULT_FORM);
+    const [initialForm, setInitialForm] = useState<FormState>(DEFAULT_FORM);
     const [formErrors, setFormErrors] = useState<Record<string, string>>({});
     const [geoImportVisible, setGeoImportVisible] = useState(false);
+    const [isBulkMode, setIsBulkMode] = useState(false);
     const fiscalRange = useMemo(
         () => resolveFiscalRange(companyContext?.fiscalYearStart ?? null, companyContext?.fiscalYearEnd ?? null),
         [companyContext?.fiscalYearEnd, companyContext?.fiscalYearStart]
@@ -545,6 +550,9 @@ export default function AccountsCompaniesPage() {
     const [deleteCompany] = useMutation(DELETE_COMPANY, { client: apolloClient });
 
     const rows: CompanyRow[] = useMemo(() => data?.companies ?? [], [data]);
+    const isFormDirty = useMemo(() => JSON.stringify(form) !== JSON.stringify(initialForm), [form, initialForm]);
+    const editingIndex = useMemo(() => findMasterRowIndex(rows, editing), [rows, editing]);
+    const detailIndex = useMemo(() => findMasterRowIndex(rows, detailRow), [rows, detailRow]);
     const geoCountries: CountryOption[] = useMemo(() => geoCountriesData?.geoCountries ?? [], [geoCountriesData]);
     const geoStates: StateOption[] = useMemo(() => geoStatesData?.geoStates ?? [], [geoStatesData]);
     const geoDistricts: DistrictOption[] = useMemo(
@@ -672,6 +680,23 @@ export default function AccountsCompaniesPage() {
         setDialogVisible(true);
     };
 
+    const openView = (row: CompanyRow) => {
+        setDetailRow(row);
+        setDetailVisible(true);
+    };
+
+    const navigateEditRecord = (direction: MasterDialogDirection) => {
+        const nextRow = getMasterRowByDirection(rows, editingIndex, direction);
+        if (!nextRow) return;
+        openEdit(nextRow);
+    };
+
+    const navigateDetailRecord = (direction: MasterDialogDirection) => {
+        const nextRow = getMasterRowByDirection(rows, detailIndex, direction);
+        if (!nextRow) return;
+        openView(nextRow);
+    };
+
     const save = async () => {
         const parsed = formSchema.safeParse(form);
         if (!parsed.success) {
@@ -764,7 +789,10 @@ export default function AccountsCompaniesPage() {
             }
 
             await refetch();
-            setDialogVisible(false);
+            setInitialForm(form);
+            if (!isBulkMode) {
+                setDialogVisible(false);
+            }
             toastRef.current?.show({
                 severity: 'success',
                 summary: 'Saved',
@@ -805,9 +833,9 @@ export default function AccountsCompaniesPage() {
             message: 'Delete this company?',
             icon: 'pi pi-exclamation-triangle',
             acceptClassName: 'p-button-danger',
-            acceptLabel: 'Delete',
-            rejectLabel: 'Cancel',
-            defaultFocus: 'none',
+            acceptLabel: 'Yes',
+            rejectLabel: 'No',
+            defaultFocus: 'reject',
             dismissable: true,
             accept: () => handleDelete(row.companyId)
         });
@@ -850,7 +878,7 @@ export default function AccountsCompaniesPage() {
                         <label className="font-medium">
                             {def.label} {requiredMark}
                         </label>
-                        <InputNumber
+                        <AppInput inputType="number"
                             value={typeof value === 'number' ? value : value != null ? Number(value) : null}
                             onValueChange={(e) => updateExtraField(def.key, e.value ?? null)}
                             className="w-full"
@@ -940,7 +968,7 @@ export default function AccountsCompaniesPage() {
                         <label className="font-medium">
                             {def.label} {requiredMark}
                         </label>
-                        <InputText
+                        <AppInput
                             value={value ?? ''}
                             onChange={(e) => updateExtraField(def.key, e.target.value)}
                             placeholder={def.label}
@@ -958,6 +986,7 @@ export default function AccountsCompaniesPage() {
 
     const actionsBody = (row: CompanyRow) => (
         <div className="flex gap-2">
+            <Button icon="pi pi-eye" className="p-button-text" onClick={() => openView(row)} />
             <Button icon="pi pi-pencil" className="p-button-text" onClick={() => openEdit(row)} />
             <Button icon="pi pi-trash" className="p-button-text" severity="danger" onClick={(e) => confirmDelete(e, row)} />
         </div>
@@ -976,8 +1005,9 @@ export default function AccountsCompaniesPage() {
                             Maintain company profiles for the agency accounts masters.
                         </p>
                     </div>
-                    <div className="flex gap-2 flex-wrap">
-                        <Button label="New Company" icon="pi pi-plus" onClick={openNew} />
+                    <div className="flex gap-2 flex-wrap justify-content-end align-items-start">
+                        <Button className="app-action-compact" label="New Company" icon="pi pi-plus" onClick={openNew} />
+                        <AppHelpDialogButton {...getMasterPageHelp('companies')} buttonAriaLabel="Open Companies help" />
                     </div>
                 </div>
                 {error && <p className="text-red-500 m-0">Error loading companies: {error.message}</p>}
@@ -997,7 +1027,7 @@ export default function AccountsCompaniesPage() {
                 headerLeft={
                     <span className="p-input-icon-left" style={{ minWidth: '320px' }}>
                         <i className="pi pi-search" />
-                        <InputText
+                        <AppInput
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                             placeholder="Search company"
@@ -1008,11 +1038,10 @@ export default function AccountsCompaniesPage() {
                 headerRight={
                     <>
                         <Button
-                            label="Export"
-                            icon="pi pi-download"
-                            className="p-button-info"
-                            onClick={() => dtRef.current?.exportCSV()}
-                            disabled={filteredRows.length === 0}
+                            label="Refresh"
+                            icon="pi pi-refresh"
+                            className="p-button-text"
+                            onClick={() => refetch()}
                         />
                         <Button
                             label="Print"
@@ -1021,20 +1050,12 @@ export default function AccountsCompaniesPage() {
                             onClick={() => window.print()}
                         />
                         <Button
-                            label="Refresh"
-                            icon="pi pi-refresh"
-                            className="p-button-text"
-                            onClick={() => refetch()}
+                            label="Export"
+                            icon="pi pi-download"
+                            className="p-button-info"
+                            onClick={() => dtRef.current?.exportCSV()}
+                            disabled={filteredRows.length === 0}
                         />
-                        <span className="flex align-items-center gap-2">
-                            <span className="text-600 text-sm">Limit</span>
-                            <AppDropdown
-                                value={limit}
-                                options={limitOptions}
-                                onChange={(e) => setLimit(e.value ?? 2000)}
-                                className="w-6rem"
-                            />
-                        </span>
                         <span className="text-600 text-sm">
                             Showing {filteredRows.length} company{filteredRows.length === 1 ? '' : 'ies'}
                         </span>
@@ -1053,18 +1074,22 @@ export default function AccountsCompaniesPage() {
             <Dialog
                 header={editing ? 'Edit Company' : 'New Company'}
                 visible={dialogVisible}
-                style={{ width: 'min(980px, 96vw)' }}
+                style={{ width: MASTER_EDIT_DIALOG_WIDTHS.wide }}
+                onShow={() => setInitialForm(form)}
                 onHide={() => setDialogVisible(false)}
                 footer={
-                    <div className="flex justify-content-end gap-2 w-full">
-                        <Button
-                            label="Cancel"
-                            className="p-button-text"
-                            onClick={() => setDialogVisible(false)}
-                            disabled={saving}
-                        />
-                        <Button label={saving ? 'Saving...' : 'Save'} icon="pi pi-check" onClick={save} disabled={saving} />
-                    </div>
+                    <MasterEditDialogFooter
+                        index={editingIndex}
+                        total={rows.length}
+                        onNavigate={navigateEditRecord}
+                        navigateDisabled={saving}
+                        bulkMode={{ checked: isBulkMode, onChange: setIsBulkMode, disabled: saving }}
+                        onCancel={() => setDialogVisible(false)}
+                        cancelDisabled={saving}
+                        onSave={save}
+                        saveLabel={saving ? 'Saving...' : 'Save'}
+                        saveDisabled={saving || !isFormDirty}
+                    />
                 }
             >
                 <div className="grid">
@@ -1073,7 +1098,7 @@ export default function AccountsCompaniesPage() {
                     </div>
                     <div className="col-12 md:col-6">
                         <label className="block text-600 mb-1">Name</label>
-                        <InputText
+                        <AppInput
                             value={form.name}
                             onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))}
                             style={{ width: '100%' }}
@@ -1083,7 +1108,7 @@ export default function AccountsCompaniesPage() {
                     </div>
                     <div className="col-12 md:col-6">
                         <label className="block text-600 mb-1">Alias</label>
-                        <InputText
+                        <AppInput
                             value={form.alias}
                             onChange={(e) => setForm((s) => ({ ...s, alias: e.target.value }))}
                             style={{ width: '100%' }}
@@ -1093,7 +1118,7 @@ export default function AccountsCompaniesPage() {
                     </div>
                     <div className="col-12">
                         <label className="block text-600 mb-1">Address Line 1</label>
-                        <InputText
+                        <AppInput
                             value={form.addressLine1}
                             onChange={(e) => setForm((s) => ({ ...s, addressLine1: e.target.value }))}
                             style={{ width: '100%' }}
@@ -1101,7 +1126,7 @@ export default function AccountsCompaniesPage() {
                     </div>
                     <div className="col-12">
                         <label className="block text-600 mb-1">Address Line 2</label>
-                        <InputText
+                        <AppInput
                             value={form.addressLine2}
                             onChange={(e) => setForm((s) => ({ ...s, addressLine2: e.target.value }))}
                             style={{ width: '100%' }}
@@ -1109,7 +1134,7 @@ export default function AccountsCompaniesPage() {
                     </div>
                     <div className="col-12">
                         <label className="block text-600 mb-1">Address Line 3</label>
-                        <InputText
+                        <AppInput
                             value={form.addressLine3}
                             onChange={(e) => setForm((s) => ({ ...s, addressLine3: e.target.value }))}
                             style={{ width: '100%' }}
@@ -1218,7 +1243,7 @@ export default function AccountsCompaniesPage() {
                     </div>
                     <div className="col-12 md:col-6">
                         <label className="block text-600 mb-1">Postal Code</label>
-                        <InputText
+                        <AppInput
                             value={form.postalCode}
                             onChange={(e) => setForm((s) => ({ ...s, postalCode: e.target.value }))}
                             style={{ width: '100%' }}
@@ -1230,7 +1255,7 @@ export default function AccountsCompaniesPage() {
                     </div>
                     <div className="col-12 md:col-6">
                         <label className="block text-600 mb-1">Email</label>
-                        <InputText
+                        <AppInput
                             value={form.email}
                             onChange={(e) => setForm((s) => ({ ...s, email: e.target.value }))}
                             style={{ width: '100%' }}
@@ -1238,7 +1263,7 @@ export default function AccountsCompaniesPage() {
                     </div>
                     <div className="col-12 md:col-6">
                         <label className="block text-600 mb-1">Website</label>
-                        <InputText
+                        <AppInput
                             value={form.website}
                             onChange={(e) => setForm((s) => ({ ...s, website: e.target.value }))}
                             style={{ width: '100%' }}
@@ -1246,7 +1271,7 @@ export default function AccountsCompaniesPage() {
                     </div>
                     <div className="col-12 md:col-4">
                         <label className="block text-600 mb-1">Office Phone</label>
-                        <InputText
+                        <AppInput
                             value={form.officePhone}
                             onChange={(e) => setForm((s) => ({ ...s, officePhone: e.target.value }))}
                             style={{ width: '100%' }}
@@ -1254,7 +1279,7 @@ export default function AccountsCompaniesPage() {
                     </div>
                     <div className="col-12 md:col-4">
                         <label className="block text-600 mb-1">Residence Phone</label>
-                        <InputText
+                        <AppInput
                             value={form.residencePhone}
                             onChange={(e) => setForm((s) => ({ ...s, residencePhone: e.target.value }))}
                             style={{ width: '100%' }}
@@ -1262,7 +1287,7 @@ export default function AccountsCompaniesPage() {
                     </div>
                     <div className="col-12 md:col-4">
                         <label className="block text-600 mb-1">Mobile</label>
-                        <InputText
+                        <AppInput
                             value={form.mobileNumber}
                             onChange={(e) => setForm((s) => ({ ...s, mobileNumber: e.target.value }))}
                             style={{ width: '100%' }}
@@ -1270,7 +1295,7 @@ export default function AccountsCompaniesPage() {
                     </div>
                     <div className="col-12 md:col-4">
                         <label className="block text-600 mb-1">Fax</label>
-                        <InputText
+                        <AppInput
                             value={form.faxNumber}
                             onChange={(e) => setForm((s) => ({ ...s, faxNumber: e.target.value }))}
                             style={{ width: '100%' }}
@@ -1282,7 +1307,7 @@ export default function AccountsCompaniesPage() {
                     </div>
                     <div className="col-12 md:col-4">
                         <label className="block text-600 mb-1">Service Tax No</label>
-                        <InputText
+                        <AppInput
                             value={form.serviceTaxNumber}
                             onChange={(e) => setForm((s) => ({ ...s, serviceTaxNumber: e.target.value }))}
                             style={{ width: '100%' }}
@@ -1290,7 +1315,7 @@ export default function AccountsCompaniesPage() {
                     </div>
                     <div className="col-12 md:col-4">
                         <label className="block text-600 mb-1">PAN No</label>
-                        <InputText
+                        <AppInput
                             value={form.panNumber}
                             onChange={(e) => setForm((s) => ({ ...s, panNumber: e.target.value }))}
                             style={{ width: '100%' }}
@@ -1298,7 +1323,7 @@ export default function AccountsCompaniesPage() {
                     </div>
                     <div className="col-12 md:col-4">
                         <label className="block text-600 mb-1">CST No</label>
-                        <InputText
+                        <AppInput
                             value={form.cstNumber}
                             onChange={(e) => setForm((s) => ({ ...s, cstNumber: e.target.value }))}
                             style={{ width: '100%' }}
@@ -1306,7 +1331,7 @@ export default function AccountsCompaniesPage() {
                     </div>
                     <div className="col-12 md:col-4">
                         <label className="block text-600 mb-1">VAT No</label>
-                        <InputText
+                        <AppInput
                             value={form.vatNumber}
                             onChange={(e) => setForm((s) => ({ ...s, vatNumber: e.target.value }))}
                             style={{ width: '100%' }}
@@ -1314,7 +1339,7 @@ export default function AccountsCompaniesPage() {
                     </div>
                     <div className="col-12 md:col-4">
                         <label className="block text-600 mb-1">TIN No</label>
-                        <InputText
+                        <AppInput
                             value={form.tinNumber}
                             onChange={(e) => setForm((s) => ({ ...s, tinNumber: e.target.value }))}
                             style={{ width: '100%' }}
@@ -1345,7 +1370,7 @@ export default function AccountsCompaniesPage() {
                     </div>
                     <div className="col-12 md:col-6">
                         <label className="block text-600 mb-1">Financial Year Start</label>
-                        <InputText
+                        <AppInput
                             value={form.financialYearStart}
                             onChange={(e) => setForm((s) => ({ ...s, financialYearStart: e.target.value }))}
                             style={{ width: '100%' }}
@@ -1353,7 +1378,7 @@ export default function AccountsCompaniesPage() {
                     </div>
                     <div className="col-12 md:col-6">
                         <label className="block text-600 mb-1">Financial Year End</label>
-                        <InputText
+                        <AppInput
                             value={form.financialYearEnd}
                             onChange={(e) => setForm((s) => ({ ...s, financialYearEnd: e.target.value }))}
                             style={{ width: '100%' }}
@@ -1365,7 +1390,7 @@ export default function AccountsCompaniesPage() {
                     </div>
                     <div className="col-12 md:col-6">
                         <label className="block text-600 mb-1">Bank Name</label>
-                        <InputText
+                        <AppInput
                             value={form.bankName}
                             onChange={(e) => setForm((s) => ({ ...s, bankName: e.target.value }))}
                             style={{ width: '100%' }}
@@ -1373,7 +1398,7 @@ export default function AccountsCompaniesPage() {
                     </div>
                     <div className="col-12 md:col-6">
                         <label className="block text-600 mb-1">Branch Name</label>
-                        <InputText
+                        <AppInput
                             value={form.branchName}
                             onChange={(e) => setForm((s) => ({ ...s, branchName: e.target.value }))}
                             style={{ width: '100%' }}
@@ -1381,7 +1406,7 @@ export default function AccountsCompaniesPage() {
                     </div>
                     <div className="col-12 md:col-6">
                         <label className="block text-600 mb-1">Account Number</label>
-                        <InputText
+                        <AppInput
                             value={form.accountNumber}
                             onChange={(e) => setForm((s) => ({ ...s, accountNumber: e.target.value }))}
                             style={{ width: '100%' }}
@@ -1389,7 +1414,7 @@ export default function AccountsCompaniesPage() {
                     </div>
                     <div className="col-12 md:col-6">
                         <label className="block text-600 mb-1">IFSC Code</label>
-                        <InputText
+                        <AppInput
                             value={form.ifscCode}
                             onChange={(e) => setForm((s) => ({ ...s, ifscCode: e.target.value }))}
                             style={{ width: '100%' }}
@@ -1397,7 +1422,7 @@ export default function AccountsCompaniesPage() {
                     </div>
                     <div className="col-12 md:col-6">
                         <label className="block text-600 mb-1">RTGS No</label>
-                        <InputText
+                        <AppInput
                             value={form.rtgsNumber}
                             onChange={(e) => setForm((s) => ({ ...s, rtgsNumber: e.target.value }))}
                             style={{ width: '100%' }}
@@ -1409,7 +1434,7 @@ export default function AccountsCompaniesPage() {
                     </div>
                     <div className="col-12">
                         <label className="block text-600 mb-1">Sign Image Path</label>
-                        <InputText
+                        <AppInput
                             value={form.signImagePath}
                             onChange={(e) => setForm((s) => ({ ...s, signImagePath: e.target.value }))}
                             style={{ width: '100%' }}
@@ -1417,7 +1442,7 @@ export default function AccountsCompaniesPage() {
                     </div>
                     <div className="col-12 md:col-6">
                         <label className="block text-600 mb-1">PF No</label>
-                        <InputText
+                        <AppInput
                             value={form.pfNumber}
                             onChange={(e) => setForm((s) => ({ ...s, pfNumber: e.target.value }))}
                             style={{ width: '100%' }}
@@ -1425,13 +1450,78 @@ export default function AccountsCompaniesPage() {
                     </div>
                     <div className="col-12 md:col-6">
                         <label className="block text-600 mb-1">ESI No</label>
-                        <InputText
+                        <AppInput
                             value={form.esiNumber}
                             onChange={(e) => setForm((s) => ({ ...s, esiNumber: e.target.value }))}
                             style={{ width: '100%' }}
                         />
                     </div>
                 </div>
+            </Dialog>
+
+            <Dialog
+                header="Company Details"
+                visible={detailVisible}
+                style={{ width: MASTER_DETAIL_DIALOG_WIDTHS.wide }}
+                onHide={() => setDetailVisible(false)}
+                footer={
+                    <MasterDetailDialogFooter
+                        index={detailIndex}
+                        total={rows.length}
+                        onNavigate={navigateDetailRecord}
+                        onClose={() => setDetailVisible(false)}
+                    />
+                }
+            >
+                {detailRow && (
+                    <div className="flex flex-column gap-3">
+                        <MasterDetailSection title="Basic Info">
+                            <MasterDetailGrid columns={2}>
+                                <MasterDetailCard label="Name" value={detailRow.name ?? '-'} />
+                                <MasterDetailCard label="Alias" value={detailRow.alias ?? '-'} />
+                                <MasterDetailCard label="City" value={cityMap.get(detailRow.cityId ?? -1) ?? '-'} />
+                                <MasterDetailCard label="Postal Code" value={detailRow.postalCode ?? '-'} />
+                            </MasterDetailGrid>
+                        </MasterDetailSection>
+                        <MasterDetailSection title="Address & Contact">
+                            <MasterDetailGrid columns={2}>
+                                <MasterDetailCard
+                                    label="Address"
+                                    value={
+                                        [detailRow.addressLine1, detailRow.addressLine2, detailRow.addressLine3]
+                                            .filter(Boolean)
+                                            .join(', ') || '-'
+                                    }
+                                />
+                                <MasterDetailCard label="Mobile" value={detailRow.mobileNumber ?? '-'} />
+                                <MasterDetailCard label="Email" value={detailRow.email ?? '-'} />
+                                <MasterDetailCard label="Website" value={detailRow.website ?? '-'} />
+                            </MasterDetailGrid>
+                        </MasterDetailSection>
+                        <MasterDetailSection title="Tax & Financial">
+                            <MasterDetailGrid columns={2}>
+                                <MasterDetailCard label="PAN" value={detailRow.panNumber ?? '-'} />
+                                <MasterDetailCard label="TIN" value={detailRow.tinNumber ?? '-'} />
+                                <MasterDetailCard
+                                    label="Financial Year Start"
+                                    value={detailRow.financialYearStart ?? '-'}
+                                />
+                                <MasterDetailCard
+                                    label="Financial Year End"
+                                    value={detailRow.financialYearEnd ?? '-'}
+                                />
+                            </MasterDetailGrid>
+                        </MasterDetailSection>
+                        <MasterDetailSection title="Bank Details">
+                            <MasterDetailGrid columns={2}>
+                                <MasterDetailCard label="Bank" value={detailRow.bankName ?? '-'} />
+                                <MasterDetailCard label="Branch" value={detailRow.branchName ?? '-'} />
+                                <MasterDetailCard label="Account No" value={detailRow.accountNumber ?? '-'} />
+                                <MasterDetailCard label="IFSC" value={detailRow.ifscCode ?? '-'} />
+                            </MasterDetailGrid>
+                        </MasterDetailSection>
+                    </div>
+                )}
             </Dialog>
 
             <GeoImportDialog

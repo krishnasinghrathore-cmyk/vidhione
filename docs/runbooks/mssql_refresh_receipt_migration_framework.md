@@ -54,7 +54,9 @@ For the next full migration cycle, these remaps are fixed and must stay consiste
 12. `ItemBrandCompanyMaster -> inventory.product_brand_ledgers`
 
 Accepted compromise for #12:
-- `F_CompanyMaster` is mapped directly to `ledger_id`.
+- preferred legacy source is `F_LedgerMaster -> ledger_id`
+- if a source variant exposes only `F_CompanyMaster`, backfill that value into `ledger_id` before dropping legacy columns
+- if a transformed DB already has only `product_brand_id / product_brand_ledger_id / ledger_id` and `ledger_id` is null, the item-company links cannot be recovered from that table alone; reload or backfill from preserved source data
 
 ## One-Time SQL Setup Per Target Database
 Run from repo root:

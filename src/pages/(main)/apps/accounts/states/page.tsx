@@ -7,12 +7,17 @@ import { Dialog } from 'primereact/dialog';
 import { InputSwitch } from 'primereact/inputswitch';
 import { Toast } from 'primereact/toast';
 import { Button } from 'primereact/button';
+import { AppHelpDialogButton } from '@/components/AppHelpDialogButton';
 import { gql, useLazyQuery, useMutation, useQuery } from '@apollo/client';
 import { z } from 'zod';
 import AppDataTable from '@/components/AppDataTable';
 import AppDropdown from '@/components/AppDropdown';
 import AppInput from '@/components/AppInput';
+import { MasterDetailDialogFooter, MasterEditDialogFooter } from '@/components/MasterDialogFooter';
+import { findMasterRowIndex, getMasterRowByDirection, type MasterDialogDirection } from '@/lib/masterDialogNavigation';
+import { getMasterPageHelp } from '@/lib/masterPageHelp';
 import { apolloClient } from '@/lib/apolloClient';
+import { MASTER_DETAIL_DIALOG_WIDTHS, MASTER_EDIT_DIALOG_WIDTHS } from '@/lib/masterDialogLayout';
 
 interface StateRow {
     stateId: number;
@@ -158,29 +163,28 @@ const DELETE_STATE = gql`
     }
 `;
 
-const limitOptions = [50, 100, 250, 500, 1000, 2000].map((value) => ({
-    label: String(value),
-    value
-}));
-
 export default function AccountsStatesPage() {
     const toastRef = useRef<Toast>(null);
     const dtRef = useRef<any>(null);
 
     const [search, setSearch] = useState('');
-    const [limit, setLimit] = useState(2000);
+    const limit = 2000;
     const [authCountryId, setAuthCountryId] = useState<number | null>(null);
     const [authStateId, setAuthStateId] = useState<number | null>(null);
     const [syncingState, setSyncingState] = useState(false);
 
     const [dialogVisible, setDialogVisible] = useState(false);
     const [editing, setEditing] = useState<StateRow | null>(null);
+    const [detailVisible, setDetailVisible] = useState(false);
+    const [detailRow, setDetailRow] = useState<StateRow | null>(null);
     const [saving, setSaving] = useState(false);
     const [form, setForm] = useState<StateEditForm>(DEFAULT_EDIT_FORM);
+    const [initialForm, setInitialForm] = useState<StateEditForm>(DEFAULT_EDIT_FORM);
     const [formErrors, setFormErrors] = useState<Record<string, string>>({});
     const [editAuthCountryId, setEditAuthCountryId] = useState<number | null>(null);
     const [editAuthStateId, setEditAuthStateId] = useState<number | null>(null);
     const [mappingAuthState, setMappingAuthState] = useState(false);
+    const [isBulkMode, setIsBulkMode] = useState(false);
 
     const { data, loading, error, refetch } = useQuery(GEO_STATES, {
         client: apolloClient,
@@ -209,6 +213,9 @@ export default function AccountsStatesPage() {
     const [linkGeoStateFromAuth] = useMutation(LINK_GEO_STATE_FROM_AUTH, { client: apolloClient });
 
     const rows: StateRow[] = useMemo(() => data?.geoStates ?? [], [data]);
+    const isFormDirty = useMemo(() => JSON.stringify(form) !== JSON.stringify(initialForm), [form, initialForm]);
+    const editingIndex = useMemo(() => findMasterRowIndex(rows, editing), [rows, editing]);
+    const detailIndex = useMemo(() => findMasterRowIndex(rows, detailRow), [rows, detailRow]);
     const authCountries: AuthCountryOption[] = useMemo(
         () => authCountriesData?.authGeoCountries ?? [],
         [authCountriesData]
@@ -316,6 +323,23 @@ export default function AccountsStatesPage() {
         setDialogVisible(true);
     };
 
+    const openView = (row: StateRow) => {
+        setDetailRow(row);
+        setDetailVisible(true);
+    };
+
+    const navigateEditRecord = (direction: MasterDialogDirection) => {
+        const nextRow = getMasterRowByDirection(rows, editingIndex, direction);
+        if (!nextRow) return;
+        openEdit(nextRow);
+    };
+
+    const navigateDetailRecord = (direction: MasterDialogDirection) => {
+        const nextRow = getMasterRowByDirection(rows, detailIndex, direction);
+        if (!nextRow) return;
+        openView(nextRow);
+    };
+
     const closeEdit = () => {
         if (saving) return;
         setDialogVisible(false);
@@ -403,7 +427,10 @@ export default function AccountsStatesPage() {
                 }
             });
             await refetch();
-            closeEdit();
+            setInitialForm(form);
+            if (!isBulkMode) {
+                closeEdit();
+            }
             toastRef.current?.show({
                 severity: 'success',
                 summary: 'Saved',
@@ -478,9 +505,9 @@ export default function AccountsStatesPage() {
             message: 'Delete this state?',
             icon: 'pi pi-exclamation-triangle',
             acceptClassName: 'p-button-danger',
-            acceptLabel: 'Delete',
-            rejectLabel: 'Cancel',
-            defaultFocus: 'none',
+            acceptLabel: 'Yes',
+            rejectLabel: 'No',
+            defaultFocus: 'reject',
             dismissable: true,
             accept: () => handleDelete(row.stateId)
         });
@@ -490,6 +517,7 @@ export default function AccountsStatesPage() {
 
     const actionsBody = (row: StateRow) => (
         <div className="flex gap-2">
+            <Button icon="pi pi-eye" className="p-button-text" onClick={() => openView(row)} />
             <Button icon="pi pi-pencil" className="p-button-text" onClick={() => openEdit(row)} />
             <Button icon="pi pi-trash" className="p-button-text" severity="danger" onClick={(event) => confirmDelete(event, row)} />
         </div>
@@ -501,11 +529,16 @@ export default function AccountsStatesPage() {
             <ConfirmPopup />
 
             <div className="flex flex-column gap-2 mb-3">
-                <div>
-                    <h2 className="m-0">States</h2>
-                    <p className="mt-2 mb-0 text-600">
-                        Maintain state records for the agency accounts masters.
-                    </p>
+                <div className="flex flex-column md:flex-row md:align-items-start md:justify-content-between gap-3">
+                    <div>
+                        <h2 className="m-0">States</h2>
+                        <p className="mt-2 mb-0 text-600">
+                            Maintain state records for the agency accounts masters.
+                        </p>
+                    </div>
+                    <div className="flex justify-content-end">
+                        <AppHelpDialogButton {...getMasterPageHelp('states')} buttonAriaLabel="Open States help" />
+                    </div>
                 </div>
                 <div className="surface-50 border-1 surface-border border-round p-3">
                     <div className="grid align-items-end">
@@ -592,11 +625,10 @@ export default function AccountsStatesPage() {
                 headerRight={
                     <>
                         <Button
-                            label="Export"
-                            icon="pi pi-download"
-                            className="p-button-info"
-                            onClick={() => dtRef.current?.exportCSV()}
-                            disabled={filteredRows.length === 0}
+                            label="Refresh"
+                            icon="pi pi-refresh"
+                            className="p-button-text"
+                            onClick={() => refetch()}
                         />
                         <Button
                             label="Print"
@@ -605,20 +637,12 @@ export default function AccountsStatesPage() {
                             onClick={() => window.print()}
                         />
                         <Button
-                            label="Refresh"
-                            icon="pi pi-refresh"
-                            className="p-button-text"
-                            onClick={() => refetch()}
+                            label="Export"
+                            icon="pi pi-download"
+                            className="p-button-info"
+                            onClick={() => dtRef.current?.exportCSV()}
+                            disabled={filteredRows.length === 0}
                         />
-                        <span className="flex align-items-center gap-2">
-                            <span className="text-600 text-sm">Limit</span>
-                            <AppDropdown
-                                value={limit}
-                                options={limitOptions}
-                                onChange={(event) => setLimit((event.value as number) ?? 2000)}
-                                className="w-6rem"
-                            />
-                        </span>
                         <span className="text-600 text-sm">
                             Showing {filteredRows.length} state{filteredRows.length === 1 ? '' : 's'}
                         </span>
@@ -637,13 +661,22 @@ export default function AccountsStatesPage() {
             <Dialog
                 header={editing ? `Edit State #${editing.stateId}` : 'Edit State'}
                 visible={dialogVisible}
-                style={{ width: 'min(680px, 96vw)' }}
+                style={{ width: MASTER_EDIT_DIALOG_WIDTHS.standard }}
+                onShow={() => setInitialForm(form)}
                 onHide={closeEdit}
                 footer={
-                    <div className="flex justify-content-end gap-2 w-full">
-                        <Button label="Cancel" className="p-button-text" onClick={closeEdit} disabled={saving} />
-                        <Button label={saving ? 'Saving...' : 'Save'} icon="pi pi-check" onClick={saveEdit} disabled={saving} />
-                    </div>
+                    <MasterEditDialogFooter
+                        index={editingIndex}
+                        total={rows.length}
+                        onNavigate={navigateEditRecord}
+                        navigateDisabled={saving}
+                        bulkMode={{ checked: isBulkMode, onChange: setIsBulkMode, disabled: saving }}
+                        onCancel={closeEdit}
+                        cancelDisabled={saving}
+                        onSave={saveEdit}
+                        saveLabel={saving ? 'Saving...' : 'Save'}
+                        saveDisabled={saving || !isFormDirty}
+                    />
                 }
             >
                 <div className="grid">
@@ -758,6 +791,31 @@ export default function AccountsStatesPage() {
                         </small>
                     </div>
                 </div>
+            </Dialog>
+
+            <Dialog
+                header="State Details"
+                visible={detailVisible}
+                style={{ width: MASTER_DETAIL_DIALOG_WIDTHS.medium }}
+                onHide={() => setDetailVisible(false)}
+                footer={
+                    <MasterDetailDialogFooter
+                        index={detailIndex}
+                        total={rows.length}
+                        onNavigate={navigateDetailRecord}
+                        onClose={() => setDetailVisible(false)}
+                    />
+                }
+            >
+                {detailRow && (
+                    <div className="flex flex-column gap-2">
+                        <div><strong>Name:</strong> {detailRow.name ?? '-'}</div>
+                        <div><strong>Code:</strong> {detailRow.stateCode ?? detailRow.code ?? '-'}</div>
+                        <div><strong>eInvoice Name:</strong> {detailRow.eInvoiceStateName ?? '-'}</div>
+                        <div><strong>Own State:</strong> {detailRow.ownState ? 'Yes' : 'No'}</div>
+                        <div><strong>Country:</strong> {detailRow.countryName ?? '-'}</div>
+                    </div>
+                )}
             </Dialog>
         </div>
     );

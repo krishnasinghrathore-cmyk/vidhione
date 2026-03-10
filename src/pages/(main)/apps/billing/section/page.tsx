@@ -4,10 +4,23 @@ import { Link, useParams } from 'react-router-dom';
 import { BILLING_MENU_MAP } from '@/config/billingMenu';
 import GstSalesInvoicesPage from '../gst-sales-invoices/page';
 import InvoiceFormPage from '../invoice-form/page';
+import BillingDeliveryProcessPage from '../delivery-process/page';
+import BillingBillCollectionPage from '../bill-collection/page';
+import BillingSchemesPage from '../schemes/page';
+import BillingPartyLoyaltyProgramPage from '../party-loyalty-program/page';
+import BillingRetailerFootPathPage from '../retailer-foot-path/page';
+import BillingEstimateBookPage from '../estimate-book/page';
 
 const SECTION_COMPONENTS: Record<string, React.ReactNode> = {
+    'sale-book': <InvoiceFormPage />,
     'invoice-form': <InvoiceFormPage />,
-    'gst-sales-invoices': <GstSalesInvoicesPage />
+    'gst-sales-invoices': <GstSalesInvoicesPage />,
+    'delivery-process': <BillingDeliveryProcessPage />,
+    'bill-collection': <BillingBillCollectionPage />,
+    schemes: <BillingSchemesPage />,
+    'party-loyalty-program': <BillingPartyLoyaltyProgramPage />,
+    'retailer-foot-path': <BillingRetailerFootPathPage />,
+    'estimate-book': <BillingEstimateBookPage />
 };
 
 export default function BillingSectionPage() {
@@ -33,3 +46,4 @@ export default function BillingSectionPage() {
         </div>
     );
 }
+

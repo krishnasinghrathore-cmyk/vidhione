@@ -7,6 +7,7 @@ import { ColumnGroup } from 'primereact/columngroup';
 import type { DataTableFilterEvent, DataTableFilterMeta } from 'primereact/datatable';
 import { Row } from 'primereact/row';
 import { classNames } from 'primereact/utils';
+import { AppRegisterSearch } from '@/components/AppRegisterSearch';
 import { ReportPrintHeader } from '@/components/ReportPrintHeader';
 import { ReportPrintFooter } from '@/components/ReportPrintFooter';
 import { buildSkeletonRows, skeletonCell } from '@/components/reportSkeleton';
@@ -72,6 +73,9 @@ export function ProfitLossReportContainer() {
     const [toDate, setToDate] = useState<Date | null>(initialRangeRef.current?.end ?? null);
     const [appliedFilters, setAppliedFilters] = useState<ProfitLossFilters | null>(null);
     const [dateErrors, setDateErrors] = useState<DateRangeErrors>({});
+    const [globalSearchValue, setGlobalSearchValue] = useState('');
+    const [globalSearchMatchCase, setGlobalSearchMatchCase] = useState(false);
+    const [globalSearchWholeWord, setGlobalSearchWholeWord] = useState(false);
     const fromDateInputRef = useRef<HTMLInputElement>(null);
     const toDateInputRef = useRef<HTMLInputElement>(null);
     const refreshButtonId = 'profit-loss-refresh';
@@ -781,6 +785,20 @@ export function ProfitLossReportContainer() {
     );
 
     const errorMessage = error?.message ?? null;
+    const headerSearch = (
+        <AppRegisterSearch
+            value={globalSearchValue}
+            onValueChange={setGlobalSearchValue}
+            matchCase={globalSearchMatchCase}
+            onMatchCaseChange={setGlobalSearchMatchCase}
+            wholeWord={globalSearchWholeWord}
+            onWholeWordChange={setGlobalSearchWholeWord}
+            placeholder="Search register..."
+            helperText="Aa: Match Case · W: Whole Word"
+            className="app-report-header-search app-register-search--compact"
+            disabled={reportLoading && !hasApplied}
+        />
+    );
     const tradingEmptyMessage = reportLoading
         ? ''
         : hasApplied
@@ -802,7 +820,7 @@ export function ProfitLossReportContainer() {
                 subtitle={filterSummary ?? undefined}
             />
             <ReportPrintFooter left={printFooterLeft} />
-            <ProfitLossReportSummary errorMessage={errorMessage} />
+            <ProfitLossReportSummary errorMessage={errorMessage} rightSlot={headerSearch} />
 
             <div className="flex flex-column gap-4">
                 <div>
@@ -812,6 +830,12 @@ export function ProfitLossReportContainer() {
                         reportLoading={reportLoading}
                         columnFilters={tradingColumnFilters}
                         onFilter={handleTradingColumnFilter}
+                        globalSearchValue={globalSearchValue}
+                        onGlobalSearchValueChange={setGlobalSearchValue}
+                        globalSearchMatchCase={globalSearchMatchCase}
+                        onGlobalSearchMatchCaseChange={setGlobalSearchMatchCase}
+                        globalSearchWholeWord={globalSearchWholeWord}
+                        onGlobalSearchWholeWordChange={setGlobalSearchWholeWord}
                         headerColumnGroup={tradingHeaderGroup}
                         emptyMessage={tradingEmptyMessage}
                         headerLeft={headerFilters}
@@ -828,6 +852,12 @@ export function ProfitLossReportContainer() {
                         reportLoading={reportLoading}
                         columnFilters={profitLossColumnFilters}
                         onFilter={handleProfitLossColumnFilter}
+                        globalSearchValue={globalSearchValue}
+                        onGlobalSearchValueChange={setGlobalSearchValue}
+                        globalSearchMatchCase={globalSearchMatchCase}
+                        onGlobalSearchMatchCaseChange={setGlobalSearchMatchCase}
+                        globalSearchWholeWord={globalSearchWholeWord}
+                        onGlobalSearchWholeWordChange={setGlobalSearchWholeWord}
                         headerColumnGroup={profitLossHeaderGroup}
                         emptyMessage={profitLossEmptyMessage}
                         renderParticular={renderParticular}

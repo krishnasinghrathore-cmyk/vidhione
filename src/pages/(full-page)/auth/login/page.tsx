@@ -4,7 +4,8 @@ import { InputText } from 'primereact/inputtext';
 import { Button } from 'primereact/button';
 import { Message } from 'primereact/message';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '@/lib/auth/context';
+import { useAuth, type LoginResult } from '@/lib/auth/context';
+import { resolveTenantHomePath } from '@/lib/auth/defaultRoute';
 
 const Login = () => {
     const { login, loading } = useAuth();
@@ -14,20 +15,26 @@ const Login = () => {
     const [password, setPassword] = useState('');
     const [error, setError] = useState<string | null>(null);
 
-    const navigateAfterLogin = (role: string, activeTenantId: string | null) => {
+    const navigateAfterLogin = (loginResult: LoginResult) => {
         const from = (location.state as any)?.from as string | undefined;
-        if (role === 'superadmin' && !activeTenantId) {
+        if (loginResult.user.role === 'superadmin' && !loginResult.tenantId) {
             navigate('/admin/tenants', { replace: true });
             return;
         }
-        navigate(from || '/apps/agency', { replace: true });
+        const fallbackPath =
+            resolveTenantHomePath({
+                tenantId: loginResult.tenantId,
+                tenantIndustryKey: loginResult.tenantIndustryKey,
+                enabledApps: loginResult.enabledApps
+            }) ?? '/';
+        navigate(from || fallbackPath, { replace: true });
     };
 
     const handleSubmit = async () => {
         setError(null);
         try {
             const loginResult = await login(email, password);
-            navigateAfterLogin(loginResult.user.role, loginResult.tenantId);
+            navigateAfterLogin(loginResult);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Login failed');
         }

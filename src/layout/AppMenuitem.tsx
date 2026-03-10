@@ -11,7 +11,7 @@ import { useFlyoutSubmenuPosition } from './hooks/useFlyoutSubmenuPosition';
 
 const AppMenuitem = (props: AppMenuItemProps) => {
     const { activeMenu, setActiveMenu } = useContext(MenuContext);
-    const { isSlim, isSlimPlus, isHorizontal, isDesktop, setLayoutState, layoutState, layoutConfig } = useContext(LayoutContext);
+    const { isSlim, isSlimPlus, isHorizontal, isDesktop, setLayoutState, layoutState } = useContext(LayoutContext);
     const location = useLocation();
     const submenuRef = useRef<HTMLUListElement>(null);
     const menuitemRef = useRef<HTMLLIElement>(null);
@@ -48,17 +48,10 @@ const AppMenuitem = (props: AppMenuItemProps) => {
     }, [layoutState.resetMenu]);
 
     useEffect(() => {
-        if (!(isSlim() || isSlimPlus() || isHorizontal()) && isActiveRoute) {
+        if (isActiveRoute) {
             setActiveMenu(key);
         }
-        const currentPath = location.pathname;
-        const onRouteChange = () => {
-            if (!(isSlim() || isSlimPlus() || isHorizontal()) && item?.to && targetPath && currentPath === targetPath) {
-                setActiveMenu(key);
-            }
-        };
-        onRouteChange();
-    }, [location.pathname, location.search, location.hash, layoutConfig]);
+    }, [isActiveRoute, key, setActiveMenu]);
 
     const itemClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
         //avoid processing disabled items

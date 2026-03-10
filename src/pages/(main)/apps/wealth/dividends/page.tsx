@@ -1,28 +1,58 @@
 'use client';
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, gql } from '@apollo/client';
 import { z } from 'zod';
 import { Toast } from 'primereact/toast';
 import { Button } from 'primereact/button';
+import { Column } from 'primereact/column';
 import { InputNumber } from 'primereact/inputnumber';
 import { InputText } from 'primereact/inputtext';
+import AppDataTable from '@/components/AppDataTable';
 import AppDateInput from '@/components/AppDateInput';
 import AppDropdown from '@/components/AppDropdown';
 import { wealthApolloClient } from '@/lib/wealthApolloClient';
-import { toYmdOrEmpty } from '@/lib/date';
+import { toYmdOrEmpty, toYmdOrNull } from '@/lib/date';
+import { parseWealthReportSearchParams } from '../reportSearchParams';
+import {
+    WEALTH_ACCOUNTS_QUERY,
+    WEALTH_INVESTOR_PROFILES_QUERY,
+    type WealthDematAccount,
+    type WealthInvestorProfile,
+    formatAccountLabel,
+    formatInvestorProfileLabel
+} from '../shared';
 
-type Account = { id: string; name: string; code?: string | null };
 type Security = { id: string; isin?: string | null; symbol?: string | null; name: string };
 
-const ACCOUNTS_QUERY = gql`
-    query Accounts {
-        accounts {
-            id
-            name
-            code
-        }
-    }
-`;
+type DividendRow = {
+    id: string;
+    tdate: string;
+    qty: string;
+    price: string;
+    fees: string;
+    sourceDoc?: string | null;
+    accountId?: string | null;
+    accountName?: string | null;
+    accountCode?: string | null;
+    investorProfileId?: string | null;
+    investorProfileName?: string | null;
+    securityId?: string | null;
+    isin?: string | null;
+    symbol?: string | null;
+    name?: string | null;
+};
+
+type DividendTableRow = DividendRow & {
+    investorLabel: string;
+    accountLabel: string;
+    companyLabel: string;
+    shares: number;
+    rate: number;
+    grossAmount: number;
+    tdsAmount: number;
+    netAmount: number;
+};
 
 const SECURITIES_QUERY = gql`
     query Securities {
@@ -36,20 +66,24 @@ const SECURITIES_QUERY = gql`
 `;
 
 const DIVIDENDS_PAGE = gql`
-    query DividendsPage($limit: Int, $offset: Int, $ttype: String) {
-        transactionsPage(limit: $limit, offset: $offset, ttype: $ttype) {
+    query DividendsPage($fromDate: String, $toDate: String, $accountId: String, $investorProfileId: String, $securityId: String, $limit: Int, $offset: Int) {
+        transactionsPage(fromDate: $fromDate, toDate: $toDate, accountId: $accountId, investorProfileId: $investorProfileId, securityId: $securityId, limit: $limit, offset: $offset, ttype: "DIVIDEND") {
             items {
                 id
                 tdate
                 qty
                 price
                 fees
+                sourceDoc
                 accountId
+                accountName
+                accountCode
+                investorProfileId
+                investorProfileName
                 securityId
                 isin
                 symbol
                 name
-                sourceDoc
             }
             meta {
                 total
@@ -102,15 +136,30 @@ const dividendSchema = z.object({
 });
 
 const isoDate = (value: Date | null) => toYmdOrEmpty(value);
-const formatAmount = (value: number | null) => {
+const isoDateOrNull = (value: Date | null) => toYmdOrNull(value);
+
+const parseNumber = (value: string | number | null | undefined) => {
+    const numeric = typeof value === 'number' ? value : Number(value ?? 0);
+    return Number.isFinite(numeric) ? numeric : 0;
+};
+
+const formatAmount = (value: number | null | undefined) => {
     if (value == null || !Number.isFinite(value)) return '-';
     return new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
 };
 
 export default function WealthDividendsPage() {
+    const [searchParams] = useSearchParams();
+    const initialSearch = useMemo(() => parseWealthReportSearchParams(searchParams), [searchParams]);
     const toastRef = useRef<Toast>(null);
-    const [limit] = useState(20);
-    const [offset, setOffset] = useState(0);
+    const [rowsPerPage, setRowsPerPage] = useState(20);
+    const [first, setFirst] = useState(0);
+
+    const [fromDate, setFromDate] = useState<Date | null>(initialSearch.fromDate);
+    const [toDate, setToDate] = useState<Date | null>(initialSearch.toDate);
+    const [accountId, setAccountId] = useState<string>(initialSearch.accountId);
+    const [investorProfileId, setInvestorProfileId] = useState<string>(initialSearch.investorProfileId);
+    const [securityId, setSecurityId] = useState<string>(initialSearch.securityId);
 
     const [form, setForm] = useState<{
         accountId: string;
@@ -133,25 +182,96 @@ export default function WealthDividendsPage() {
     });
     const [formError, setFormError] = useState<string | null>(null);
 
-    const { data: accountsData } = useQuery(ACCOUNTS_QUERY, { client: wealthApolloClient });
+    const { data: accountsData } = useQuery(WEALTH_ACCOUNTS_QUERY, { client: wealthApolloClient });
+    const { data: investorProfilesData } = useQuery(WEALTH_INVESTOR_PROFILES_QUERY, { client: wealthApolloClient });
     const { data: securitiesData } = useQuery(SECURITIES_QUERY, { client: wealthApolloClient });
 
-    const accountOptions = useMemo(
-        () => (accountsData?.accounts ?? []).map((a: Account) => ({ label: a.code ? `${a.name} (${a.code})` : a.name, value: a.id })),
-        [accountsData]
+    const accounts: WealthDematAccount[] = accountsData?.accounts ?? [];
+    const securities: Security[] = securitiesData?.securities ?? [];
+
+    const filteredAccounts = useMemo(() => {
+        if (!investorProfileId) return accounts;
+        return accounts.filter((account) => account.investorProfileId === investorProfileId);
+    }, [accounts, investorProfileId]);
+
+    const filterAccountOptions = useMemo(
+        () => filteredAccounts.map((account) => ({ label: formatAccountLabel(account), value: account.id })),
+        [filteredAccounts]
+    );
+    const formAccountOptions = useMemo(
+        () => accounts.map((account) => ({ label: formatAccountLabel(account), value: account.id })),
+        [accounts]
+    );
+    const investorProfileOptions = useMemo(
+        () => (investorProfilesData?.investorProfiles ?? []).map((profile: WealthInvestorProfile) => ({
+            label: formatInvestorProfileLabel(profile),
+            value: profile.id
+        })),
+        [investorProfilesData]
     );
     const securityOptions = useMemo(
-        () => (securitiesData?.securities ?? []).map((s: Security) => ({ label: s.symbol || s.name, value: s.id })),
-        [securitiesData]
+        () => securities.map((security) => ({ label: security.symbol || security.name, value: security.id })),
+        [securities]
     );
+    const accountById = useMemo(() => {
+        const map: Record<string, WealthDematAccount> = {};
+        accounts.forEach((account) => {
+            map[account.id] = account;
+        });
+        return map;
+    }, [accounts]);
+
+    useEffect(() => {
+        if (!accountId || !investorProfileId) return;
+        const selectedAccount = accountById[accountId];
+        if (selectedAccount?.investorProfileId !== investorProfileId) {
+            setAccountId('');
+        }
+    }, [accountById, accountId, investorProfileId]);
 
     const { data, loading, error, refetch } = useQuery(DIVIDENDS_PAGE, {
         client: wealthApolloClient,
-        variables: { limit, offset, ttype: 'DIVIDEND' }
+        variables: {
+            fromDate: isoDateOrNull(fromDate),
+            toDate: isoDateOrNull(toDate),
+            accountId: accountId || null,
+            investorProfileId: investorProfileId || null,
+            securityId: securityId || null,
+            limit: rowsPerPage,
+            offset: first
+        }
     });
 
     const page = data?.transactionsPage;
-    const rows = page?.items ?? [];
+    const rows: DividendRow[] = page?.items ?? [];
+    const tableRows: DividendTableRow[] = useMemo(
+        () =>
+            rows.map((row) => {
+                const shares = parseNumber(row.qty);
+                const rate = parseNumber(row.price);
+                const tdsAmount = parseNumber(row.fees);
+                const grossAmount = shares * rate;
+                return {
+                    ...row,
+                    investorLabel: row.investorProfileName || (row.accountId ? accountById[row.accountId]?.investorProfileName || '-' : '-'),
+                    accountLabel: row.accountName
+                        ? row.accountCode
+                            ? `${row.accountName} (${row.accountCode})`
+                            : row.accountName
+                        : row.accountId
+                          ? formatAccountLabel(accountById[row.accountId] ?? { id: row.accountId, name: row.accountId })
+                          : '-',
+                    companyLabel: row.symbol || row.name || row.securityId || '-',
+                    shares,
+                    rate,
+                    grossAmount,
+                    tdsAmount,
+                    netAmount: grossAmount - tdsAmount
+                };
+            }),
+        [accountById, rows]
+    );
+    const totalRecords = page?.meta?.total ?? tableRows.length;
 
     const [saveDividend, { loading: saving }] = useMutation(UPSERT_TRANSACTION, { client: wealthApolloClient });
 
@@ -159,14 +279,26 @@ export default function WealthDividendsPage() {
     const tdsAmount = form.fees ?? 0;
     const netAmount = grossAmount == null ? null : grossAmount - tdsAmount;
 
-    const handleSave = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const pageTotals = useMemo(() => {
+        return tableRows.reduce(
+            (totals, row) => {
+                totals.gross += row.grossAmount;
+                totals.tds += row.tdsAmount;
+                totals.net += row.netAmount;
+                return totals;
+            },
+            { gross: 0, tds: 0, net: 0 }
+        );
+    }, [tableRows]);
+
+    const handleSave = async (event: React.FormEvent) => {
+        event.preventDefault();
         const parsed = dividendSchema.safeParse({
             accountId: form.accountId,
             securityId: form.securityId,
             tdate: form.tdate,
-            qty: form.qty ?? NaN,
-            price: form.price ?? NaN,
+            qty: form.qty ?? Number.NaN,
+            price: form.price ?? Number.NaN,
             fees: form.fees ?? 0,
             sourceDoc: form.sourceDoc,
             notes: form.notes
@@ -195,17 +327,40 @@ export default function WealthDividendsPage() {
                 }
             });
 
-            setForm((prev) => ({ ...prev, qty: null, price: null, fees: 0, sourceDoc: '', notes: '' }));
-            setOffset(0);
-            await refetch({ limit, offset: 0, ttype: 'DIVIDEND' });
+            setForm((previous) => ({ ...previous, qty: null, price: null, fees: 0, sourceDoc: '', notes: '' }));
+            setFirst(0);
+            await refetch({
+                fromDate: isoDateOrNull(fromDate),
+                toDate: isoDateOrNull(toDate),
+                accountId: accountId || null,
+                investorProfileId: investorProfileId || null,
+                securityId: securityId || null,
+                limit: rowsPerPage,
+                offset: 0
+            });
             toastRef.current?.show({ severity: 'success', summary: 'Dividend saved' });
-        } catch (err: any) {
-            toastRef.current?.show({ severity: 'error', summary: 'Error', detail: err.message });
+        } catch (mutationError: any) {
+            toastRef.current?.show({ severity: 'error', summary: 'Error', detail: mutationError.message });
         }
     };
 
-    const canPrev = page?.meta ? page.meta.offset > 0 : false;
-    const canNext = page?.meta ? page.meta.hasMore : false;
+    const clearFilters = () => {
+        setFromDate(null);
+        setToDate(null);
+        setAccountId('');
+        setInvestorProfileId('');
+        setSecurityId('');
+        setFirst(0);
+        refetch({
+            fromDate: null,
+            toDate: null,
+            accountId: null,
+            investorProfileId: null,
+            securityId: null,
+            limit: rowsPerPage,
+            offset: 0
+        });
+    };
 
     return (
         <div className="card">
@@ -213,7 +368,7 @@ export default function WealthDividendsPage() {
 
             <div className="mb-3">
                 <h2 className="m-0">Dividend Register</h2>
-                <p className="mt-2 mb-0 text-600">Track dividends received, TDS, and net amounts (mapped to DIVIDEND transactions).</p>
+                <p className="mt-2 mb-0 text-600">Track dividend receipts, TDS, and net amounts with investor and demat-account context for each family member.</p>
             </div>
 
             <form className="grid mb-4" onSubmit={handleSave}>
@@ -221,8 +376,8 @@ export default function WealthDividendsPage() {
                     <label className="font-medium">Account</label>
                     <AppDropdown
                         value={form.accountId}
-                        options={accountOptions}
-                        onChange={(e) => setForm((prev) => ({ ...prev, accountId: e.value }))}
+                        options={formAccountOptions}
+                        onChange={(e) => setForm((previous) => ({ ...previous, accountId: e.value ?? '' }))}
                         placeholder="Select account"
                         disabled={saving}
                     />
@@ -232,7 +387,7 @@ export default function WealthDividendsPage() {
                     <AppDropdown
                         value={form.securityId}
                         options={securityOptions}
-                        onChange={(e) => setForm((prev) => ({ ...prev, securityId: e.value }))}
+                        onChange={(e) => setForm((previous) => ({ ...previous, securityId: e.value ?? '' }))}
                         placeholder="Select security"
                         filter
                         disabled={saving}
@@ -240,14 +395,14 @@ export default function WealthDividendsPage() {
                 </div>
                 <div className="col-12 md:col-4 flex flex-column gap-1">
                     <label className="font-medium">Date</label>
-                    <AppDateInput value={form.tdate} onChange={(value) => setForm((prev) => ({ ...prev, tdate: value }))} disabled={saving} />
+                    <AppDateInput value={form.tdate} onChange={(value) => setForm((previous) => ({ ...previous, tdate: value }))} disabled={saving} />
                 </div>
 
                 <div className="col-12 md:col-3 flex flex-column gap-1">
                     <label className="font-medium">No. of Shares</label>
                     <InputNumber
                         value={form.qty ?? undefined}
-                        onValueChange={(e) => setForm((prev) => ({ ...prev, qty: e.value ?? null }))}
+                        onValueChange={(e) => setForm((previous) => ({ ...previous, qty: e.value ?? null }))}
                         mode="decimal"
                         minFractionDigits={0}
                         maxFractionDigits={6}
@@ -260,7 +415,7 @@ export default function WealthDividendsPage() {
                     <label className="font-medium">Rate / Share</label>
                     <InputNumber
                         value={form.price ?? undefined}
-                        onValueChange={(e) => setForm((prev) => ({ ...prev, price: e.value ?? null }))}
+                        onValueChange={(e) => setForm((previous) => ({ ...previous, price: e.value ?? null }))}
                         mode="decimal"
                         minFractionDigits={2}
                         inputClassName="w-full"
@@ -272,7 +427,7 @@ export default function WealthDividendsPage() {
                     <label className="font-medium">TDS</label>
                     <InputNumber
                         value={form.fees ?? undefined}
-                        onValueChange={(e) => setForm((prev) => ({ ...prev, fees: e.value ?? null }))}
+                        onValueChange={(e) => setForm((previous) => ({ ...previous, fees: e.value ?? null }))}
                         mode="decimal"
                         minFractionDigits={2}
                         inputClassName="w-full"
@@ -289,8 +444,8 @@ export default function WealthDividendsPage() {
                     <label className="font-medium">Source Doc (optional)</label>
                     <InputText
                         value={form.sourceDoc}
-                        onChange={(e) => setForm((prev) => ({ ...prev, sourceDoc: e.target.value }))}
-                        placeholder="Bank/contract reference"
+                        onChange={(e) => setForm((previous) => ({ ...previous, sourceDoc: e.target.value }))}
+                        placeholder="Bank or depository reference"
                         disabled={saving}
                     />
                 </div>
@@ -298,14 +453,14 @@ export default function WealthDividendsPage() {
                     <label className="font-medium">Notes (optional)</label>
                     <InputText
                         value={form.notes}
-                        onChange={(e) => setForm((prev) => ({ ...prev, notes: e.target.value }))}
+                        onChange={(e) => setForm((previous) => ({ ...previous, notes: e.target.value }))}
                         placeholder="Optional remarks"
                         disabled={saving}
                     />
                 </div>
 
                 <div className="col-12 flex align-items-center gap-2 flex-wrap">
-                    <Button type="submit" label={saving ? 'Saving…' : 'Save Dividend'} icon="pi pi-check" disabled={saving} />
+                    <Button type="submit" label={saving ? 'Saving...' : 'Save Dividend'} icon="pi pi-check" disabled={saving} />
                     <span className="text-600 text-sm">
                         Gross: {formatAmount(grossAmount)} | TDS: {formatAmount(tdsAmount)} | Net: {formatAmount(netAmount)}
                     </span>
@@ -317,63 +472,96 @@ export default function WealthDividendsPage() {
                 )}
             </form>
 
-            <div className="flex align-items-center justify-content-between mb-2 flex-wrap gap-2">
-                <h3 className="m-0">Entries</h3>
-                <div className="flex gap-2">
-                    <Button size="small" label="Refresh" onClick={() => refetch()} outlined />
-                    <Button size="small" label="Prev" outlined disabled={!canPrev || loading} onClick={() => setOffset(Math.max(0, offset - limit))} />
-                    <Button size="small" label="Next" outlined disabled={!canNext || loading} onClick={() => setOffset(page?.meta?.nextOffset ?? offset)} />
-                </div>
-            </div>
+            {error && <p className="text-red-500 mb-3">Error loading dividends: {error.message}</p>}
 
-            {error && <p className="text-red-500 mb-2">Error loading dividends: {error.message}</p>}
-
-            <div className="overflow-auto">
-                <table className="w-full small-table">
-                    <thead>
-                        <tr>
-                            <th className="text-left">Date</th>
-                            <th className="text-left">Company</th>
-                            <th className="text-left">ISIN</th>
-                            <th className="text-right">Shares</th>
-                            <th className="text-right">Rate</th>
-                            <th className="text-right">Gross</th>
-                            <th className="text-right">TDS</th>
-                            <th className="text-right">Net</th>
-                            <th className="text-left">Source</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {rows.map((r: any) => {
-                            const qty = Number(r.qty ?? 0);
-                            const rate = Number(r.price ?? 0);
-                            const tds = Number(r.fees ?? 0);
-                            const gross = qty * rate;
-                            const net = gross - tds;
-                            return (
-                                <tr key={r.id}>
-                                    <td>{r.tdate}</td>
-                                    <td>{r.symbol || r.name || r.securityId}</td>
-                                    <td>{r.isin || '-'}</td>
-                                    <td className="text-right">{r.qty}</td>
-                                    <td className="text-right">{r.price}</td>
-                                    <td className="text-right">{formatAmount(gross)}</td>
-                                    <td className="text-right">{formatAmount(tds)}</td>
-                                    <td className="text-right">{formatAmount(net)}</td>
-                                    <td>{r.sourceDoc || '-'}</td>
-                                </tr>
-                            );
-                        })}
-                        {!rows.length && (
-                            <tr>
-                                <td colSpan={9} className="text-center text-600">
-                                    {loading ? 'Loading…' : 'No dividend entries yet'}
-                                </td>
-                            </tr>
-                        )}
-                    </tbody>
-                </table>
-            </div>
+            <AppDataTable
+                value={tableRows}
+                paginator
+                rows={rowsPerPage}
+                first={first}
+                totalRecords={totalRecords}
+                lazy
+                loading={loading}
+                dataKey="id"
+                exportFileName="wealth-dividend-register"
+                onPage={(e) => {
+                    setRowsPerPage(e.rows);
+                    setFirst(e.first);
+                    refetch({
+                        fromDate: isoDateOrNull(fromDate),
+                        toDate: isoDateOrNull(toDate),
+                        accountId: accountId || null,
+                        investorProfileId: investorProfileId || null,
+                        securityId: securityId || null,
+                        limit: e.rows,
+                        offset: e.first
+                    });
+                }}
+                rowsPerPageOptions={[10, 20, 50, 100]}
+                headerLeft={
+                    <>
+                        <span className="flex align-items-center gap-2">
+                            <label className="text-600 text-sm">From</label>
+                            <AppDateInput value={fromDate} onChange={(value) => setFromDate(value)} style={{ width: '140px' }} />
+                        </span>
+                        <span className="flex align-items-center gap-2">
+                            <label className="text-600 text-sm">To</label>
+                            <AppDateInput value={toDate} onChange={(value) => setToDate(value)} style={{ width: '140px' }} />
+                        </span>
+                        <span className="flex align-items-center gap-2">
+                            <label className="text-600 text-sm">Investor</label>
+                            <AppDropdown value={investorProfileId} options={investorProfileOptions} onChange={(e) => setInvestorProfileId(e.value ?? '')} placeholder="All" showClear />
+                        </span>
+                        <span className="flex align-items-center gap-2">
+                            <label className="text-600 text-sm">Account</label>
+                            <AppDropdown value={accountId} options={filterAccountOptions} onChange={(e) => setAccountId(e.value ?? '')} placeholder="All" showClear />
+                        </span>
+                        <span className="flex align-items-center gap-2">
+                            <label className="text-600 text-sm">Security</label>
+                            <AppDropdown value={securityId} options={securityOptions} onChange={(e) => setSecurityId(e.value ?? '')} placeholder="All" filter showClear />
+                        </span>
+                    </>
+                }
+                headerRight={
+                    <>
+                        <Button
+                            label="Apply"
+                            icon="pi pi-filter"
+                            onClick={() => {
+                                setFirst(0);
+                                refetch({
+                                    fromDate: isoDateOrNull(fromDate),
+                                    toDate: isoDateOrNull(toDate),
+                                    accountId: accountId || null,
+                                    investorProfileId: investorProfileId || null,
+                                    securityId: securityId || null,
+                                    limit: rowsPerPage,
+                                    offset: 0
+                                });
+                            }}
+                        />
+                        <Button label="Clear" icon="pi pi-times" className="p-button-text" onClick={clearFilters} />
+                        <Button label="Export" icon="pi pi-download" />
+                        <Button label="Refresh" icon="pi pi-refresh" className="p-button-secondary" onClick={() => refetch()} />
+                    </>
+                }
+                recordSummary={page?.meta ? `Showing ${tableRows.length} of ${page.meta.total} | Page gross ${formatAmount(pageTotals.gross)} | Page net ${formatAmount(pageTotals.net)}` : undefined}
+                emptyMessage="No dividend entries found"
+                stripedRows
+                size="small"
+            >
+                <Column field="tdate" header="Date" style={{ width: '8rem' }} />
+                <Column field="investorLabel" header="Investor" />
+                <Column field="accountLabel" header="Account" />
+                <Column field="companyLabel" header="Company" />
+                <Column field="isin" header="ISIN" body={(row: DividendTableRow) => row.isin || '-'} />
+                <Column field="shares" header="Shares" body={(row: DividendTableRow) => formatAmount(row.shares)} style={{ textAlign: 'right' }} />
+                <Column field="rate" header="Rate" body={(row: DividendTableRow) => formatAmount(row.rate)} style={{ textAlign: 'right' }} />
+                <Column field="grossAmount" header="Gross" body={(row: DividendTableRow) => formatAmount(row.grossAmount)} style={{ textAlign: 'right' }} />
+                <Column field="tdsAmount" header="TDS" body={(row: DividendTableRow) => formatAmount(row.tdsAmount)} style={{ textAlign: 'right' }} />
+                <Column field="netAmount" header="Net" body={(row: DividendTableRow) => formatAmount(row.netAmount)} style={{ textAlign: 'right' }} />
+                <Column field="sourceDoc" header="Source" body={(row: DividendTableRow) => row.sourceDoc || '-'} />
+            </AppDataTable>
         </div>
     );
 }

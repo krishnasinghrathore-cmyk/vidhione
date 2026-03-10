@@ -2,16 +2,22 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { Column } from 'primereact/column';
 import { Checkbox } from 'primereact/checkbox';
+import { ConfirmDialog } from 'primereact/confirmdialog';
 import { ConfirmPopup, confirmPopup } from 'primereact/confirmpopup';
 import { Dialog } from 'primereact/dialog';
-import { InputNumber } from 'primereact/inputnumber';
-import { InputText } from 'primereact/inputtext';
+import AppInput from '@/components/AppInput';
+import AppColorField from '@/components/AppColorField';
 import { Tag } from 'primereact/tag';
 import { Toast } from 'primereact/toast';
 import { Button } from 'primereact/button';
+import { AppHelpDialogButton } from '@/components/AppHelpDialogButton';
+import { getMasterPageHelp } from '@/lib/masterPageHelp';
 import { gql, useMutation, useQuery } from '@apollo/client';
 import AppDataTable from '@/components/AppDataTable';
-import AppDropdown from '@/components/AppDropdown';
+import { MasterDetailDialogFooter, MasterEditDialogFooter } from '@/components/MasterDialogFooter';
+import { MasterDetailCard } from '@/components/MasterDetailCard';
+import { MasterDetailGrid } from '@/components/MasterDetailLayout';
+import { findMasterRowIndex, getMasterRowByDirection, type MasterDialogDirection } from '@/lib/masterDialogNavigation';
 import { z } from 'zod';
 import { inventoryApolloClient } from '@/lib/inventoryApolloClient';
 import { getDeleteConfirmMessage, getDeleteFailureMessage } from '@/lib/deleteGuardrails';
@@ -23,6 +29,13 @@ import {
     useMasterActionPermissions
 } from '@/lib/masterActionPermissions';
 import { ensureDryEditCheck } from '@/lib/masterDryRun';
+import {
+    confirmMasterDialogClose,
+    focusElementById,
+    focusElementByIdNextFrame,
+    getMasterSaveButtonLabel
+} from '@/lib/masterFormDialog';
+import { MASTER_DETAIL_DIALOG_WIDTHS } from '@/lib/masterDialogLayout';
 
 interface DeliveryStatusRow {
     deliveryStatusId: number;
@@ -117,27 +130,29 @@ const DEFAULT_FORM: FormState = {
     orderNo: null,
     color: ''
 };
-const limitOptions = [100, 250, 500, 1000, 2000].map((value) => ({
-    label: String(value),
-    value
-}));
-
 const flagToBool = (value: number | null | undefined) => Number(value || 0) === 1;
 const boolToFlag = (value: boolean) => (value ? 1 : 0);
 
 export default function InventoryDeliveryStatusPage() {
+    const nameInputId = 'delivery-status-name-input';
+    const orderInputId = 'delivery-status-order-input';
+    const colorInputId = 'delivery-status-color-input';
+    const saveButtonId = 'delivery-status-save-button';
+
     const toastRef = useRef<Toast>(null);
     const dtRef = useRef<any>(null);
 
     const [search, setSearch] = useState('');
-    const [limit, setLimit] = useState(2000);
+    const limit = 2000;
     const [dialogVisible, setDialogVisible] = useState(false);
     const [saving, setSaving] = useState(false);
     const [editing, setEditing] = useState<DeliveryStatusRow | null>(null);
     const [detailVisible, setDetailVisible] = useState(false);
     const [detailRow, setDetailRow] = useState<DeliveryStatusRow | null>(null);
     const [form, setForm] = useState<FormState>(DEFAULT_FORM);
+    const [initialForm, setInitialForm] = useState<FormState>(DEFAULT_FORM);
     const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+    const [isBulkMode, setIsBulkMode] = useState(false);
 
     const [dryEditDigest, setDryEditDigest] = useState('');
 
@@ -152,6 +167,18 @@ export default function InventoryDeliveryStatusPage() {
     const { permissions: masterPermissions } = useMasterActionPermissions(inventoryApolloClient);
 
     const rows: DeliveryStatusRow[] = useMemo(() => data?.deliveryStatuses ?? [], [data]);
+    const currentFormDigest = useMemo(() => JSON.stringify(form), [form]);
+    const isFormDirty = useMemo(() => currentFormDigest !== JSON.stringify(initialForm), [currentFormDigest, initialForm]);
+    const editingIndex = useMemo(() => findMasterRowIndex(rows, editing), [rows, editing]);
+    const detailIndex = useMemo(() => findMasterRowIndex(rows, detailRow), [rows, detailRow]);
+    const isDryEditReady = useMemo(
+        () => Boolean(editing && dryEditDigest && dryEditDigest === currentFormDigest),
+        [currentFormDigest, dryEditDigest, editing]
+    );
+    const saveButtonLabel = useMemo(
+        () => getMasterSaveButtonLabel(Boolean(editing), saving, isDryEditReady),
+        [editing, isDryEditReady, saving]
+    );
 
     const assertActionAllowed = (action: MasterAction) => {
         if (isMasterActionAllowed(masterPermissions, action)) return true;
@@ -161,6 +188,17 @@ export default function InventoryDeliveryStatusPage() {
             detail: getMasterActionDeniedDetail(action)
         });
         return false;
+    };
+
+    const closeDialog = () => {
+        confirmMasterDialogClose({
+            saving,
+            isDirty: isFormDirty,
+            onDiscard: () => {
+                setDialogVisible(false);
+                setFormErrors({});
+            }
+        });
     };
 
     const openNew = () => {
@@ -193,6 +231,18 @@ export default function InventoryDeliveryStatusPage() {
         setDetailVisible(true);
     };
 
+    const navigateEditRecord = (direction: MasterDialogDirection) => {
+        const nextRow = getMasterRowByDirection(rows, editingIndex, direction);
+        if (!nextRow) return;
+        openEdit(nextRow);
+    };
+
+    const navigateDetailRecord = (direction: MasterDialogDirection) => {
+        const nextRow = getMasterRowByDirection(rows, detailIndex, direction);
+        if (!nextRow) return;
+        openView(nextRow);
+    };
+
     const save = async () => {
         const parsed = formSchema.safeParse(form);
         if (!parsed.success) {
@@ -202,13 +252,14 @@ export default function InventoryDeliveryStatusPage() {
             });
             setFormErrors(nextErrors);
             toastRef.current?.show({ severity: 'warn', summary: 'Please fix validation errors' });
+            focusElementByIdNextFrame(nameInputId);
             return;
         }
 
         if (!ensureDryEditCheck({
             isEditing: Boolean(editing),
             lastDigest: dryEditDigest,
-            currentDigest: JSON.stringify(form),
+            currentDigest: currentFormDigest,
             setLastDigest: setDryEditDigest,
             toastRef,
             entityLabel: 'record'
@@ -236,7 +287,10 @@ export default function InventoryDeliveryStatusPage() {
             }
 
             await refetch();
-            setDialogVisible(false);
+            setInitialForm(form);
+            if (!isBulkMode) {
+                setDialogVisible(false);
+            }
             toastRef.current?.show({
                 severity: 'success',
                 summary: 'Saved',
@@ -271,7 +325,7 @@ export default function InventoryDeliveryStatusPage() {
         }
     };
 
-    const confirmDelete = async () => {
+    const confirmDelete = async (event: React.MouseEvent<HTMLButtonElement>, row: DeliveryStatusRow) => {
         if (!assertActionAllowed('delete')) return;
         const impact = await fetchInventoryMasterDeleteImpact('DELIVERY_STATUS', row.deliveryStatusId);
         if (!impact.canDelete) {
@@ -289,9 +343,9 @@ export default function InventoryDeliveryStatusPage() {
             message: `Dry Delete Check passed. ${getDeleteConfirmMessage('delivery status')}`,
             icon: 'pi pi-exclamation-triangle',
             acceptClassName: 'p-button-danger',
-            acceptLabel: 'Delete',
-            rejectLabel: 'Cancel',
-            defaultFocus: 'none',
+            acceptLabel: 'Yes',
+            rejectLabel: 'No',
+            defaultFocus: 'reject',
             dismissable: true,
             accept: () => handleDelete(row.deliveryStatusId)
         });
@@ -330,7 +384,7 @@ export default function InventoryDeliveryStatusPage() {
 
     const actionsBody = (row: DeliveryStatusRow) => (
         <div className="flex gap-2">
-            <Button icon="pi pi-eye" className="p-button-text" onClick={() => openView(row)} disabled={!masterPermissions.canView} />
+                        <Button icon="pi pi-eye" className="p-button-text" onClick={() => openView(row)} disabled={!masterPermissions.canView} />
             <Button icon="pi pi-pencil" className="p-button-text" onClick={() => openEdit(row)} disabled={!masterPermissions.canEdit} />
             <Button icon="pi pi-trash" className="p-button-text" severity="danger" onClick={(e) => { void confirmDelete(e, row); }} disabled={!masterPermissions.canDelete} />
         </div>
@@ -339,6 +393,7 @@ export default function InventoryDeliveryStatusPage() {
     return (
         <div className="card">
             <Toast ref={toastRef} />
+            <ConfirmDialog />
             <ConfirmPopup />
 
             <div className="flex flex-column gap-2 mb-3">
@@ -349,8 +404,9 @@ export default function InventoryDeliveryStatusPage() {
                             Maintain delivery status definitions for the agency inventory masters.
                         </p>
                     </div>
-                    <div className="flex gap-2 flex-wrap">
-                        <Button label="New Status" icon="pi pi-plus" onClick={openNew} disabled={!masterPermissions.canAdd} />
+                    <div className="flex gap-2 flex-wrap justify-content-end align-items-start">
+                        <Button className="app-action-compact" label="New Delivery Status" icon="pi pi-plus" onClick={openNew} disabled={!masterPermissions.canAdd} />
+                        <AppHelpDialogButton {...getMasterPageHelp('deliveryStatus')} buttonAriaLabel="Open Delivery Status help" />
                     </div>
                 </div>
                 {error && <p className="text-red-500 m-0">Error loading delivery statuses: {error.message}</p>}
@@ -370,7 +426,7 @@ export default function InventoryDeliveryStatusPage() {
                 headerLeft={
                     <span className="p-input-icon-left" style={{ minWidth: '320px' }}>
                         <i className="pi pi-search" />
-                        <InputText
+                        <AppInput
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                             placeholder="Search delivery status"
@@ -381,11 +437,10 @@ export default function InventoryDeliveryStatusPage() {
                 headerRight={
                     <>
                         <Button
-                            label="Export"
-                            icon="pi pi-download"
-                            className="p-button-info"
-                            onClick={() => dtRef.current?.exportCSV()}
-                            disabled={rows.length === 0}
+                            label="Refresh"
+                            icon="pi pi-refresh"
+                            className="p-button-text"
+                            onClick={() => refetch()}
                         />
                         <Button
                             label="Print"
@@ -394,20 +449,12 @@ export default function InventoryDeliveryStatusPage() {
                             onClick={() => window.print()}
                         />
                         <Button
-                            label="Refresh"
-                            icon="pi pi-refresh"
-                            className="p-button-text"
-                            onClick={() => refetch()}
+                            label="Export"
+                            icon="pi pi-download"
+                            className="p-button-info"
+                            onClick={() => dtRef.current?.exportCSV()}
+                            disabled={rows.length === 0}
                         />
-                        <span className="flex align-items-center gap-2">
-                            <span className="text-600 text-sm">Limit</span>
-                            <AppDropdown
-                                value={limit}
-                                options={limitOptions}
-                                onChange={(e) => setLimit(e.value ?? 2000)}
-                                className="w-6rem"
-                            />
-                        </span>
                         <span className="text-600 text-sm">
                             Showing {rows.length} status{rows.length === 1 ? '' : 'es'}
                         </span>
@@ -426,25 +473,53 @@ export default function InventoryDeliveryStatusPage() {
                 header={editing ? 'Edit Delivery Status' : 'New Delivery Status'}
                 visible={dialogVisible}
                 style={{ width: 'min(720px, 96vw)' }}
-                onHide={() => setDialogVisible(false)}
+                onShow={() => {
+                    setInitialForm(form);
+                    focusElementByIdNextFrame(nameInputId);
+                }}
+                onHide={closeDialog}
                 footer={
-                    <div className="flex justify-content-end gap-2 w-full">
-                        <Button
-                            label="Cancel"
-                            className="p-button-text"
-                            onClick={() => setDialogVisible(false)}
-                            disabled={saving}
-                        />
-                        <Button label={saving ? 'Saving...' : 'Save'} icon="pi pi-check" onClick={save} disabled={saving} />
-                    </div>
+                    <MasterEditDialogFooter
+                        index={editingIndex}
+                        total={rows.length}
+                        onNavigate={navigateEditRecord}
+                        navigateDisabled={saving}
+                        bulkMode={{
+                            checked: isBulkMode,
+                            onChange: setIsBulkMode,
+                            onLabel: 'Bulk',
+                            offLabel: 'Standard',
+                            disabled: saving
+                        }}
+                        onCancel={closeDialog}
+                        cancelDisabled={saving}
+                        onSave={save}
+                        saveDisabled={saving || !isFormDirty}
+                        saveLabel={saveButtonLabel}
+                        saveButtonId={saveButtonId}
+                    />
                 }
             >
+                {editing && (
+                    <div
+                        className={`mb-3 p-2 border-round text-sm ${
+                            isDryEditReady ? 'surface-100 text-green-700' : 'surface-100 text-700'
+                        }`}
+                    >
+                        {isDryEditReady
+                            ? 'Dry check passed. Click Apply Changes to save.'
+                            : 'Dry save flow: first click runs dry check, second click saves changes.'}
+                    </div>
+                )}
                 <div className="grid">
                     <div className="col-12">
                         <label className="block text-600 mb-1">Name</label>
-                        <InputText
+                        <AppInput
+                            id={nameInputId}
+                            autoFocus
                             value={form.name}
                             onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))}
+                            onEnterNext={() => focusElementById(orderInputId)}
                             style={{ width: '100%' }}
                             className={formErrors.name ? 'p-invalid' : undefined}
                         />
@@ -478,7 +553,9 @@ export default function InventoryDeliveryStatusPage() {
                     </div>
                     <div className="col-12 md:col-6">
                         <label className="block text-600 mb-1">Order No</label>
-                        <InputNumber
+                        <AppInput
+                            id={orderInputId}
+                            inputType="number"
                             value={form.orderNo}
                             onValueChange={(e) =>
                                 setForm((s) => ({
@@ -486,15 +563,18 @@ export default function InventoryDeliveryStatusPage() {
                                     orderNo: typeof e.value === 'number' ? e.value : null
                                 }))
                             }
+                            onEnterNext={() => focusElementById(colorInputId)}
                             useGrouping={false}
                             style={{ width: '100%' }}
                         />
                     </div>
                     <div className="col-12 md:col-6">
                         <label className="block text-600 mb-1">Color</label>
-                        <InputText
+                        <AppColorField
+                            id={colorInputId}
                             value={form.color}
-                            onChange={(e) => setForm((s) => ({ ...s, color: e.target.value }))}
+                            onChange={(value) => setForm((s) => ({ ...s, color: value }))}
+                            onEnterNext={() => focusElementById(saveButtonId)}
                             style={{ width: '100%' }}
                             placeholder="#10B981"
                         />
@@ -505,22 +585,38 @@ export default function InventoryDeliveryStatusPage() {
             <Dialog
                 header="Delivery Status Details"
                 visible={detailVisible}
-                style={{ width: 'min(640px, 96vw)' }}
+                style={{ width: MASTER_DETAIL_DIALOG_WIDTHS.medium }}
                 onHide={() => setDetailVisible(false)}
                 footer={
-                    <div className="flex justify-content-end w-full">
-                        <Button label="Close" className="p-button-text" onClick={() => setDetailVisible(false)} />
-                    </div>
+                    <MasterDetailDialogFooter
+                        index={detailIndex}
+                        total={rows.length}
+                        onNavigate={navigateDetailRecord}
+                        onClose={() => setDetailVisible(false)}
+                    />
                 }
             >
                 {detailRow && (
-                    <div className="flex flex-column gap-2">
-                        <div><strong>Name:</strong> {detailRow.name ?? '-'}</div>
-                        <div><strong>Completed:</strong> {flagToBool(detailRow.isCompletedFlag) ? 'Yes' : 'No'}</div>
-                        <div><strong>Remark Required:</strong> {flagToBool(detailRow.isRemarkCompulsoryFlag) ? 'Yes' : 'No'}</div>
-                        <div><strong>Order No:</strong> {detailRow.orderNo ?? '-'}</div>
-                        <div><strong>Color:</strong> {detailRow.color || '-'}</div>
-                    </div>
+                    <MasterDetailGrid columns={2}>
+                        <MasterDetailCard label="Name" value={detailRow.name ?? '-'} />
+                        <MasterDetailCard label="Completed" value={flagToBool(detailRow.isCompletedFlag) ? 'Yes' : 'No'} />
+                        <MasterDetailCard label="Remark Required" value={flagToBool(detailRow.isRemarkCompulsoryFlag) ? 'Yes' : 'No'} />
+                        <MasterDetailCard label="Order No" value={detailRow.orderNo ?? '-'} />
+                        <MasterDetailCard
+                            label="Color"
+                            value={
+                                detailRow.color ? (
+                                    <span className="flex align-items-center gap-2">
+                                        <span
+                                            className="inline-block border-circle border-1 surface-border"
+                                            style={{ width: '0.9rem', height: '0.9rem', backgroundColor: detailRow.color }}
+                                        />
+                                        <span>{detailRow.color}</span>
+                                    </span>
+                                ) : '-'
+                            }
+                        />
+                    </MasterDetailGrid>
                 )}
             </Dialog>
         </div>

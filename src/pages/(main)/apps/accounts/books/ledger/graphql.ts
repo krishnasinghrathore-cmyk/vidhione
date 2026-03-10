@@ -85,3 +85,89 @@ export const LEDGER_CURRENT_BALANCE = gql`
         }
     }
 `;
+
+export const SEND_LEDGER_STATEMENT_SMS = gql`
+    mutation SendLedgerStatementSms(
+        $ledgerId: Int!
+        $fromDate: String!
+        $toDate: String!
+        $voucherTypeId: Int
+        $cancelled: Int
+        $messageText: String
+        $templateKey: String
+    ) {
+        sendLedgerStatementSms(
+            ledgerId: $ledgerId
+            fromDate: $fromDate
+            toDate: $toDate
+            voucherTypeId: $voucherTypeId
+            cancelled: $cancelled
+            messageText: $messageText
+            templateKey: $templateKey
+        ) {
+            ledgerId
+            id
+            status
+            duplicate
+            providerMessageId
+            note
+            recipientPhone
+            recipientName
+            fromDate
+            toDate
+            totalCount
+            closingAmount
+            closingDrCr
+            templateKey
+        }
+    }
+`;
+
+export const SEND_LEDGER_STATEMENT_WHATSAPP = gql`
+    mutation SendLedgerStatementWhatsApp(
+        $ledgerId: Int!
+        $fromDate: String!
+        $toDate: String!
+        $voucherTypeId: Int
+        $cancelled: Int
+        $bindingKey: String
+        $accountId: String
+        $recipientPhone: String
+        $recipientName: String
+        $campaignKey: String
+        $idempotencyKey: String
+        $scheduledAt: String
+        $sendNow: Boolean
+    ) {
+        sendLedgerStatementWhatsApp(
+            ledgerId: $ledgerId
+            fromDate: $fromDate
+            toDate: $toDate
+            voucherTypeId: $voucherTypeId
+            cancelled: $cancelled
+            bindingKey: $bindingKey
+            accountId: $accountId
+            recipientPhone: $recipientPhone
+            recipientName: $recipientName
+            campaignKey: $campaignKey
+            idempotencyKey: $idempotencyKey
+            scheduledAt: $scheduledAt
+            sendNow: $sendNow
+        ) {
+            ledgerId
+            bindingKey
+            id
+            status
+            waMessageId
+            recipientPhone
+            recipientName
+            fromDate
+            toDate
+            totalCount
+            closingAmount
+            closingDrCr
+            templateKey
+            templateName
+        }
+    }
+`;

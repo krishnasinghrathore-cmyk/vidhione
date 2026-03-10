@@ -15,6 +15,15 @@ import InventoryBillCollectionStatusPage from '../bill-collection-status/page';
 import InventoryTransportersPage from '../transporters/page';
 import InventoryGodownsPage from '../godowns/page';
 import InventoryProductsPage from '../products/page';
+import InventoryBarcodePage from '../barcode/page';
+import InventoryBarcodeHistoryPage from '../barcode-history/page';
+import InventoryStockTakingPage from '../stock-taking/page';
+import InventoryStockTakingBookPage from '../stock-taking-book/page';
+import InventoryTransportSheetImportPage from '../transport-sheet-import/page';
+import InventoryTransportStockInPage from '../transport-stock-in/page';
+import InventoryTransportStockInBookPage from '../transport-stock-in-book/page';
+import InventoryTransportStockAnalysisPage from '../transport-stock-analysis/page';
+import InventoryImportBizomInvoicesPage from '../import-bizom-invoices/page';
 
 const SECTION_COMPONENTS: Record<string, React.ReactNode> = {
     'product-groups': <InventoryProductGroupsPage />,
@@ -22,6 +31,10 @@ const SECTION_COMPONENTS: Record<string, React.ReactNode> = {
     'product-attribute-types': <InventoryProductAttributeTypesPage />,
     units: <InventoryUnitsPage />,
     'hsn-codes': <InventoryHsnCodesPage />,
+    barcode: <InventoryBarcodePage />,
+    'barcode-history': <InventoryBarcodeHistoryPage />,
+    'stock-taking': <InventoryStockTakingPage />,
+    'stock-taking-book': <InventoryStockTakingBookPage />,
     'scheme-batches': <InventorySchemeBatchesPage />,
     'delivery-by': <InventoryDeliveryByPage />,
     'delivery-status': <InventoryDeliveryStatusPage />,
@@ -29,7 +42,12 @@ const SECTION_COMPONENTS: Record<string, React.ReactNode> = {
     'bill-collection-status': <InventoryBillCollectionStatusPage />,
     transporters: <InventoryTransportersPage />,
     godowns: <InventoryGodownsPage />,
-    products: <InventoryProductsPage />
+    products: <InventoryProductsPage />,
+    'transport-sheet-import': <InventoryTransportSheetImportPage />,
+    'transport-stock-in': <InventoryTransportStockInPage />,
+    'transport-stock-in-book': <InventoryTransportStockInBookPage />,
+    'transport-stock-analysis': <InventoryTransportStockAnalysisPage />,
+    'import-bizom-invoices': <InventoryImportBizomInvoicesPage />
 };
 
 export default function InventorySectionPage() {
@@ -55,3 +73,5 @@ export default function InventorySectionPage() {
         </div>
     );
 }
+
+

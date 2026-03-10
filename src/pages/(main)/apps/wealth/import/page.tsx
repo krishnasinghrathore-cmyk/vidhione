@@ -1,6 +1,7 @@
 'use client';
-import React, { useEffect, useRef, useState } from 'react';
-import { useMutation, gql } from '@apollo/client';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useMutation, useQuery, gql } from '@apollo/client';
 import { z } from 'zod';
 import { Toast } from 'primereact/toast';
 import { Button } from 'primereact/button';
@@ -9,9 +10,17 @@ import { InputText } from 'primereact/inputtext';
 import { InputTextarea } from 'primereact/inputtextarea';
 import AppDateInput from '@/components/AppDateInput';
 import AppDropdown from '@/components/AppDropdown';
-import { wealthApolloClient, wealthGraphqlUrl } from '@/lib/wealthApolloClient';
+import { wealthApolloClient } from '@/lib/wealthApolloClient';
 import { toYmdOrNull } from '@/lib/date';
 import { importWealthFileToCsv } from '@/lib/wealthImportFiles';
+import {
+    WEALTH_ACCOUNTS_QUERY,
+    type WealthDematAccount,
+    formatAccountLabel,
+    fromYmdOrNull
+} from '../shared';
+import { buildWealthSampleOpeningCsv, buildWealthSampleTransactionsCsv, downloadWealthCsvTemplate } from '../importAssets';
+import { buildWealthReportSearchParams } from '../reportSearchParams';
 
 const IMPORT_TRANSACTIONS = gql`
     mutation ImportTransactions($csv: String!, $dryRun: Boolean, $preview: Boolean) {
@@ -50,8 +59,7 @@ const IMPORT_OPENING_HOLDINGS = gql`
     mutation ImportOpeningHoldings(
         $csv: String!
         $asOfDate: String!
-        $accountName: String!
-        $accountCode: String
+        $accountId: String!
         $sourceDoc: String
         $segment: String
         $dryRun: Boolean
@@ -60,8 +68,7 @@ const IMPORT_OPENING_HOLDINGS = gql`
         importOpeningHoldings(
             csv: $csv
             asOfDate: $asOfDate
-            accountName: $accountName
-            accountCode: $accountCode
+            accountId: $accountId
             sourceDoc: $sourceDoc
             segment: $segment
             dryRun: $dryRun
@@ -103,7 +110,7 @@ const formSchema = z.object({
 
 const openingSchema = z.object({
     csv: z.string().trim().min(1, 'CSV content is required'),
-    accountName: z.string().trim().min(1, 'Account name is required')
+    accountId: z.string().trim().min(1, 'Demat account is required')
 });
 
 const MODE_OPTIONS = [
@@ -117,22 +124,71 @@ const SEGMENT_OPTIONS = [
     { label: 'F&O', value: 'FAO' }
 ];
 
+type ImportPreviewRow = {
+    rowNumber: number;
+    valid: boolean;
+    error?: string | null;
+    tdate?: string | null;
+    ttype?: string | null;
+    segment?: string | null;
+    invoiceDate?: string | null;
+    qty?: string | null;
+    price?: string | null;
+    fees?: string | null;
+    isin?: string | null;
+    symbol?: string | null;
+    name?: string | null;
+    notes?: string | null;
+    accountName?: string | null;
+    accountCode?: string | null;
+    sourceDoc?: string | null;
+};
+
+type ImportRunSnapshot = {
+    mode: (typeof MODE_OPTIONS)[number]['value'];
+    dryRun: boolean;
+    accountId: string;
+    investorProfileId: string;
+    asOfDate: Date | null;
+    sourceDoc: string;
+};
+
 export default function WealthImportPage() {
+    const navigate = useNavigate();
     const toastRef = useRef<Toast>(null);
     const fileInputRef = useRef<HTMLInputElement | null>(null);
-    const [mode, setMode] = useState<(typeof MODE_OPTIONS)[number]['value']>('transactions');
+    const appliedPresetKeyRef = useRef<string | null>(null);
+    const [searchParams, setSearchParams] = useSearchParams();
+    const queryMode = searchParams.get('mode') === 'opening' ? 'opening' : 'transactions';
+    const queryPreset = searchParams.get('preset');
+    const [mode, setMode] = useState<(typeof MODE_OPTIONS)[number]['value']>(queryMode);
     const [csv, setCsv] = useState('');
     const [dryRun, setDryRun] = useState(true);
     const [preview, setPreview] = useState(true);
     const [formError, setFormError] = useState<string | null>(null);
     const [parsing, setParsing] = useState(false);
     const [fileInfo, setFileInfo] = useState<{ name: string; sheetName?: string } | null>(null);
+    const [presetNotice, setPresetNotice] = useState<string | null>(null);
+    const [lastSubmittedImport, setLastSubmittedImport] = useState<ImportRunSnapshot | null>(null);
 
     const [asOfDate, setAsOfDate] = useState<Date | null>(new Date());
-    const [accountName, setAccountName] = useState('');
-    const [accountCode, setAccountCode] = useState('');
+    const [accountId, setAccountId] = useState('');
     const [sourceDoc, setSourceDoc] = useState('');
     const [segment, setSegment] = useState('CASH');
+
+    const { data: accountsData, loading: accountsLoading } = useQuery(WEALTH_ACCOUNTS_QUERY, {
+        client: wealthApolloClient
+    });
+
+    const accounts: WealthDematAccount[] = accountsData?.accounts ?? [];
+    const accountOptions = useMemo(
+        () => accounts.map((account) => ({ label: formatAccountLabel(account), value: account.id })),
+        [accounts]
+    );
+    const selectedAccount = useMemo(
+        () => accounts.find((account) => account.id === accountId) ?? null,
+        [accountId, accounts]
+    );
 
     const [runTransactionsImport, txState] = useMutation(IMPORT_TRANSACTIONS, {
         client: wealthApolloClient
@@ -147,6 +203,129 @@ export default function WealthImportPage() {
             : openingState.data?.importOpeningHoldings;
     const loading = mode === 'transactions' ? txState.loading : openingState.loading;
     const error = mode === 'transactions' ? txState.error : openingState.error;
+    const previewRows: ImportPreviewRow[] = result?.preview ?? [];
+    const importResultSourceDocs = useMemo(() => {
+        const docs = new Set<string>();
+        if (lastSubmittedImport?.mode === 'opening' && lastSubmittedImport.sourceDoc.trim()) {
+            docs.add(lastSubmittedImport.sourceDoc.trim());
+        }
+        previewRows.forEach((row) => {
+            const normalized = row.sourceDoc?.trim();
+            if (normalized) docs.add(normalized);
+        });
+        return Array.from(docs);
+    }, [lastSubmittedImport, previewRows]);
+    const previewDateRange = useMemo(() => {
+        const rawDates = previewRows
+            .map((row) => row.tdate?.trim() || '')
+            .filter((value) => Boolean(value))
+            .sort();
+        if (rawDates.length) {
+            return {
+                fromDate: fromYmdOrNull(rawDates[0]),
+                toDate: fromYmdOrNull(rawDates[rawDates.length - 1])
+            };
+        }
+        const fallbackDate = lastSubmittedImport?.mode === 'opening' ? lastSubmittedImport.asOfDate : null;
+        return {
+            fromDate: fallbackDate,
+            toDate: fallbackDate
+        };
+    }, [lastSubmittedImport, previewRows]);
+    const canReviewImportedData = Boolean(result && lastSubmittedImport && !lastSubmittedImport.dryRun && result.inserted > 0);
+    const openReport = (pathname: string, filters: Parameters<typeof buildWealthReportSearchParams>[0]) => {
+        const params = buildWealthReportSearchParams(filters);
+        const search = params.toString();
+        navigate({ pathname, search: search ? `?${search}` : '' });
+    };
+    const openTransactionsReview = (nextSourceDoc?: string) => {
+        openReport('/apps/wealth/transactions', {
+            fromDate: previewDateRange.fromDate,
+            toDate: previewDateRange.toDate,
+            sourceDoc: nextSourceDoc || '',
+            accountId: lastSubmittedImport?.mode === 'opening' ? lastSubmittedImport.accountId : '',
+            investorProfileId: lastSubmittedImport?.mode === 'opening' ? lastSubmittedImport.investorProfileId : ''
+        });
+    };
+    const openHoldingsReview = () => {
+        if (!lastSubmittedImport) return;
+        openReport('/apps/wealth/holdings', {
+            asOfDate: lastSubmittedImport.asOfDate,
+            accountId: lastSubmittedImport.accountId,
+            investorProfileId: lastSubmittedImport.investorProfileId,
+            scope: 'ACCOUNT'
+        });
+    };
+    const openStatementPackReview = () => {
+        if (!lastSubmittedImport) return;
+        openReport('/apps/wealth/statements/pack', {
+            asOfDate: lastSubmittedImport.asOfDate,
+            accountId: lastSubmittedImport.accountId,
+            investorProfileId: lastSubmittedImport.investorProfileId,
+            scope: 'ACCOUNT'
+        });
+    };
+
+    useEffect(() => {
+        setMode((current) => (current === queryMode ? current : queryMode));
+    }, [queryMode]);
+
+    const handleModeChange = (nextMode: (typeof MODE_OPTIONS)[number]['value']) => {
+        setMode(nextMode);
+        setPresetNotice(null);
+        const nextParams = new URLSearchParams(searchParams);
+        nextParams.set('mode', nextMode);
+        nextParams.delete('preset');
+        setSearchParams(nextParams, { replace: true });
+    };
+
+    
+    useEffect(() => {
+        if (!queryPreset) {
+            appliedPresetKeyRef.current = null;
+            return;
+        }
+        if (queryPreset === 'sample-transactions' && accountsLoading) return;
+        if (appliedPresetKeyRef.current === queryPreset) return;
+
+        appliedPresetKeyRef.current = queryPreset;
+
+        if (queryPreset === 'sample-opening') {
+            setMode('opening');
+            if (accounts.length === 1) {
+                setAccountId((current) => current || accounts[0].id);
+            }
+            setCsv(buildWealthSampleOpeningCsv());
+            setDryRun(true);
+            setPreview(true);
+            setFormError(null);
+            setPresetNotice('Sample opening CSV loaded. Select the target demat account and keep Dry run enabled before importing.');
+            setFileInfo({ name: 'wealth-household-sample-opening.csv' });
+            toastRef.current?.show({ severity: 'info', summary: 'Loaded sample opening CSV' });
+        } else if (queryPreset === 'sample-transactions') {
+            const sampleCsv = buildWealthSampleTransactionsCsv(accounts);
+            setMode('transactions');
+            setCsv(sampleCsv);
+            setDryRun(true);
+            setPreview(true);
+            setFormError(null);
+            setPresetNotice(
+                accounts.length
+                    ? 'Sample transaction CSV loaded using the current demat-account labels where available.'
+                    : 'Sample transaction CSV loaded with placeholder account labels. Create matching demat accounts or edit the Account columns before importing.'
+            );
+            setFileInfo({ name: 'wealth-household-sample-transactions.csv' });
+            toastRef.current?.show({ severity: 'info', summary: 'Loaded sample transactions CSV' });
+        } else {
+            appliedPresetKeyRef.current = null;
+            return;
+        }
+
+        const nextParams = new URLSearchParams(searchParams);
+        nextParams.set('mode', queryPreset === 'sample-opening' ? 'opening' : 'transactions');
+        nextParams.delete('preset');
+        setSearchParams(nextParams, { replace: true });
+    }, [accounts, accountsLoading, queryPreset, searchParams, setSearchParams]);
 
     useEffect(() => {
         if (mode !== 'opening') return;
@@ -155,17 +334,24 @@ export default function WealthImportPage() {
         if (!sourceDoc.trim()) setSourceDoc(`OPENING-${ymd}`);
     }, [mode, asOfDate, sourceDoc]);
 
+    useEffect(() => {
+        if (!accountId) return;
+        if (selectedAccount) return;
+        setAccountId('');
+    }, [accountId, selectedAccount]);
+
     const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
         setParsing(true);
         try {
-            const result = await importWealthFileToCsv(file);
-            setCsv(result.csv);
+            const parsed = await importWealthFileToCsv(file);
+            setCsv(parsed.csv);
             setFormError(null);
-            setFileInfo({ name: file.name, sheetName: result.meta?.sheetName });
-            if (result.warnings.length) {
-                result.warnings.forEach((warning) =>
+            setPresetNotice(null);
+            setFileInfo({ name: file.name, sheetName: parsed.meta?.sheetName });
+            if (parsed.warnings.length) {
+                parsed.warnings.forEach((warning) =>
                     toastRef.current?.show({ severity: 'warn', summary: warning })
                 );
             } else {
@@ -189,11 +375,19 @@ export default function WealthImportPage() {
                 return;
             }
             setFormError(null);
+            setLastSubmittedImport({
+                mode: 'transactions',
+                dryRun,
+                accountId: '',
+                investorProfileId: '',
+                asOfDate: null,
+                sourceDoc: ''
+            });
             runTransactionsImport({ variables: { csv: parsed.data.csv, dryRun, preview } });
             return;
         }
 
-        const openingParsed = openingSchema.safeParse({ csv, accountName });
+        const openingParsed = openingSchema.safeParse({ csv, accountId });
         if (!openingParsed.success) {
             setFormError(openingParsed.error.issues[0]?.message ?? 'Invalid input');
             toastRef.current?.show({ severity: 'warn', summary: 'Fix validation errors' });
@@ -208,12 +402,19 @@ export default function WealthImportPage() {
         }
 
         setFormError(null);
+        setLastSubmittedImport({
+            mode: 'opening',
+            dryRun,
+            accountId: openingParsed.data.accountId,
+            investorProfileId: selectedAccount?.investorProfileId ?? '',
+            asOfDate,
+            sourceDoc: sourceDoc.trim()
+        });
         runOpeningImport({
             variables: {
                 csv: openingParsed.data.csv,
                 asOfDate: ymd,
-                accountName: openingParsed.data.accountName,
-                accountCode: accountCode.trim() || null,
+                accountId: openingParsed.data.accountId,
                 sourceDoc: sourceDoc.trim() || null,
                 segment: segment || null,
                 dryRun,
@@ -229,7 +430,7 @@ export default function WealthImportPage() {
             <div className="mb-3">
                 <h2 className="m-0">Wealth Import</h2>
                 <p className="mt-2 mb-0 text-600">
-                    Paste CSV and import it into <code>wealth_db</code>. Endpoint: <code>{wealthGraphqlUrl}</code>
+                    Load opening holdings or transaction history into the selected household wealth workspace.
                 </p>
             </div>
 
@@ -239,10 +440,36 @@ export default function WealthImportPage() {
                     <AppDropdown
                         value={mode}
                         options={[...MODE_OPTIONS]}
-                        onChange={(e) => setMode(e.value)}
+                        onChange={(e) => handleModeChange(e.value === 'opening' ? 'opening' : 'transactions')}
                         disabled={loading}
                     />
                 </div>
+
+                <div className="flex flex-column md:flex-row md:align-items-center md:justify-content-between gap-2 p-3 border-1 border-round surface-50">
+                    <small className="text-700 line-height-3">
+                        Start UAT with the template for this mode, keep Dry run enabled first, and only switch to Import Data after the preview is correct.
+                    </small>
+                    <Button
+                        type="button"
+                        label={mode === 'opening' ? 'Download opening template' : 'Download transactions template'}
+                        icon="pi pi-download"
+                        className="p-button-text app-action-compact"
+                        onClick={() => downloadWealthCsvTemplate(mode)}
+                        disabled={loading || parsing}
+                    />
+                </div>
+
+                {presetNotice ? (
+                    <div className="p-3 border-1 border-round surface-ground text-700 text-sm line-height-3">
+                        {presetNotice}
+                    </div>
+                ) : null}
+
+                {mode === 'transactions' ? (
+                    <div className="p-3 border-1 border-round surface-50 text-700 text-sm">
+                        Transaction rows must match existing demat account names or account codes. If the household has only one demat account, the Account columns can be left blank.
+                    </div>
+                ) : null}
 
                 {mode === 'opening' ? (
                     <div className="grid">
@@ -250,23 +477,38 @@ export default function WealthImportPage() {
                             <label className="font-medium">As-of Date</label>
                             <AppDateInput value={asOfDate} onChange={(value) => setAsOfDate(value)} disabled={loading} />
                         </div>
-                        <div className="col-12 md:col-4 flex flex-column gap-1">
-                            <label className="font-medium">Account Name</label>
-                            <InputText value={accountName} onChange={(e) => setAccountName(e.target.value)} placeholder="e.g. Zerodha Main" disabled={loading} />
-                        </div>
-                        <div className="col-12 md:col-4 flex flex-column gap-1">
-                            <label className="font-medium">Account Code (Trading Code)</label>
-                            <InputText value={accountCode} onChange={(e) => setAccountCode(e.target.value)} placeholder="e.g. ABC123" disabled={loading} />
+                        <div className="col-12 md:col-8 flex flex-column gap-1">
+                            <label className="font-medium">Demat Account</label>
+                            <AppDropdown
+                                value={accountId}
+                                options={accountOptions}
+                                onChange={(e) => setAccountId(e.value ?? '')}
+                                placeholder={accounts.length ? 'Select demat account' : 'Create a demat account first'}
+                                filter
+                                showClear
+                                disabled={loading || !accounts.length}
+                            />
+                            {selectedAccount ? (
+                                <small className="text-600">
+                                    Using {formatAccountLabel(selectedAccount)}
+                                    {selectedAccount.brokerName ? ` | Broker: ${selectedAccount.brokerName}` : ''}
+                                    {selectedAccount.investorProfileName ? ` | Investor: ${selectedAccount.investorProfileName}` : ''}
+                                </small>
+                            ) : (
+                                <small className="text-600">
+                                    Opening holdings will be posted into the selected demat account.
+                                </small>
+                            )}
                         </div>
                         <div className="col-12 md:col-4 flex flex-column gap-1">
                             <label className="font-medium">Default Segment</label>
                             <AppDropdown value={segment} options={SEGMENT_OPTIONS} onChange={(e) => setSegment(e.value)} disabled={loading} />
                         </div>
                         <div className="col-12 md:col-8 flex flex-column gap-1">
-                            <label className="font-medium">Batch SourceDoc</label>
+                            <label className="font-medium">Batch Source Doc</label>
                             <InputText value={sourceDoc} onChange={(e) => setSourceDoc(e.target.value)} placeholder="e.g. OPENING-2024-04-01" disabled={loading} />
                             <small className="text-600">
-                                Used to prevent importing the same opening holdings twice (best practice: keep it unique per import).
+                                Keep this unique per import batch so the same opening holdings are not loaded twice for one demat account.
                             </small>
                         </div>
                     </div>
@@ -310,9 +552,9 @@ export default function WealthImportPage() {
                 <div className="flex gap-2 flex-wrap align-items-center">
                     <Button
                         type="submit"
-                        label={parsing ? 'Parsing…' : loading ? 'Importing…' : dryRun ? 'Validate Data' : 'Import Data'}
+                        label={parsing ? 'Parsing...' : loading ? 'Importing...' : dryRun ? 'Validate Data' : 'Import Data'}
                         icon="pi pi-upload"
-                        disabled={loading || parsing || !csv.trim()}
+                        disabled={loading || parsing || !csv.trim() || (mode === 'opening' && !accountId)}
                     />
                     <Button
                         type="button"
@@ -343,15 +585,121 @@ export default function WealthImportPage() {
                 </div>
             </form>
 
+            {result ? (
+                <div className="mt-3 p-3 border-1 border-round surface-50">
+                    <div className="flex flex-column md:flex-row md:justify-content-between md:align-items-start gap-3">
+                        <div>
+                            <div className="font-medium text-900">Import Result</div>
+                            <div className="text-600 text-sm mt-1">
+                                {lastSubmittedImport?.dryRun
+                                    ? 'Dry run only. No household wealth data was written yet.'
+                                    : result.inserted > 0
+                                      ? 'Import completed. Use the review shortcuts below to verify the posted data.'
+                                      : 'Import finished without inserting rows. Check preview/errors before retrying.'}
+                            </div>
+                        </div>
+                        {importResultSourceDocs.length ? (
+                            <div className="text-600 text-sm line-height-3 md:text-right">
+                                Source doc{importResultSourceDocs.length === 1 ? '' : 's'}: {importResultSourceDocs.slice(0, 3).join(', ')}
+                                {importResultSourceDocs.length > 3 ? ` +${importResultSourceDocs.length - 3} more` : ''}
+                            </div>
+                        ) : null}
+                    </div>
+
+                    <div className="grid mt-1">
+                        <div className="col-6 md:col-3">
+                            <div className="surface-ground border-round p-3 h-full">
+                                <div className="text-600 text-sm">Parsed</div>
+                                <div className="text-xl font-semibold mt-2">{result.parsed}</div>
+                            </div>
+                        </div>
+                        <div className="col-6 md:col-3">
+                            <div className="surface-ground border-round p-3 h-full">
+                                <div className="text-600 text-sm">Inserted</div>
+                                <div className="text-xl font-semibold mt-2">{result.inserted}</div>
+                            </div>
+                        </div>
+                        <div className="col-6 md:col-3">
+                            <div className="surface-ground border-round p-3 h-full">
+                                <div className="text-600 text-sm">Skipped</div>
+                                <div className="text-xl font-semibold mt-2">{result.skipped}</div>
+                            </div>
+                        </div>
+                        <div className="col-6 md:col-3">
+                            <div className="surface-ground border-round p-3 h-full">
+                                <div className="text-600 text-sm">Preview Rows</div>
+                                <div className="text-xl font-semibold mt-2">{previewRows.length}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {canReviewImportedData ? (
+                        <div className="flex flex-wrap gap-2 align-items-center mt-3">
+                            {lastSubmittedImport?.mode === 'opening' ? (
+                                <>
+                                    <Button
+                                        type="button"
+                                        label="Review holdings"
+                                        icon="pi pi-chart-line"
+                                        className="app-action-compact"
+                                        onClick={openHoldingsReview}
+                                    />
+                                    <Button
+                                        type="button"
+                                        label="Review opening transactions"
+                                        icon="pi pi-list"
+                                        className="p-button-secondary app-action-compact"
+                                        onClick={() => openTransactionsReview(importResultSourceDocs[0])}
+                                    />
+                                    <Button
+                                        type="button"
+                                        label="Open statement pack"
+                                        icon="pi pi-file-pdf"
+                                        className="p-button-text app-action-compact"
+                                        onClick={openStatementPackReview}
+                                    />
+                                </>
+                            ) : (
+                                <>
+                                    <Button
+                                        type="button"
+                                        label={importResultSourceDocs.length > 1 ? 'Review first imported batch' : 'Review imported transactions'}
+                                        icon="pi pi-list"
+                                        className="app-action-compact"
+                                        onClick={() => openTransactionsReview(importResultSourceDocs[0])}
+                                    />
+                                    {importResultSourceDocs.slice(1, 4).map((doc) => (
+                                        <Button
+                                            key={doc}
+                                            type="button"
+                                            label={doc}
+                                            className="p-button-text app-action-compact"
+                                            onClick={() => openTransactionsReview(doc)}
+                                        />
+                                    ))}
+                                    {importResultSourceDocs.length > 4 ? (
+                                        <div className="text-600 text-sm">Open the transactions report to review the remaining batches.</div>
+                                    ) : null}
+                                </>
+                            )}
+                        </div>
+                    ) : lastSubmittedImport?.dryRun ? (
+                        <div className="text-600 text-sm mt-3">
+                            Dry run passed? Turn off Dry run and import again to post data, then use the report shortcuts for verification.
+                        </div>
+                    ) : null}
+                </div>
+            ) : null}
+
             {error && <p className="text-red-500 mt-3 mb-0">Error: {error.message}</p>}
 
             {result?.errors?.length ? (
                 <div className="mt-3">
                     <h4 className="m-0 mb-2">Errors</h4>
                     <ul className="m-0 pl-4 text-600">
-                        {result.errors.map((e: any, idx: number) => (
+                        {result.errors.map((entry: any, idx: number) => (
                             <li key={idx}>
-                                Row {e.row}: {e.message}
+                                Row {entry.row}: {entry.message}
                             </li>
                         ))}
                     </ul>
@@ -381,26 +729,26 @@ export default function WealthImportPage() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {result.preview.map((r: any) => {
-                                    const segment = r.segment ?? 'CASH';
+                                {result.preview.map((row: any) => {
+                                    const resolvedSegment = row.segment ?? 'CASH';
                                     return (
-                                        <tr key={r.rowNumber}>
-                                            <td>{r.rowNumber}</td>
-                                            <td>{r.tdate}</td>
-                                            <td>{r.invoiceDate ?? ''}</td>
-                                            <td>{r.ttype}</td>
-                                            <td>{segment}</td>
-                                            <td>{r.symbol ?? ''}</td>
-                                            <td>{r.isin ?? ''}</td>
-                                            <td className="text-right">{r.qty}</td>
-                                            <td className="text-right">{r.price}</td>
-                                            <td className="text-right">{r.fees}</td>
+                                        <tr key={row.rowNumber}>
+                                            <td>{row.rowNumber}</td>
+                                            <td>{row.tdate}</td>
+                                            <td>{row.invoiceDate ?? ''}</td>
+                                            <td>{row.ttype}</td>
+                                            <td>{resolvedSegment}</td>
+                                            <td>{row.symbol ?? ''}</td>
+                                            <td>{row.isin ?? ''}</td>
+                                            <td className="text-right">{row.qty}</td>
+                                            <td className="text-right">{row.price}</td>
+                                            <td className="text-right">{row.fees}</td>
                                             <td>
-                                                {r.accountName ?? ''}
-                                                {r.accountCode ? ` (${r.accountCode})` : ''}
+                                                {row.accountName ?? ''}
+                                                {row.accountCode ? ` (${row.accountCode})` : ''}
                                             </td>
-                                            <td>{r.valid ? 'Yes' : 'No'}</td>
-                                            <td className="text-red-500">{r.error ?? ''}</td>
+                                            <td>{row.valid ? 'Yes' : 'No'}</td>
+                                            <td className="text-red-500">{row.error ?? ''}</td>
                                         </tr>
                                     );
                                 })}
@@ -412,3 +760,7 @@ export default function WealthImportPage() {
         </div>
     );
 }
+
+
+
+

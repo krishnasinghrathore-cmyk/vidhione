@@ -4,11 +4,13 @@ import { Column } from 'primereact/column';
 import { ConfirmPopup, confirmPopup } from 'primereact/confirmpopup';
 import { Toast } from 'primereact/toast';
 import { Button } from 'primereact/button';
+import { AppHelpDialogButton } from '@/components/AppHelpDialogButton';
 import { gql, useLazyQuery, useMutation, useQuery } from '@apollo/client';
 import AppDataTable from '@/components/AppDataTable';
 import AppDropdown from '@/components/AppDropdown';
 import AppInput from '@/components/AppInput';
 import { apolloClient } from '@/lib/apolloClient';
+import { getMasterPageHelp } from '@/lib/masterPageHelp';
 
 interface DistrictRow {
     districtId: number;
@@ -101,17 +103,12 @@ const DELETE_DISTRICT = gql`
     }
 `;
 
-const limitOptions = [50, 100, 250, 500, 1000, 2000].map((value) => ({
-    label: String(value),
-    value
-}));
-
 export default function AccountsDistrictsPage() {
     const toastRef = useRef<Toast>(null);
     const dtRef = useRef<any>(null);
 
     const [search, setSearch] = useState('');
-    const [limit, setLimit] = useState(2000);
+    const limit = 2000;
     const [authCountryId, setAuthCountryId] = useState<number | null>(null);
     const [authStateId, setAuthStateId] = useState<number | null>(null);
     const [authDistrictId, setAuthDistrictId] = useState<number | null>(null);
@@ -268,9 +265,9 @@ export default function AccountsDistrictsPage() {
             message: 'Delete this district?',
             icon: 'pi pi-exclamation-triangle',
             acceptClassName: 'p-button-danger',
-            acceptLabel: 'Delete',
-            rejectLabel: 'Cancel',
-            defaultFocus: 'none',
+            acceptLabel: 'Yes',
+            rejectLabel: 'No',
+            defaultFocus: 'reject',
             dismissable: true,
             accept: () => handleDelete(row.districtId)
         });
@@ -278,7 +275,7 @@ export default function AccountsDistrictsPage() {
 
     const actionsBody = (row: DistrictRow) => (
         <div className="flex gap-2">
-            <Button icon="pi pi-trash" className="p-button-text" severity="danger" onClick={(event) => confirmDelete(event, row)} />
+                        <Button icon="pi pi-trash" className="p-button-text" severity="danger" onClick={(event) => confirmDelete(event, row)} />
         </div>
     );
 
@@ -288,9 +285,14 @@ export default function AccountsDistrictsPage() {
             <ConfirmPopup />
 
             <div className="flex flex-column gap-2 mb-3">
-                <div>
-                    <h2 className="m-0">Districts</h2>
-                    <p className="mt-2 mb-0 text-600">Maintain district records for the agency accounts masters.</p>
+                <div className="flex flex-column md:flex-row md:align-items-start md:justify-content-between gap-3">
+                    <div>
+                        <h2 className="m-0">Districts</h2>
+                        <p className="mt-2 mb-0 text-600">Maintain district records for the agency accounts masters.</p>
+                    </div>
+                    <div className="flex justify-content-end">
+                        <AppHelpDialogButton {...getMasterPageHelp('districts')} buttonAriaLabel="Open Districts help" />
+                    </div>
                 </div>
                 <div className="surface-50 border-1 surface-border border-round p-3">
                     <div className="grid align-items-end">
@@ -405,11 +407,10 @@ export default function AccountsDistrictsPage() {
                 headerRight={
                     <>
                         <Button
-                            label="Export"
-                            icon="pi pi-download"
-                            className="p-button-info"
-                            onClick={() => dtRef.current?.exportCSV()}
-                            disabled={filteredRows.length === 0}
+                            label="Refresh"
+                            icon="pi pi-refresh"
+                            className="p-button-text"
+                            onClick={() => refetch()}
                         />
                         <Button
                             label="Print"
@@ -418,20 +419,12 @@ export default function AccountsDistrictsPage() {
                             onClick={() => window.print()}
                         />
                         <Button
-                            label="Refresh"
-                            icon="pi pi-refresh"
-                            className="p-button-text"
-                            onClick={() => refetch()}
+                            label="Export"
+                            icon="pi pi-download"
+                            className="p-button-info"
+                            onClick={() => dtRef.current?.exportCSV()}
+                            disabled={filteredRows.length === 0}
                         />
-                        <span className="flex align-items-center gap-2">
-                            <span className="text-600 text-sm">Limit</span>
-                            <AppDropdown
-                                value={limit}
-                                options={limitOptions}
-                                onChange={(event) => setLimit((event.value as number) ?? 2000)}
-                                className="w-6rem"
-                            />
-                        </span>
                         <span className="text-600 text-sm">
                             Showing {filteredRows.length} district{filteredRows.length === 1 ? '' : 's'}
                         </span>

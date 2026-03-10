@@ -1,9 +1,11 @@
 'use client';
 import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useLazyQuery, useQuery } from '@apollo/client';
+import { Button } from 'primereact/button';
 import type { DataTableFilterEvent, DataTableFilterMeta } from 'primereact/datatable';
 import type { Dropdown } from 'primereact/dropdown';
 import type { AutoComplete } from 'primereact/autocomplete';
+import { AppRegisterSearch } from '@/components/AppRegisterSearch';
 import { ReportPrintHeader } from '@/components/ReportPrintHeader';
 import { ReportPrintFooter } from '@/components/ReportPrintFooter';
 import { buildSkeletonRows, isSkeletonRow, skeletonCell } from '@/components/reportSkeleton';
@@ -68,6 +70,9 @@ export function TrialBalanceReportContainer({ initialView = 'detailed' }: TrialB
     const [appliedFilters, setAppliedFilters] = useState<AppliedFilters | null>(null);
     const [expandedGroups, setExpandedGroups] = useState<Set<number>>(new Set());
     const [columnFilters, setColumnFilters] = useState<DataTableFilterMeta>(() => buildDefaultColumnFilters());
+    const [globalSearchValue, setGlobalSearchValue] = useState('');
+    const [globalSearchMatchCase, setGlobalSearchMatchCase] = useState(false);
+    const [globalSearchWholeWord, setGlobalSearchWholeWord] = useState(false);
     const [isPrinting, setIsPrinting] = useState(false);
     const [printRows, setPrintRows] = useState<TrialBalanceDisplayRow[] | null>(null);
 
@@ -820,6 +825,20 @@ export function TrialBalanceReportContainer({ initialView = 'detailed' }: TrialB
     );
 
     const errorMessage = reportError?.message ?? null;
+    const headerSearch = (
+        <AppRegisterSearch
+            value={globalSearchValue}
+            onValueChange={setGlobalSearchValue}
+            matchCase={globalSearchMatchCase}
+            onMatchCaseChange={setGlobalSearchMatchCase}
+            wholeWord={globalSearchWholeWord}
+            onWholeWordChange={setGlobalSearchWholeWord}
+            placeholder="Search register..."
+            helperText="Aa: Match Case · W: Whole Word"
+            className="app-report-header-search app-register-search--compact"
+            disabled={loadingApplied && tableRows.length === 0}
+        />
+    );
 
     return (
         <div className="card app-gradient-card">
@@ -831,16 +850,7 @@ export function TrialBalanceReportContainer({ initialView = 'detailed' }: TrialB
                 subtitle={filterSummary ?? undefined}
             />
             <ReportPrintFooter left={printFooterLeft} />
-            <TrialBalanceReportSummary
-                hasAnyDiff={hasAnyDiff}
-                hasOpeningDiff={hasOpeningDiff}
-                hasPeriodDiff={hasPeriodDiff}
-                hasClosingDiff={hasClosingDiff}
-                openingDiffLabel={openingDiffLabel}
-                periodDiffLabel={periodDiffLabel}
-                closingDiffLabel={closingDiffLabel}
-                errorMessage={errorMessage}
-            />
+            <TrialBalanceReportSummary errorMessage={errorMessage} rightSlot={headerSearch} />
             <TrialBalanceReportTable
                 tableRows={tableRows}
                 isPrinting={isPrinting}
@@ -851,6 +861,12 @@ export function TrialBalanceReportContainer({ initialView = 'detailed' }: TrialB
                 baseRowsCount={baseRows.length}
                 columnFilters={columnFilters}
                 onColumnFilter={handleColumnFilter}
+                globalSearchValue={globalSearchValue}
+                onGlobalSearchValueChange={setGlobalSearchValue}
+                globalSearchMatchCase={globalSearchMatchCase}
+                onGlobalSearchMatchCaseChange={setGlobalSearchMatchCase}
+                globalSearchWholeWord={globalSearchWholeWord}
+                onGlobalSearchWholeWordChange={setGlobalSearchWholeWord}
                 headerLeft={headerLeft}
                 canToggleExpand={canToggleExpand}
                 expandAllDisabled={expandAllDisabled}
@@ -867,6 +883,13 @@ export function TrialBalanceReportContainer({ initialView = 'detailed' }: TrialB
                 printDisabled={!appliedFilters || reportLoading || displayRows.length === 0}
                 exportDisabled={!appliedFilters || reportLoading || displayRows.length === 0}
                 refreshButtonId={refreshButtonId}
+                hasAnyDiff={hasAnyDiff}
+                hasOpeningDiff={hasOpeningDiff}
+                hasPeriodDiff={hasPeriodDiff}
+                hasClosingDiff={hasClosingDiff}
+                openingDiffLabel={openingDiffLabel}
+                periodDiffLabel={periodDiffLabel}
+                closingDiffLabel={closingDiffLabel}
                 viewMode={viewMode}
                 ledgerGroupBody={ledgerGroupBody}
                 annexureBody={annexureBody}

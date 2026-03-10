@@ -25,6 +25,7 @@ export const INVENTORY_MENU_GROUPS: InventoryMenuGroup[] = [
             { slug: 'units', label: 'Units', icon: 'pi pi-wrench' },
             { slug: 'hsn-codes', label: 'HSN Codes', icon: 'pi pi-book' },
             { slug: 'products', label: 'Products', icon: 'pi pi-percentage' },
+            { slug: 'barcode', label: 'Barcode Center', icon: 'pi pi-barcode' },
             { slug: 'scheme-batches', label: 'Scheme Batches', icon: 'pi pi-calendar' },
             { slug: 'delivery-by', label: 'Delivery By', icon: 'pi pi-send' },
             { slug: 'delivery-status', label: 'Delivery Status', icon: 'pi pi-check-square' },
@@ -40,6 +41,7 @@ export const INVENTORY_MENU_GROUPS: InventoryMenuGroup[] = [
         icon: 'pi pi-pencil',
         items: [
             { slug: 'closing-stock', label: 'Closing Stock', icon: 'pi pi-box' },
+            { slug: 'stock-taking', label: 'Stock Taking', icon: 'pi pi-clipboard' },
             { slug: 'party-rates', label: 'Party Rates', icon: 'pi pi-wallet' }
         ]
     },
@@ -60,6 +62,8 @@ export const INVENTORY_MENU_GROUPS: InventoryMenuGroup[] = [
         label: 'Reports',
         icon: 'pi pi-chart-line',
         items: [
+            { slug: 'barcode-history', label: 'Barcode History', icon: 'pi pi-history' },
+            { slug: 'stock-taking-book', label: 'Stock Taking Book', icon: 'pi pi-book' },
             { slug: 'stock-position', label: 'Stock Position', icon: 'pi pi-chart-bar' },
             { slug: 'stock-ledger', label: 'Stock Ledger', icon: 'pi pi-book' },
             { slug: 'closing-stock-book', label: 'Closing Stock Book', icon: 'pi pi-book' },
@@ -79,3 +83,5 @@ export const INVENTORY_MENU_MAP: Record<string, InventoryMenuMapItem> = INVENTOR
     },
     {} as Record<string, InventoryMenuMapItem>
 );
+
+

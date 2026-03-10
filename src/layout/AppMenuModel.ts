@@ -84,28 +84,11 @@ export const model: MenuModel[] = [
     {
         label: 'Industry Apps',
         icon: 'pi pi-th-large',
-        items: APPS.filter((app) => app.category === 'industry').map((app) => {
-            if (app.id === 'wealth') {
-                return {
-                    label: app.name,
-                    icon: app.icon,
-                    items: [
-                        { label: 'Wealth Admin', icon: 'pi pi-home', to: '/apps/wealth' },
-                        { label: 'Transactions', icon: 'pi pi-list', to: '/apps/wealth/transactions' },
-                        { label: 'Ledger (Khata)', icon: 'pi pi-book', to: '/apps/wealth/ledger' },
-                        { label: 'Holdings', icon: 'pi pi-briefcase', to: '/apps/wealth/holdings' },
-                        { label: 'Realized P&L', icon: 'pi pi-chart-line', to: '/apps/wealth/realized' },
-                        { label: 'Dividend Register', icon: 'pi pi-wallet', to: '/apps/wealth/dividends' },
-                        { label: 'Import', icon: 'pi pi-upload', to: '/apps/wealth/import' }
-                    ]
-                };
-            }
-            return {
-                label: app.name,
-                icon: app.icon,
-                to: app.path
-            };
-        })
+        items: APPS.filter((app) => app.category === 'industry').map((app) => ({
+            label: app.name,
+            icon: app.icon,
+            to: app.path
+        }))
     },
     {
         label: 'Accounts',
@@ -201,7 +184,7 @@ export const model: MenuModel[] = [
                         icon: 'pi pi-chart-line',
                         to: '/apps/accounts/trial-balance'
                     },
-                    { label: 'Balance Sheet', icon: 'pi pi-objects-column', to: '/apps/accounts/balance-sheet' },
+                    { label: 'Balance Sheet', icon: 'pi pi-chart-bar', to: '/apps/accounts/balance-sheet' },
                     { label: 'Profit & Loss', icon: 'pi pi-percentage', to: '/apps/accounts/profit-loss' }
                 ]
             },
@@ -218,6 +201,7 @@ export const model: MenuModel[] = [
                 icon: 'pi pi-wrench',
                 items: [
                     { label: 'Book Printing', icon: 'pi pi-print', to: '/apps/accounts/book-printing' },
+                    { label: 'Report Templates', icon: 'pi pi-file-edit', to: '/apps/accounts/report-templates' },
                     { label: 'Migration Monitor', icon: 'pi pi-chart-bar', to: '/apps/accounts/migration-monitor' },
                     ...accountUtilityExtras.map((item) => ({
                         label: item.label,
@@ -305,11 +289,37 @@ export const model: MenuModel[] = [
     {
         label: 'Add-ons',
         icon: 'pi pi-bell',
-        items: APPS.filter((app) => app.category === 'addon').map((app) => ({
-            label: app.name,
-            icon: app.icon,
-            to: app.path
-        }))
+        items: APPS.filter((app) => app.category === 'addon').map((app) => {
+            if (app.id === 'wealth') {
+                return {
+                    label: app.name,
+                    icon: app.icon,
+                    items: [
+                        { label: 'Dashboard', icon: 'pi pi-home', to: '/apps/wealth' },
+                        { label: 'Statements', icon: 'pi pi-file', to: '/apps/wealth/statements' },
+                        { label: 'Statement Pack', icon: 'pi pi-print', to: '/apps/wealth/statements/pack' },
+                        { label: 'Rollout Kit', icon: 'pi pi-check-square', to: '/apps/wealth/rollout' },
+                        { label: 'Investor Profiles', icon: 'pi pi-users', to: '/apps/wealth/investor-profiles' },
+                        { label: 'Demat Accounts', icon: 'pi pi-briefcase', to: '/apps/wealth/demat-accounts' },
+                        { label: 'Securities', icon: 'pi pi-bookmark', to: '/apps/wealth/securities' },
+                        { label: 'Transactions', icon: 'pi pi-list', to: '/apps/wealth/transactions' },
+                        { label: 'Ledger', icon: 'pi pi-book', to: '/apps/wealth/ledger' },
+                        { label: 'Holdings', icon: 'pi pi-briefcase', to: '/apps/wealth/holdings' },
+                        { label: 'Realized P&L', icon: 'pi pi-chart-line', to: '/apps/wealth/realized' },
+                        { label: 'Dividend Register', icon: 'pi pi-wallet', to: '/apps/wealth/dividends' },
+                        { label: 'Import', icon: 'pi pi-upload', to: '/apps/wealth/import' },
+                        { label: 'Manual Entry', icon: 'pi pi-pencil', to: '/apps/wealth/manual-transactions' },
+                        { label: 'Prices & FMV', icon: 'pi pi-chart-bar', to: '/apps/wealth/prices' },
+                        { label: 'Corporate Actions', icon: 'pi pi-refresh', to: '/apps/wealth/corporate-actions' },
+                    ]
+                };
+            }
+            return {
+                label: app.name,
+                icon: app.icon,
+                to: app.path
+            };
+        })
     },
     {
         label: 'Masters',
@@ -382,3 +392,4 @@ export const model: MenuModel[] = [
         ]
     }
 ];
+

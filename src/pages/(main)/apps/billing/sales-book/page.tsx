@@ -1,10 +1,12 @@
 'use client';
-import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { type NormalizedCacheObject, useApolloClient } from '@apollo/client';
 import { type AutoCompleteChangeEvent, type AutoCompleteCompleteEvent } from 'primereact/autocomplete';
 import { Checkbox } from 'primereact/checkbox';
 import { Column } from 'primereact/column';
 import type { DataTablePageEvent } from 'primereact/datatable';
 import type { Dropdown } from 'primereact/dropdown';
+import type { MenuItem } from 'primereact/menuitem';
 import { ReportPrintHeader } from '@/components/ReportPrintHeader';
 import { ReportPrintFooter } from '@/components/ReportPrintFooter';
 import { ReportDataTable } from '@/components/ReportDataTable';
@@ -17,7 +19,10 @@ import { useAuth } from '@/lib/auth/context';
 import { formatReportTimestamp, useReportPrint } from '@/lib/reportPrint';
 import type { SalesBookPage } from '@/lib/invoicing/api';
 import * as invoicingApi from '@/lib/invoicing/api';
+import { buildLoadingSheetRowsFromSaleInvoiceIds } from '@/lib/loadingSheetRows';
 import { useReportCompanyInfo } from '@/lib/reportCompany';
+import { printRowsWithReportTemplate } from '@/lib/reportTemplatePrint';
+import { buildSalesBookDetailedRowsFromInvoiceHeaders } from '@/lib/salesBookDetailedRows';
 import { validateDateRange, type DateRangeErrors } from '@/lib/reportDateValidation';
 import { exportReportCsv, exportReportExcel, exportReportPdf, type ReportExportColumn } from '@/lib/reportExport';
 import { LayoutContext } from '@/layout/context/layoutcontext';
@@ -69,6 +74,11 @@ type SalesBookRow = {
     diffFinalAmount: number;
     cashReceiptAmount: number;
     bankReceiptAmount: number;
+    loyaltyAppliedAmount: number;
+    loyaltyPointsRedeemed: number;
+    giftCertificateAppliedAmount: number;
+    giftCertificateApplicationCount: number;
+    settlementAppliedAmount: number;
     paidAmount: number;
     returnAmount: number;
     dueAmount: number;
@@ -165,8 +175,21 @@ const statusOptions = [
 ];
 
 const resolveStatusLabel = (value: number) => statusOptions.find((option) => option.value === value)?.label ?? 'All';
+type SalesBookPrintMode = 'summary' | 'book' | 'loading_sheet';
+
+const toTemplateRows = (rows: SalesBookRow[]) =>
+    rows.map((row) => ({
+        ...row,
+        grossAmount: Number(row.totalGrossAmount ?? 0),
+        totalTaxAmount: Number(row.totalTaxAmount ?? 0),
+        roundOffAmount: Number(row.roundOffAmount ?? 0),
+        totalNetAmount: Number(row.totalNetAmount ?? 0),
+        isCancelledFlag: row.isCancelled ? 1 : 0,
+        statusText: row.isCancelled ? 'Cancelled' : row.deliveryStatus ?? 'Pending'
+    })) as Array<Record<string, unknown>>;
 
 export default function BillingSalesBookPage() {
+    const apolloClient = useApolloClient();
     const { setPageTitle } = useContext(LayoutContext);
     const { companyContext } = useAuth();
     const companyInfo = useReportCompanyInfo();
@@ -272,6 +295,11 @@ export default function BillingSalesBookPage() {
             diffFinalAmount: Number(row.diffFinalAmount ?? 0),
             cashReceiptAmount: Number(row.cashReceiptAmount ?? 0),
             bankReceiptAmount: Number(row.bankReceiptAmount ?? 0),
+            loyaltyAppliedAmount: Number(row.loyaltyAppliedAmount ?? 0),
+            loyaltyPointsRedeemed: Number(row.loyaltyPointsRedeemed ?? 0),
+            giftCertificateAppliedAmount: Number(row.giftCertificateAppliedAmount ?? 0),
+            giftCertificateApplicationCount: Number(row.giftCertificateApplicationCount ?? 0),
+            settlementAppliedAmount: Number(row.settlementAppliedAmount ?? 0),
             paidAmount: Number(row.paidAmount ?? 0),
             returnAmount: Number(row.returnAmount ?? 0),
             dueAmount: Number(row.dueAmount ?? 0),
@@ -327,6 +355,11 @@ export default function BillingSalesBookPage() {
                 diffFinalAmount: 0,
                 cashReceiptAmount: 0,
                 bankReceiptAmount: 0,
+                loyaltyAppliedAmount: 0,
+                loyaltyPointsRedeemed: 0,
+                giftCertificateAppliedAmount: 0,
+                giftCertificateApplicationCount: 0,
+                settlementAppliedAmount: 0,
                 paidAmount: 0,
                 returnAmount: 0,
                 dueAmount: 0,
@@ -342,7 +375,7 @@ export default function BillingSalesBookPage() {
         [rowsPerPage]
     );
 
-    const fetchAllSalesBookRows = useCallback(async () => {
+    const fetchAllSalesBookRows = useCallback(async (): Promise<SalesBookRow[]> => {
         if (!appliedFilters) return displayRows;
         if (totalRecords <= displayRows.length) return displayRows;
         try {
@@ -388,6 +421,11 @@ export default function BillingSalesBookPage() {
                 diffFinalAmount: Number(row.diffFinalAmount ?? 0),
                 cashReceiptAmount: Number(row.cashReceiptAmount ?? 0),
                 bankReceiptAmount: Number(row.bankReceiptAmount ?? 0),
+                loyaltyAppliedAmount: Number(row.loyaltyAppliedAmount ?? 0),
+                loyaltyPointsRedeemed: Number(row.loyaltyPointsRedeemed ?? 0),
+                giftCertificateAppliedAmount: Number(row.giftCertificateAppliedAmount ?? 0),
+                giftCertificateApplicationCount: Number(row.giftCertificateApplicationCount ?? 0),
+                settlementAppliedAmount: Number(row.settlementAppliedAmount ?? 0),
                 paidAmount: Number(row.paidAmount ?? 0),
                 returnAmount: Number(row.returnAmount ?? 0),
                 dueAmount: Number(row.dueAmount ?? 0),
@@ -587,6 +625,11 @@ export default function BillingSalesBookPage() {
             { header: 'Bank Receipt Nos', value: (row) => row.bankReceiptNumbers ?? '' },
             { header: 'Cash Receipt Amt', value: (row) => (row.cashReceiptAmount ? row.cashReceiptAmount.toFixed(2) : '') },
             { header: 'Bank Receipt Amt', value: (row) => (row.bankReceiptAmount ? row.bankReceiptAmount.toFixed(2) : '') },
+            { header: 'Loyalty Amt', value: (row) => (row.loyaltyAppliedAmount ? row.loyaltyAppliedAmount.toFixed(2) : '') },
+            { header: 'Loyalty Pts', value: (row) => (row.loyaltyPointsRedeemed ? row.loyaltyPointsRedeemed.toFixed(3) : '') },
+            { header: 'Gift Cert Amt', value: (row) => (row.giftCertificateAppliedAmount ? row.giftCertificateAppliedAmount.toFixed(2) : '') },
+            { header: 'Gift Cert Count', value: (row) => (row.giftCertificateApplicationCount ? String(row.giftCertificateApplicationCount) : '') },
+            { header: 'Settlement Amt', value: (row) => (row.settlementAppliedAmount ? row.settlementAppliedAmount.toFixed(2) : '') },
             { header: 'Paid Amt', value: (row) => (row.paidAmount ? row.paidAmount.toFixed(2) : '') },
             { header: 'Credit Note Amt', value: (row) => (row.creditNoteAmount ? row.creditNoteAmount.toFixed(2) : '') },
             { header: 'Voucher Bill Amt', value: (row) => (row.voucherBillAmount ? row.voucherBillAmount.toFixed(2) : '') },
@@ -614,15 +657,84 @@ export default function BillingSalesBookPage() {
         [exportColumns, exportFileName, filterSummary, reportTitle, companyInfo.name, companyInfo.address, printFooterLeft]
     );
 
-    const handlePrintClick = (event: React.MouseEvent<HTMLButtonElement>) => {
-        event.currentTarget.blur();
-        void triggerPrint();
-    };
-
     const buildExportRows = useCallback(async () => {
         const rows = await fetchAllSalesBookRows();
         return rows.filter((row) => !row.isSkeleton);
     }, [fetchAllSalesBookRows]);
+
+    const tryTemplatePrint = useCallback(
+        async (mode: SalesBookPrintMode, rows: SalesBookRow[]) => {
+            if (!rows.length) return false;
+            const usageKeysByMode: Record<SalesBookPrintMode, string[]> = {
+                summary: ['sale_summary', 'sales_summary', 'summary', 'print.sale_summary', 'print.sales_summary', 'print.summary', 'print'],
+                book: ['sale_book', 'sales_book', 'book', 'print.sale_book', 'print.sales_book', 'print.book', 'print'],
+                loading_sheet: ['loading_sheet', 'loading-sheet', 'print.loading_sheet', 'print.loading-sheet', 'print']
+            };
+            const titleByMode: Record<SalesBookPrintMode, string> = {
+                summary: 'Sale Summary',
+                book: 'Sale Book',
+                loading_sheet: 'Loading Sheet'
+            };
+            const templateRows =
+                mode === 'loading_sheet'
+                    ? await buildLoadingSheetRowsFromSaleInvoiceIds(rows.map((row) => Number(row.saleInvoiceId ?? 0)))
+                    : mode === 'book'
+                    ? await buildSalesBookDetailedRowsFromInvoiceHeaders(rows)
+                    : toTemplateRows(rows);
+            if (!templateRows.length) return false;
+            const subtitle = filterSummary ?? `${templateRows.length} row${templateRows.length === 1 ? '' : 's'}`;
+            return await printRowsWithReportTemplate({
+                apolloClient: apolloClient as unknown as import('@apollo/client').ApolloClient<NormalizedCacheObject>,
+                moduleKey: 'invoice',
+                usageKeys: usageKeysByMode[mode],
+                rows: templateRows,
+                title: titleByMode[mode],
+                subtitle,
+                companyName: companyInfo.name,
+                companyAddress: companyInfo.address
+            });
+        },
+        [apolloClient, companyInfo.address, companyInfo.name, filterSummary]
+    );
+
+    const handlePrintMode = useCallback(
+        (mode: SalesBookPrintMode) => {
+            void (async () => {
+                const rows = await buildExportRows();
+                if (!rows.length) return;
+                const handledByTemplate = await tryTemplatePrint(mode, rows);
+                if (handledByTemplate) return;
+                await triggerPrint();
+            })();
+        },
+        [buildExportRows, triggerPrint, tryTemplatePrint]
+    );
+
+    const printMenuItems = useMemo<MenuItem[]>(
+        () => [
+            {
+                label: 'Sale Summary',
+                icon: 'pi pi-file',
+                command: () => handlePrintMode('summary')
+            },
+            {
+                label: 'Sale Book',
+                icon: 'pi pi-book',
+                command: () => handlePrintMode('book')
+            },
+            {
+                label: 'Loading Sheet',
+                icon: 'pi pi-print',
+                command: () => handlePrintMode('loading_sheet')
+            }
+        ],
+        [handlePrintMode]
+    );
+
+    const handlePrintClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+        event.currentTarget.blur();
+        handlePrintMode('summary');
+    };
 
     const handleExportCsv = async () => {
         const rows = await buildExportRows();
@@ -738,6 +850,10 @@ export default function BillingSalesBookPage() {
         isSkeletonRow(row) ? skeletonCell('4rem') : formatAmount(row.cashReceiptAmount);
     const bankReceiptAmountBody = (row: SalesBookRow) =>
         isSkeletonRow(row) ? skeletonCell('4rem') : formatAmount(row.bankReceiptAmount);
+    const loyaltyAppliedAmountBody = (row: SalesBookRow) =>
+        isSkeletonRow(row) ? skeletonCell('4rem') : formatAmount(row.loyaltyAppliedAmount);
+    const giftCertificateAppliedAmountBody = (row: SalesBookRow) =>
+        isSkeletonRow(row) ? skeletonCell('4rem') : formatAmount(row.giftCertificateAppliedAmount);
     const qpsDisplayBody = (row: SalesBookRow) => {
         if (isSkeletonRow(row)) {
             return renderTwoLineCell(skeletonCell('4rem'), skeletonCell('4rem'), '');
@@ -982,6 +1098,7 @@ export default function BillingSalesBookPage() {
                     <AppReportActions
                         onRefresh={handleRefresh}
                         onPrint={handlePrintClick}
+                        printMenuItems={printMenuItems}
                         onExportCsv={handleExportCsv}
                         onExportExcel={handleExportExcel}
                         onExportPdf={handleExportPdf}
@@ -1224,6 +1341,22 @@ export default function BillingSalesBookPage() {
                     headerClassName="summary-number"
                     bodyClassName="summary-number"
                     style={{ width: '9rem' }}
+                />
+                <Column
+                    field="loyaltyAppliedAmount"
+                    header="Loyalty"
+                    body={loyaltyAppliedAmountBody}
+                    headerClassName="summary-number"
+                    bodyClassName="summary-number"
+                    style={{ width: '8rem' }}
+                />
+                <Column
+                    field="giftCertificateAppliedAmount"
+                    header="Gift Cert"
+                    body={giftCertificateAppliedAmountBody}
+                    headerClassName="summary-number"
+                    bodyClassName="summary-number"
+                    style={{ width: '8rem' }}
                 />
                 <Column
                     field="paidAmount"

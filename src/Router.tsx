@@ -21,10 +21,35 @@ const AppCalendar = lazy(() => import('./pages/(main)/apps/calendar/page'));
 const AppAgency = lazy(() => import('./pages/(main)/apps/agency/page'));
 const AppRetail = lazy(() => import('./pages/(main)/apps/retail/page'));
 const AppTextile = lazy(() => import('./pages/(main)/apps/textile/page'));
+const TextilePurchaseOrdersPage = lazy(() => import('./pages/(main)/apps/textile/purchase-orders/page'));
+const TextileFabricInwardPage = lazy(() => import('./pages/(main)/apps/textile/fabric-inward/page'));
+const TextilePackingSlipsPage = lazy(() => import('./pages/(main)/apps/textile/packing-slips/page'));
+const TextileDeliveryChallansPage = lazy(() => import('./pages/(main)/apps/textile/delivery-challans/page'));
+const TextileJobWorkIssuePage = lazy(() => import('./pages/(main)/apps/textile/job-work-issue/page'));
+const TextileDailyOutwardPage = lazy(() => import('./pages/(main)/apps/textile/daily-outward/page'));
+const TextilePurchaseOrderBookPage = lazy(() => import('./pages/(main)/apps/textile/purchase-order-book/page'));
+const TextileFabricInwardBookPage = lazy(() => import('./pages/(main)/apps/textile/fabric-inward-book/page'));
+const TextilePackingSlipBookPage = lazy(() => import('./pages/(main)/apps/textile/packing-slip-book/page'));
+const TextileDeliveryChallanBookPage = lazy(() => import('./pages/(main)/apps/textile/delivery-challan-book/page'));
+const TextileJobWorkIssueBookPage = lazy(() => import('./pages/(main)/apps/textile/job-work-issue-book/page'));
+const TextileDailyOutwardBookPage = lazy(() => import('./pages/(main)/apps/textile/daily-outward-book/page'));
+const TextileBillBookPage = lazy(() => import('./pages/(main)/apps/textile/bill-book/page'));
+const TextileDispatchBookPage = lazy(() => import('./pages/(main)/apps/textile/dispatch-book/page'));
+const TextileFabricStatementPage = lazy(() => import('./pages/(main)/apps/textile/fabric-statement/page'));
+const TextileFabricStockStatementPage = lazy(() => import('./pages/(main)/apps/textile/fabric-stock-statement/page'));
 const AppRestaurant = lazy(() => import('./pages/(main)/apps/restaurant/page'));
 const AppWealth = lazy(() => import('./pages/(main)/apps/wealth/page'));
+const WealthSecuritiesPage = lazy(() => import('./pages/(main)/apps/wealth/securities/page'));
+const WealthPricesPage = lazy(() => import('./pages/(main)/apps/wealth/prices/page'));
+const WealthCorporateActionsPage = lazy(() => import('./pages/(main)/apps/wealth/corporate-actions/page'));
+const WealthManualTransactionsPage = lazy(() => import('./pages/(main)/apps/wealth/manual-transactions/page'));
+const WealthInvestorProfilesPage = lazy(() => import('./pages/(main)/apps/wealth/investor-profiles/page'));
+const WealthDematAccountsPage = lazy(() => import('./pages/(main)/apps/wealth/demat-accounts/page'));
 const WealthImportPage = lazy(() => import('./pages/(main)/apps/wealth/import/page'));
-const WealthDividendsPage = lazy(() => import('./pages/(main)/apps/wealth/dividends/page'));
+const WealthStatementsPage = lazy(() => import('./pages/(main)/apps/wealth/statements/page'));
+const WealthStatementPackPage = lazy(() => import('./pages/(main)/apps/wealth/statements/pack/page'));
+const WealthRolloutPage = lazy(() => import('./pages/(main)/apps/wealth/rollout/page'));
+const WealthDividendsPage = lazy(() => import('./pages/(main)/apps/wealth/dividends/page')); 
 const WealthHoldingsPage = lazy(() => import('./pages/(main)/apps/wealth/holdings/page'));
 const WealthRealizedPnlPage = lazy(() => import('./pages/(main)/apps/wealth/realized/page'));
 const WealthTransactionsPage = lazy(() => import('./pages/(main)/apps/wealth/transactions/page'));
@@ -38,6 +63,9 @@ const AccountsLedgerListPage = lazy(
 );
 const AccountsVoucherOptionsPage = lazy(
   () => import('./pages/(main)/apps/accounts/voucher-options/page')
+);
+const AccountsReportTemplatesPage = lazy(
+  () => import('./pages/(main)/apps/accounts/report-templates/page')
 );
 const AccountsDayBookPage = lazy(
   () => import('./pages/(main)/apps/accounts/books/day-book/page')
@@ -123,6 +151,7 @@ const AppGiftCoupon = lazy(() => import('./pages/(main)/apps/giftcoupon/page'));
 const AppAdCampaigns = lazy(() => import('./pages/(main)/apps/adcampaigns/page'));
 const AppBilling = lazy(() => import('./pages/(main)/apps/billing/page'));
 const BillingSalesBookPage = lazy(() => import('./pages/(main)/apps/billing/sales-book/page'));
+const BillingEstimateBookPage = lazy(() => import('./pages/(main)/apps/billing/estimate-book/page'));
 const BillingPurchaseBookPage = lazy(() => import('./pages/(main)/apps/billing/purchase-book/page'));
 const BillingSalesReturnBookPage = lazy(() => import('./pages/(main)/apps/billing/sales-return-book/page'));
 const BillingPurchaseReturnBookPage = lazy(() => import('./pages/(main)/apps/billing/purchase-return-book/page'));
@@ -281,9 +310,37 @@ const AppRoutes = [
                     { path: 'agency', element: <AppAgency /> },
                     { path: 'retail', element: <AppRetail /> },
                     { path: 'textile', element: <AppTextile /> },
+                    { path: 'textile/purchase-orders', element: <TextilePurchaseOrdersPage /> },
+                    { path: 'textile/fabric-inward', element: <TextileFabricInwardPage /> },
+                    { path: 'textile/packing-slips', element: <TextilePackingSlipsPage /> },
+                    { path: 'textile/delivery-challans', element: <TextileDeliveryChallansPage /> },
+                    { path: 'textile/job-work-issue', element: <TextileJobWorkIssuePage /> },
+                    { path: 'textile/daily-outward', element: <TextileDailyOutwardPage /> },
+                    { path: 'textile/purchase-order-book', element: <TextilePurchaseOrderBookPage /> },
+                    { path: 'textile/fabric-inward-book', element: <TextileFabricInwardBookPage /> },
+                    { path: 'textile/packing-slip-book', element: <TextilePackingSlipBookPage /> },
+                    { path: 'textile/delivery-challan-book', element: <TextileDeliveryChallanBookPage /> },
+                    { path: 'textile/job-work-issue-book', element: <TextileJobWorkIssueBookPage /> },
+                    { path: 'textile/daily-outward-book', element: <TextileDailyOutwardBookPage /> },
+                    { path: 'textile/dispatch-book', element: <TextileDispatchBookPage /> },
+                    { path: 'textile/fabric-statement', element: <TextileFabricStatementPage /> },
+                    { path: 'textile/fabric-stock-statement', element: <TextileFabricStockStatementPage /> },
+                    { path: 'textile/bill-book', element: <TextileBillBookPage /> },
+                    { path: 'textile/gst-invoices', element: <Navigate to="/apps/textile/bill-book" replace /> },
+                    { path: 'textile/gst-invoices/new', element: <BillingInvoiceFormPage /> },
+                    { path: 'textile/gst-invoices/edit/:saleInvoiceId', element: <BillingInvoiceFormPage /> },
                     { path: 'restaurant', element: <AppRestaurant /> },
                     { path: 'wealth', element: <AppWealth /> },
+                    { path: 'wealth/securities', element: <WealthSecuritiesPage /> },
+                    { path: 'wealth/prices', element: <WealthPricesPage /> },
+                    { path: 'wealth/corporate-actions', element: <WealthCorporateActionsPage /> },
+                    { path: 'wealth/manual-transactions', element: <WealthManualTransactionsPage /> },
+                    { path: 'wealth/investor-profiles', element: <WealthInvestorProfilesPage /> },
+                    { path: 'wealth/demat-accounts', element: <WealthDematAccountsPage /> },
                     { path: 'wealth/import', element: <WealthImportPage /> },
+                    { path: 'wealth/statements', element: <WealthStatementsPage /> },
+                    { path: 'wealth/statements/pack', element: <WealthStatementPackPage /> },
+                    { path: 'wealth/rollout', element: <WealthRolloutPage /> },
                     { path: 'wealth/dividends', element: <WealthDividendsPage /> },
                     { path: 'wealth/holdings', element: <WealthHoldingsPage /> },
                     { path: 'wealth/realized', element: <WealthRealizedPnlPage /> },
@@ -294,6 +351,7 @@ const AppRoutes = [
                     { path: 'accounts/ledgers', element: <AccountsLedgerListPage /> },
                     { path: 'accounts/voucher-options', element: <AccountsVoucherOptionsPage /> },
                     { path: 'accounts/voucher-types', element: <Navigate to="/apps/accounts/voucher-options" replace /> },
+                    { path: 'accounts/report-templates', element: <AccountsReportTemplatesPage /> },
                     { path: 'accounts/day-book', element: <AccountsDayBookPage /> },
                     { path: 'accounts/trial-balance', element: <AccountsTrialBalancePage /> },
                     { path: 'accounts/balance-sheet', element: <AccountsBalanceSheetPage /> },
@@ -344,9 +402,13 @@ const AppRoutes = [
                     { path: 'marketplace', element: <AppMarketplace /> },
                     { path: 'billing', element: <AppBilling /> },
                     { path: 'billing/sales-book', element: <BillingSalesBookPage /> },
+                    { path: 'billing/estimate-book', element: <BillingEstimateBookPage /> },
                     { path: 'billing/sales-return-book', element: <BillingSalesReturnBookPage /> },
                     { path: 'billing/purchase-book', element: <BillingPurchaseBookPage /> },
                     { path: 'billing/purchase-return-book', element: <BillingPurchaseReturnBookPage /> },
+                    { path: 'billing/sale-book', element: <BillingInvoiceFormPage /> },
+                    { path: 'billing/sale-book/new', element: <BillingInvoiceFormPage /> },
+                    { path: 'billing/sale-book/edit/:saleInvoiceId', element: <BillingInvoiceFormPage /> },
                     { path: 'billing/invoice-form', element: <BillingInvoiceFormPage /> },
                     { path: 'billing/invoice-form/new', element: <BillingInvoiceFormPage /> },
                     { path: 'billing/invoice-form/edit/:saleInvoiceId', element: <BillingInvoiceFormPage /> },
@@ -504,3 +566,14 @@ const AppRoutes = [
 ];
 
 export default AppRoutes; 
+
+
+
+
+
+
+
+
+
+
+

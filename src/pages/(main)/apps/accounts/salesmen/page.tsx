@@ -1,14 +1,20 @@
 'use client';
 import React, { useMemo, useRef, useState } from 'react';
 import { Column } from 'primereact/column';
+import { ConfirmDialog } from 'primereact/confirmdialog';
 import { ConfirmPopup, confirmPopup } from 'primereact/confirmpopup';
 import { Dialog } from 'primereact/dialog';
-import { InputText } from 'primereact/inputtext';
+import AppInput from '@/components/AppInput';
 import { Toast } from 'primereact/toast';
 import { Button } from 'primereact/button';
+import { AppHelpDialogButton } from '@/components/AppHelpDialogButton';
+import { getMasterPageHelp } from '@/lib/masterPageHelp';
 import { gql, useMutation, useQuery } from '@apollo/client';
 import AppDataTable from '@/components/AppDataTable';
-import AppDropdown from '@/components/AppDropdown';
+import { MasterDetailDialogFooter, MasterEditDialogFooter } from '@/components/MasterDialogFooter';
+import { MasterDetailCard } from '@/components/MasterDetailCard';
+import { MasterDetailGrid } from '@/components/MasterDetailLayout';
+import { findMasterRowIndex, getMasterRowByDirection, type MasterDialogDirection } from '@/lib/masterDialogNavigation';
 import { z } from 'zod';
 import { apolloClient } from '@/lib/apolloClient';
 import { getDeleteConfirmMessage, getDeleteFailureMessage } from '@/lib/deleteGuardrails';
@@ -20,6 +26,13 @@ import {
     useMasterActionPermissions
 } from '@/lib/masterActionPermissions';
 import { ensureDryEditCheck } from '@/lib/masterDryRun';
+import {
+    confirmMasterDialogClose,
+    focusElementById,
+    focusElementByIdNextFrame,
+    getMasterSaveButtonLabel
+} from '@/lib/masterFormDialog';
+import { MASTER_DETAIL_DIALOG_WIDTHS } from '@/lib/masterDialogLayout';
 
 interface SalesmanRow {
     salesmanId: number;
@@ -69,24 +82,24 @@ const DEFAULT_FORM: FormState = {
     name: ''
 };
 
-const limitOptions = [50, 100, 250, 500, 1000, 2000].map((value) => ({
-    label: String(value),
-    value
-}));
-
 export default function AccountsSalesmenPage() {
+    const nameInputId = 'salesman-name-input';
+    const saveButtonId = 'salesman-save-button';
+
     const toastRef = useRef<Toast>(null);
     const dtRef = useRef<any>(null);
 
     const [search, setSearch] = useState('');
-    const [limit, setLimit] = useState(2000);
+    const limit = 2000;
     const [dialogVisible, setDialogVisible] = useState(false);
     const [saving, setSaving] = useState(false);
     const [editing, setEditing] = useState<SalesmanRow | null>(null);
     const [detailVisible, setDetailVisible] = useState(false);
     const [detailRow, setDetailRow] = useState<SalesmanRow | null>(null);
     const [form, setForm] = useState<FormState>(DEFAULT_FORM);
+    const [initialForm, setInitialForm] = useState<FormState>(DEFAULT_FORM);
     const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+    const [isBulkMode, setIsBulkMode] = useState(false);
 
     const [dryEditDigest, setDryEditDigest] = useState('');
 
@@ -101,6 +114,18 @@ export default function AccountsSalesmenPage() {
     const { permissions: masterPermissions } = useMasterActionPermissions(apolloClient);
 
     const rows: SalesmanRow[] = useMemo(() => data?.salesmen ?? [], [data]);
+    const currentFormDigest = useMemo(() => JSON.stringify(form), [form]);
+    const isFormDirty = useMemo(() => currentFormDigest !== JSON.stringify(initialForm), [currentFormDigest, initialForm]);
+    const editingIndex = useMemo(() => findMasterRowIndex(rows, editing), [rows, editing]);
+    const detailIndex = useMemo(() => findMasterRowIndex(rows, detailRow), [rows, detailRow]);
+    const isDryEditReady = useMemo(
+        () => Boolean(editing && dryEditDigest && dryEditDigest === currentFormDigest),
+        [currentFormDigest, dryEditDigest, editing]
+    );
+    const saveButtonLabel = useMemo(
+        () => getMasterSaveButtonLabel(Boolean(editing), saving, isDryEditReady),
+        [editing, isDryEditReady, saving]
+    );
 
     const assertActionAllowed = (action: MasterAction) => {
         if (isMasterActionAllowed(masterPermissions, action)) return true;
@@ -110,6 +135,17 @@ export default function AccountsSalesmenPage() {
             detail: getMasterActionDeniedDetail(action)
         });
         return false;
+    };
+
+    const closeDialog = () => {
+        confirmMasterDialogClose({
+            saving,
+            isDirty: isFormDirty,
+            onDiscard: () => {
+                setDialogVisible(false);
+                setFormErrors({});
+            }
+        });
     };
 
     const openNew = () => {
@@ -136,6 +172,18 @@ export default function AccountsSalesmenPage() {
         setDetailVisible(true);
     };
 
+    const navigateEditRecord = (direction: MasterDialogDirection) => {
+        const nextRow = getMasterRowByDirection(rows, editingIndex, direction);
+        if (!nextRow) return;
+        openEdit(nextRow);
+    };
+
+    const navigateDetailRecord = (direction: MasterDialogDirection) => {
+        const nextRow = getMasterRowByDirection(rows, detailIndex, direction);
+        if (!nextRow) return;
+        openView(nextRow);
+    };
+
     const save = async () => {
         const parsed = formSchema.safeParse(form);
         if (!parsed.success) {
@@ -145,13 +193,14 @@ export default function AccountsSalesmenPage() {
             });
             setFormErrors(nextErrors);
             toastRef.current?.show({ severity: 'warn', summary: 'Please fix validation errors' });
+            focusElementByIdNextFrame(nameInputId);
             return;
         }
 
         if (!ensureDryEditCheck({
             isEditing: Boolean(editing),
             lastDigest: dryEditDigest,
-            currentDigest: JSON.stringify(form),
+            currentDigest: currentFormDigest,
             setLastDigest: setDryEditDigest,
             toastRef,
             entityLabel: 'record'
@@ -175,7 +224,10 @@ export default function AccountsSalesmenPage() {
             }
 
             await refetch();
-            setDialogVisible(false);
+            setInitialForm(form);
+            if (!isBulkMode) {
+                setDialogVisible(false);
+            }
             toastRef.current?.show({
                 severity: 'success',
                 summary: 'Saved',
@@ -228,9 +280,9 @@ export default function AccountsSalesmenPage() {
             message: `Dry Delete Check passed. ${getDeleteConfirmMessage('salesman')}`,
             icon: 'pi pi-exclamation-triangle',
             acceptClassName: 'p-button-danger',
-            acceptLabel: 'Delete',
-            rejectLabel: 'Cancel',
-            defaultFocus: 'none',
+            acceptLabel: 'Yes',
+            rejectLabel: 'No',
+            defaultFocus: 'reject',
             dismissable: true,
             accept: () => handleDelete(row.salesmanId)
         });
@@ -238,7 +290,7 @@ export default function AccountsSalesmenPage() {
 
     const actionsBody = (row: SalesmanRow) => (
         <div className="flex gap-2">
-            <Button icon="pi pi-eye" className="p-button-text" onClick={() => openView(row)} disabled={!masterPermissions.canView} />
+                        <Button icon="pi pi-eye" className="p-button-text" onClick={() => openView(row)} disabled={!masterPermissions.canView} />
             <Button icon="pi pi-pencil" className="p-button-text" onClick={() => openEdit(row)} disabled={!masterPermissions.canEdit} />
             <Button icon="pi pi-trash" className="p-button-text" severity="danger" onClick={(e) => { void confirmDelete(e, row); }} disabled={!masterPermissions.canDelete} />
         </div>
@@ -247,6 +299,7 @@ export default function AccountsSalesmenPage() {
     return (
         <div className="card">
             <Toast ref={toastRef} />
+            <ConfirmDialog />
             <ConfirmPopup />
 
             <div className="flex flex-column gap-2 mb-3">
@@ -257,8 +310,9 @@ export default function AccountsSalesmenPage() {
                             Maintain salesman records for the agency accounts masters.
                         </p>
                     </div>
-                    <div className="flex gap-2 flex-wrap">
-                        <Button label="New Salesman" icon="pi pi-plus" onClick={openNew} disabled={!masterPermissions.canAdd} />
+                    <div className="flex gap-2 flex-wrap justify-content-end align-items-start">
+                        <Button className="app-action-compact" label="New Salesman" icon="pi pi-plus" onClick={openNew} disabled={!masterPermissions.canAdd} />
+                        <AppHelpDialogButton {...getMasterPageHelp('salesmen')} buttonAriaLabel="Open Salesmen help" />
                     </div>
                 </div>
                 {error && <p className="text-red-500 m-0">Error loading salesmen: {error.message}</p>}
@@ -278,7 +332,7 @@ export default function AccountsSalesmenPage() {
                 headerLeft={
                     <span className="p-input-icon-left" style={{ minWidth: '320px' }}>
                         <i className="pi pi-search" />
-                        <InputText
+                        <AppInput
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                             placeholder="Search salesman"
@@ -289,11 +343,10 @@ export default function AccountsSalesmenPage() {
                 headerRight={
                     <>
                         <Button
-                            label="Export"
-                            icon="pi pi-download"
-                            className="p-button-info"
-                            onClick={() => dtRef.current?.exportCSV()}
-                            disabled={rows.length === 0}
+                            label="Refresh"
+                            icon="pi pi-refresh"
+                            className="p-button-text"
+                            onClick={() => refetch()}
                         />
                         <Button
                             label="Print"
@@ -302,20 +355,12 @@ export default function AccountsSalesmenPage() {
                             onClick={() => window.print()}
                         />
                         <Button
-                            label="Refresh"
-                            icon="pi pi-refresh"
-                            className="p-button-text"
-                            onClick={() => refetch()}
+                            label="Export"
+                            icon="pi pi-download"
+                            className="p-button-info"
+                            onClick={() => dtRef.current?.exportCSV()}
+                            disabled={rows.length === 0}
                         />
-                        <span className="flex align-items-center gap-2">
-                            <span className="text-600 text-sm">Limit</span>
-                            <AppDropdown
-                                value={limit}
-                                options={limitOptions}
-                                onChange={(e) => setLimit(e.value ?? 2000)}
-                                className="w-6rem"
-                            />
-                        </span>
                         <span className="text-600 text-sm">
                             Showing {rows.length} salesman{rows.length === 1 ? '' : 's'}
                         </span>
@@ -331,25 +376,53 @@ export default function AccountsSalesmenPage() {
                 header={editing ? 'Edit Salesman' : 'New Salesman'}
                 visible={dialogVisible}
                 style={{ width: 'min(620px, 96vw)' }}
-                onHide={() => setDialogVisible(false)}
+                onShow={() => {
+                    setInitialForm(form);
+                    focusElementByIdNextFrame(nameInputId);
+                }}
+                onHide={closeDialog}
                 footer={
-                    <div className="flex justify-content-end gap-2 w-full">
-                        <Button
-                            label="Cancel"
-                            className="p-button-text"
-                            onClick={() => setDialogVisible(false)}
-                            disabled={saving}
-                        />
-                        <Button label={saving ? 'Saving...' : 'Save'} icon="pi pi-check" onClick={save} disabled={saving} />
-                    </div>
+                    <MasterEditDialogFooter
+                        index={editingIndex}
+                        total={rows.length}
+                        onNavigate={navigateEditRecord}
+                        navigateDisabled={saving}
+                        bulkMode={{
+                            checked: isBulkMode,
+                            onChange: setIsBulkMode,
+                            onLabel: 'Bulk',
+                            offLabel: 'Standard',
+                            disabled: saving
+                        }}
+                        onCancel={closeDialog}
+                        cancelDisabled={saving}
+                        onSave={save}
+                        saveDisabled={saving || !isFormDirty}
+                        saveLabel={saveButtonLabel}
+                        saveButtonId={saveButtonId}
+                    />
                 }
             >
+                {editing && (
+                    <div
+                        className={`mb-3 p-2 border-round text-sm ${
+                            isDryEditReady ? 'surface-100 text-green-700' : 'surface-100 text-700'
+                        }`}
+                    >
+                        {isDryEditReady
+                            ? 'Dry check passed. Click Apply Changes to save.'
+                            : 'Dry save flow: first click runs dry check, second click saves changes.'}
+                    </div>
+                )}
                 <div className="grid">
                     <div className="col-12">
                         <label className="block text-600 mb-1">Name</label>
-                        <InputText
+                        <AppInput
+                            id={nameInputId}
+                            autoFocus
                             value={form.name}
                             onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))}
+                            onEnterNext={() => focusElementById(saveButtonId)}
                             style={{ width: '100%' }}
                             className={formErrors.name ? 'p-invalid' : undefined}
                         />
@@ -361,18 +434,21 @@ export default function AccountsSalesmenPage() {
             <Dialog
                 header="Salesman Details"
                 visible={detailVisible}
-                style={{ width: 'min(520px, 96vw)' }}
+                style={{ width: MASTER_DETAIL_DIALOG_WIDTHS.compact }}
                 onHide={() => setDetailVisible(false)}
                 footer={
-                    <div className="flex justify-content-end w-full">
-                        <Button label="Close" className="p-button-text" onClick={() => setDetailVisible(false)} />
-                    </div>
+                    <MasterDetailDialogFooter
+                        index={detailIndex}
+                        total={rows.length}
+                        onNavigate={navigateDetailRecord}
+                        onClose={() => setDetailVisible(false)}
+                    />
                 }
             >
                 {detailRow && (
-                    <div className="flex flex-column gap-2">
-                        <div><strong>Name:</strong> {detailRow.name ?? '-'}</div>
-                    </div>
+                    <MasterDetailGrid columns={1}>
+                        <MasterDetailCard label="Name" value={detailRow.name ?? '-'} />
+                    </MasterDetailGrid>
                 )}
             </Dialog>
         </div>

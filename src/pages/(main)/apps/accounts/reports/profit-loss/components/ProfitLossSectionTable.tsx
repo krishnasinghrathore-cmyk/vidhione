@@ -10,6 +10,12 @@ type ProfitLossSectionTableProps = {
     reportLoading: boolean;
     columnFilters: DataTableFilterMeta;
     onFilter: (event: DataTableFilterEvent) => void;
+    globalSearchValue?: string;
+    onGlobalSearchValueChange?: (nextValue: string) => void;
+    globalSearchMatchCase?: boolean;
+    onGlobalSearchMatchCaseChange?: (nextValue: boolean) => void;
+    globalSearchWholeWord?: boolean;
+    onGlobalSearchWholeWordChange?: (nextValue: boolean) => void;
     headerColumnGroup: React.ReactNode;
     emptyMessage: string;
     headerLeft?: React.ReactNode;
@@ -24,6 +30,12 @@ export function ProfitLossSectionTable({
     reportLoading,
     columnFilters,
     onFilter,
+    globalSearchValue,
+    onGlobalSearchValueChange,
+    globalSearchMatchCase,
+    onGlobalSearchMatchCaseChange,
+    globalSearchWholeWord,
+    onGlobalSearchWholeWordChange,
     headerColumnGroup,
     emptyMessage,
     headerLeft,
@@ -41,6 +53,13 @@ export function ProfitLossSectionTable({
             loadingSummaryEnabled={hasApplied}
             filters={columnFilters}
             onFilter={onFilter}
+            globalSearchRenderInTableHeader={false}
+            globalSearchValue={globalSearchValue}
+            onGlobalSearchValueChange={onGlobalSearchValueChange}
+            globalSearchMatchCase={globalSearchMatchCase}
+            onGlobalSearchMatchCaseChange={onGlobalSearchMatchCaseChange}
+            globalSearchWholeWord={globalSearchWholeWord}
+            onGlobalSearchWholeWordChange={onGlobalSearchWholeWordChange}
             filterDisplay="menu"
             filterDelay={400}
             lazy

@@ -10,9 +10,10 @@ const QUICK_LINKS = [
     { label: 'Day Book', icon: 'pi pi-calendar', to: '/apps/accounts/day-book', outlined: true },
     { label: 'Ledger Statement', icon: 'pi pi-file', to: '/apps/accounts/ledger', outlined: true },
     { label: 'Trial Balance', icon: 'pi pi-chart-line', to: '/apps/accounts/trial-balance', outlined: true },
-    { label: 'Balance Sheet', icon: 'pi pi-objects-column', to: '/apps/accounts/balance-sheet', outlined: true },
+    { label: 'Balance Sheet', icon: 'pi pi-chart-bar', to: '/apps/accounts/balance-sheet', outlined: true },
     { label: 'Profit & Loss', icon: 'pi pi-percentage', to: '/apps/accounts/profit-loss', outlined: true },
     { label: 'Book Printing', icon: 'pi pi-print', to: '/apps/accounts/book-printing', outlined: true },
+    { label: 'Report Templates', icon: 'pi pi-file-edit', to: '/apps/accounts/report-templates', outlined: true },
     { label: 'Ledger Reconciliation', icon: 'pi pi-check-square', to: '/apps/accounts/ledger-reconciliation', outlined: true }
 ] as const;
 

@@ -6,12 +6,14 @@ type LedgerOptionRow = {
     ledgerId: number;
     name: string | null;
     address: string | null;
+    groupName?: string | null;
 };
 
 export type LedgerOption = {
     value: number;
     label: string;
     address: string | null;
+    groupName?: string | null;
 };
 
 export type LedgerOptionsByPurposeArgs = {
@@ -30,6 +32,7 @@ type LedgerSummaryFallbackRow = {
     ledgerId: number;
     name: string | null;
     address: string | null;
+    groupName?: string | null;
 };
 
 const LEDGER_OPTIONS_BY_PURPOSE = gql`
@@ -56,6 +59,7 @@ const LEDGER_OPTIONS_BY_PURPOSE = gql`
             ledgerId
             name
             address
+            groupName
         }
     }
 `;
@@ -74,6 +78,7 @@ const LEDGER_SUMMARY_NAME_FALLBACK = gql`
                 ledgerId
                 name
                 address
+                groupName
             }
         }
     }
@@ -137,10 +142,12 @@ export const useLedgerOptionsByPurpose = (args: LedgerOptionsByPurposeArgs) => {
         const fallback = fallbackNameById.get(ledgerId);
         const label = row.name?.trim() || fallback?.name?.trim() || `Ledger ${row.ledgerId}`;
         const address = row.address ?? fallback?.address ?? null;
+        const groupName = row.groupName ?? fallback?.groupName ?? null;
         return {
             value: ledgerId,
             label,
-            address
+            address,
+            groupName
         };
     });
 

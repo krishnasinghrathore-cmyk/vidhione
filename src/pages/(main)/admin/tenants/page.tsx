@@ -13,8 +13,23 @@ import AppDropdown from '@/components/AppDropdown';
 import AppMultiSelect from '@/components/AppMultiSelect';
 import { useAuth } from '@/lib/auth/context';
 import * as authApi from '@/lib/auth/api';
-import type { TenantMigrationResult } from '@/lib/auth/api';
+import type {
+    SalesInvoiceProfileOptions,
+    TenantMigrationResult,
+    TextileCapabilities,
+    TextilePresetKey
+} from '@/lib/auth/api';
+import {
+    defaultTextilePresetKey,
+    isTextileIndustry,
+    normalizeTextileCapabilities,
+    resolveTextileCapabilities,
+    type TextileCapabilityKey,
+    type TextileCapabilityState
+} from '@/lib/textile/config';
 import { APPS } from '@/config/appsConfig';
+import { getSalesInvoiceProfilePolicy } from '../../apps/billing/salesProfile';
+import { TextileTenantSettingsPanel } from './TextileTenantSettingsPanel';
 
 type TenantRow = {
     id: string;
@@ -28,6 +43,85 @@ type TenantRow = {
     hasDatabase?: boolean | null;
     hasBilling?: boolean | null;
     isLocked?: boolean | null;
+    salesInvoiceProfileKey?: string | null;
+    purchaseInvoiceProfileKey?: string | null;
+    salesInvoiceProfileOptions?: SalesInvoiceProfileOptions;
+    textilePresetKey?: TextilePresetKey | null;
+    textileCapabilities?: TextileCapabilities;
+};
+
+type EditableSalesInvoiceProfileOptions = {
+    showTaxColumns: boolean;
+    showTypeDetails: boolean;
+    showAdditionalTaxation: boolean;
+    showSchemeToggle: boolean;
+    showBizomInvoiceField: boolean;
+    showInterStateToggle: boolean;
+    transportEnabled: boolean;
+    transportDefaultApplied: boolean;
+    showTransporterField: boolean;
+    requireTransporterWhenApplied: boolean;
+    dryCheckRequired: boolean;
+    strictPostingParity: boolean;
+    linkedEstimateEnabled: boolean;
+    linkedCreditNoteEnabled: boolean;
+    linkedDebitNoteEnabled: boolean;
+    salesmanMode: 'none' | 'single' | 'dual';
+};
+
+const SALES_INVOICE_PROFILE_KEY_OPTIONS = [
+    { label: 'Agency • GST Invoice', value: 'agency_sales_gst_v1' },
+    { label: 'Textile • GST Invoice', value: 'textile_sales_gst_v1' },
+    { label: 'Retail • GST Invoice', value: 'retail_sales_gst_v1' },
+    { label: 'Media • No Tax Invoice', value: 'media_sales_no_tax_v1' },
+    { label: 'Restaurant • Single Invoice', value: 'restaurant_sales_single_v1' },
+    { label: 'Restaurant • Split Invoice', value: 'restaurant_sales_split_v1' }
+];
+
+const TEXTILE_SALES_PROFILE_KEY = 'textile_sales_gst_v1';
+const TEXTILE_SALES_PROFILE_KEY_COMPAT = 'textile_sales_gst2_v1';
+
+const normalizeSalesInvoiceProfileKey = (salesProfileKey: string | null | undefined) => {
+    if (salesProfileKey == null) return null;
+    const normalized = salesProfileKey.trim();
+    if (!normalized) return null;
+    if (normalized === TEXTILE_SALES_PROFILE_KEY_COMPAT) return TEXTILE_SALES_PROFILE_KEY;
+    return normalized;
+};
+
+const PURCHASE_INVOICE_PROFILE_KEY_OPTIONS = [
+    { label: 'Purchase • Common', value: 'purchase_common_v1' }
+];
+
+const SALESMAN_MODE_OPTIONS = [
+    { label: 'None', value: 'none' },
+    { label: 'Single', value: 'single' },
+    { label: 'Dual', value: 'dual' }
+];
+
+const resolveEditableSalesProfileOptions = (
+    salesInvoiceProfileKey: string | null,
+    runtimeOptions: SalesInvoiceProfileOptions
+): EditableSalesInvoiceProfileOptions => {
+    const policy = getSalesInvoiceProfilePolicy(salesInvoiceProfileKey, runtimeOptions ?? null);
+    return {
+        showTaxColumns: policy.pricing.showTaxColumns,
+        showTypeDetails: policy.lineEntry.showTypeDetails,
+        showAdditionalTaxation: policy.lineEntry.showAdditionalTaxation,
+        showSchemeToggle: policy.header.showSchemeToggle,
+        showBizomInvoiceField: policy.header.showBizomInvoiceField,
+        showInterStateToggle: policy.header.showInterStateToggle,
+        transportEnabled: policy.transport.enabled,
+        transportDefaultApplied: policy.transport.defaultApplied,
+        showTransporterField: policy.transport.showTransporterField,
+        requireTransporterWhenApplied: policy.transport.requireTransporterWhenApplied,
+        dryCheckRequired: policy.validation.dryCheckRequired,
+        strictPostingParity: policy.validation.strictPostingParity,
+        linkedEstimateEnabled: policy.linkedActions.estimate,
+        linkedCreditNoteEnabled: policy.linkedActions.creditNote,
+        linkedDebitNoteEnabled: policy.linkedActions.debitNote,
+        salesmanMode: policy.header.salesmanMode
+    };
 };
 
 export default function AdminTenantsPage() {
@@ -56,6 +150,17 @@ export default function AdminTenantsPage() {
     const [editTenant, setEditTenant] = useState<TenantRow | null>(null);
     const [editName, setEditName] = useState('');
     const [editIndustry, setEditIndustry] = useState<string | null>(null);
+    const [profileOpen, setProfileOpen] = useState(false);
+    const [profileTenant, setProfileTenant] = useState<TenantRow | null>(null);
+    const [profileSalesInvoiceKey, setProfileSalesInvoiceKey] = useState<string | null>(null);
+    const [profilePurchaseInvoiceKey, setProfilePurchaseInvoiceKey] = useState<string>('purchase_common_v1');
+    const [profileSalesOptions, setProfileSalesOptions] = useState<EditableSalesInvoiceProfileOptions>(() =>
+        resolveEditableSalesProfileOptions(null, null)
+    );
+    const [profileTextilePresetKey, setProfileTextilePresetKey] = useState<TextilePresetKey | null>(null);
+    const [profileTextileCapabilities, setProfileTextileCapabilities] = useState<TextileCapabilityState>(() =>
+        normalizeTextileCapabilities(null)
+    );
 
     const [deleteOpen, setDeleteOpen] = useState(false);
     const [deleteTenant, setDeleteTenant] = useState<TenantRow | null>(null);
@@ -124,7 +229,12 @@ export default function AdminTenantsPage() {
         setError(null);
         try {
             const result = await authApi.listTenants();
-            setTenants(result.items);
+            setTenants(
+                result.items.map((row) => ({
+                    ...row,
+                    salesInvoiceProfileKey: normalizeSalesInvoiceProfileKey(row.salesInvoiceProfileKey)
+                }))
+            );
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to load tenants');
         } finally {
@@ -168,6 +278,29 @@ export default function AdminTenantsPage() {
         setEditName(row.name);
         setEditIndustry(row.industry ?? null);
         setEditOpen(true);
+    };
+
+    const openProfileDialog = (row: TenantRow) => {
+        const salesInvoiceKey = normalizeSalesInvoiceProfileKey(row.salesInvoiceProfileKey);
+        const purchaseInvoiceKey = row.purchaseInvoiceProfileKey ?? 'purchase_common_v1';
+        const textilePresetKey = row.textilePresetKey ?? defaultTextilePresetKey(row.industry);
+        setProfileTenant(row);
+        setProfileSalesInvoiceKey(salesInvoiceKey);
+        setProfilePurchaseInvoiceKey(purchaseInvoiceKey);
+        setProfileSalesOptions(resolveEditableSalesProfileOptions(salesInvoiceKey, row.salesInvoiceProfileOptions ?? null));
+        setProfileTextilePresetKey(textilePresetKey);
+        setProfileTextileCapabilities(resolveTextileCapabilities(textilePresetKey, row.textileCapabilities ?? null));
+        setProfileOpen(true);
+    };
+
+    const resetProfileDialog = () => {
+        setProfileOpen(false);
+        setProfileTenant(null);
+        setProfileSalesInvoiceKey(null);
+        setProfilePurchaseInvoiceKey('purchase_common_v1');
+        setProfileSalesOptions(resolveEditableSalesProfileOptions(null, null));
+        setProfileTextilePresetKey(null);
+        setProfileTextileCapabilities(normalizeTextileCapabilities(null));
     };
 
     const openDeleteDialog = (row: TenantRow) => {
@@ -280,6 +413,7 @@ export default function AdminTenantsPage() {
                 />
                 <Button icon="pi pi-database" label="DB" outlined onClick={() => openDbDialog(row)} />
                 <Button icon="pi pi-cog" label="Migrate" outlined onClick={() => openMigrateDialog(row)} />
+                <Button icon="pi pi-sliders-h" label="Settings" outlined onClick={() => openProfileDialog(row)} />
                 <Button icon="pi pi-pencil" label="Edit" outlined disabled={isLocked} tooltip={lockedReason || 'Edit tenant'} tooltipOptions={{ position: 'top' }} onClick={() => openEditDialog(row)} />
                 <Button icon="pi pi-trash" label="Delete" outlined severity="danger" disabled={isLocked} tooltip={lockedReason || 'Delete tenant'} tooltipOptions={{ position: 'top' }} onClick={() => openDeleteDialog(row)} />
                 <Button icon="pi pi-th-large" label="Apps" outlined onClick={() => openAppsDialog(row)} />
@@ -585,6 +719,407 @@ export default function AdminTenantsPage() {
             </Dialog>
 
             <Dialog
+                header={profileTenant ? `Tenant Settings - ${profileTenant.name}` : 'Tenant Settings'}
+                visible={profileOpen}
+                style={{ width: '48rem' }}
+                modal
+                onHide={resetProfileDialog}
+                footer={
+                    <div className="flex justify-content-end gap-2">
+                        <Button
+                            label="Cancel"
+                            outlined
+                            onClick={resetProfileDialog}
+                        />
+                        <Button
+                            label="Save"
+                            icon="pi pi-check"
+                            disabled={!profileTenant || loading}
+                            onClick={async () => {
+                                if (!profileTenant) return;
+                                const textileTenant = isTextileIndustry(profileTenant.industry);
+                                const textilePresetKey = textileTenant ? profileTextilePresetKey : null;
+                                const textileCapabilities = textileTenant ? profileTextileCapabilities : null;
+                                setLoading(true);
+                                setError(null);
+                                try {
+                                    await authApi.setTenantSettings({
+                                        tenantId: profileTenant.id,
+                                        salesInvoiceProfileKey: profileSalesInvoiceKey,
+                                        salesInvoiceProfileOptions: profileSalesOptions,
+                                        textilePresetKey,
+                                        textileCapabilities,
+                                        purchaseInvoiceProfileKey: profilePurchaseInvoiceKey || 'purchase_common_v1'
+                                    });
+                                    setTenants((prev) =>
+                                        prev.map((row) =>
+                                            row.id === profileTenant.id
+                                                ? {
+                                                      ...row,
+                                                      salesInvoiceProfileKey: profileSalesInvoiceKey,
+                                                      salesInvoiceProfileOptions: profileSalesOptions,
+                                                      textilePresetKey,
+                                                      textileCapabilities,
+                                                      purchaseInvoiceProfileKey: profilePurchaseInvoiceKey || 'purchase_common_v1'
+                                                  }
+                                                : row
+                                        )
+                                    );
+                                    setNotice(`Tenant settings updated for ${profileTenant.name}.`);
+                                    resetProfileDialog();
+                                } catch (err) {
+                                    setError(err instanceof Error ? err.message : 'Update failed');
+                                } finally {
+                                    setLoading(false);
+                                }
+                            }}
+                        />
+                    </div>
+                }
+            >
+                <div className="flex flex-column gap-3">
+                    <TextileTenantSettingsPanel
+                        industry={profileTenant?.industry ?? null}
+                        presetKey={profileTextilePresetKey}
+                        capabilities={profileTextileCapabilities}
+                        onPresetChange={(presetKey) => {
+                            setProfileTextilePresetKey(presetKey);
+                            setProfileTextileCapabilities(resolveTextileCapabilities(presetKey, null));
+                        }}
+                        onCapabilityChange={(key: TextileCapabilityKey, value: boolean) => {
+                            setProfileTextileCapabilities((prev) => ({
+                                ...prev,
+                                [key]: value
+                            }));
+                        }}
+                    />
+
+                    {profileTenant && isTextileIndustry(profileTenant.industry) && profileSalesInvoiceKey !== TEXTILE_SALES_PROFILE_KEY && (
+                        <Message
+                            severity="warn"
+                            text="Textile tenants should normally use the Textile GST invoice profile for the shared GST invoice baseline."
+                        />
+                    )}
+
+                    <div className="grid m-0">
+                        <div className="col-12 md:col-7 p-0 md:pr-2">
+                            <label className="block text-700 mb-1">Sales Invoice Profile</label>
+                            <AppDropdown
+                                value={profileSalesInvoiceKey}
+                                options={SALES_INVOICE_PROFILE_KEY_OPTIONS}
+                                optionLabel="label"
+                                optionValue="value"
+                                onChange={(event) => {
+                                    const nextKey = (event.value as string | null) ?? null;
+                                    setProfileSalesInvoiceKey(nextKey);
+                                    setProfileSalesOptions(resolveEditableSalesProfileOptions(nextKey, null));
+                                }}
+                                placeholder="Select sales profile"
+                                className="w-full"
+                            />
+                        </div>
+                        <div className="col-12 md:col-5 p-0 md:pl-2 mt-3 md:mt-0">
+                            <label className="block text-700 mb-1">Purchase Profile</label>
+                            <AppDropdown
+                                value={profilePurchaseInvoiceKey}
+                                options={PURCHASE_INVOICE_PROFILE_KEY_OPTIONS}
+                                optionLabel="label"
+                                optionValue="value"
+                                onChange={(event) =>
+                                    setProfilePurchaseInvoiceKey((event.value as string) || 'purchase_common_v1')
+                                }
+                                placeholder="Select purchase profile"
+                                className="w-full"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="flex align-items-center justify-content-between">
+                        <small className="text-500">
+                            Configure client-level feature visibility for invoice entry/edit.
+                        </small>
+                        <Button
+                            type="button"
+                            label="Use Profile Defaults"
+                            className="app-action-compact p-button-outlined"
+                            onClick={() => setProfileSalesOptions(resolveEditableSalesProfileOptions(profileSalesInvoiceKey, null))}
+                            disabled={loading}
+                        />
+                    </div>
+
+                    <div className="border-1 border-200 border-round p-3">
+                        <div className="grid m-0">
+                            <div className="col-12 md:col-6 p-0 md:pr-2">
+                                <label className="block text-700 mb-1">Salesman Mode</label>
+                                <AppDropdown
+                                    value={profileSalesOptions.salesmanMode}
+                                    options={SALESMAN_MODE_OPTIONS}
+                                    optionLabel="label"
+                                    optionValue="value"
+                                    onChange={(event) =>
+                                        setProfileSalesOptions((prev) => ({
+                                            ...prev,
+                                            salesmanMode: (event.value as EditableSalesInvoiceProfileOptions['salesmanMode']) ?? 'none'
+                                        }))
+                                    }
+                                    className="w-full"
+                                />
+                            </div>
+                            <div className="col-12 md:col-6 p-0 md:pl-2 mt-3 md:mt-0">
+                                <div className="flex align-items-center justify-content-between border-1 border-200 border-round px-3 py-2 h-full">
+                                    <span className="text-700">Show Tax Columns</span>
+                                    <InputSwitch
+                                        checked={profileSalesOptions.showTaxColumns}
+                                        onChange={(event) =>
+                                            setProfileSalesOptions((prev) => ({
+                                                ...prev,
+                                                showTaxColumns: Boolean(event.value)
+                                            }))
+                                        }
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="grid m-0 mt-2">
+                            <div className="col-12 md:col-6 p-0 md:pr-2">
+                                <div className="flex align-items-center justify-content-between border-1 border-200 border-round px-3 py-2">
+                                    <span className="text-700">Show Production Attribute Details</span>
+                                    <InputSwitch
+                                        checked={profileSalesOptions.showTypeDetails}
+                                        onChange={(event) =>
+                                            setProfileSalesOptions((prev) => ({
+                                                ...prev,
+                                                showTypeDetails: Boolean(event.value)
+                                            }))
+                                        }
+                                    />
+                                </div>
+                            </div>
+                            <div className="col-12 md:col-6 p-0 md:pl-2 mt-2 md:mt-0">
+                                <div className="flex align-items-center justify-content-between border-1 border-200 border-round px-3 py-2">
+                                    <span className="text-700">Show Additional Taxation</span>
+                                    <InputSwitch
+                                        checked={profileSalesOptions.showAdditionalTaxation}
+                                        onChange={(event) =>
+                                            setProfileSalesOptions((prev) => ({
+                                                ...prev,
+                                                showAdditionalTaxation: Boolean(event.value)
+                                            }))
+                                        }
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="grid m-0 mt-2">
+                            <div className="col-12 md:col-6 p-0 md:pr-2">
+                                <div className="flex align-items-center justify-content-between border-1 border-200 border-round px-3 py-2">
+                                    <span className="text-700">Show Scheme Toggle</span>
+                                    <InputSwitch
+                                        checked={profileSalesOptions.showSchemeToggle}
+                                        onChange={(event) =>
+                                            setProfileSalesOptions((prev) => ({
+                                                ...prev,
+                                                showSchemeToggle: Boolean(event.value)
+                                            }))
+                                        }
+                                    />
+                                </div>
+                            </div>
+                            <div className="col-12 md:col-6 p-0 md:pl-2 mt-2 md:mt-0">
+                                <div className="flex align-items-center justify-content-between border-1 border-200 border-round px-3 py-2">
+                                    <span className="text-700">Show Bizom Field</span>
+                                    <InputSwitch
+                                        checked={profileSalesOptions.showBizomInvoiceField}
+                                        onChange={(event) =>
+                                            setProfileSalesOptions((prev) => ({
+                                                ...prev,
+                                                showBizomInvoiceField: Boolean(event.value)
+                                            }))
+                                        }
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="grid m-0 mt-2">
+                            <div className="col-12 md:col-6 p-0 md:pr-2">
+                                <div className="flex align-items-center justify-content-between border-1 border-200 border-round px-3 py-2">
+                                    <span className="text-700">Show Inter-State Toggle</span>
+                                    <InputSwitch
+                                        checked={profileSalesOptions.showInterStateToggle}
+                                        onChange={(event) =>
+                                            setProfileSalesOptions((prev) => ({
+                                                ...prev,
+                                                showInterStateToggle: Boolean(event.value)
+                                            }))
+                                        }
+                                    />
+                                </div>
+                            </div>
+                            <div className="col-12 md:col-6 p-0 md:pl-2 mt-2 md:mt-0">
+                                <div className="flex align-items-center justify-content-between border-1 border-200 border-round px-3 py-2">
+                                    <span className="text-700">Transport Enabled</span>
+                                    <InputSwitch
+                                        checked={profileSalesOptions.transportEnabled}
+                                        onChange={(event) =>
+                                            setProfileSalesOptions((prev) => {
+                                                const transportEnabled = Boolean(event.value);
+                                                return {
+                                                    ...prev,
+                                                    transportEnabled,
+                                                    transportDefaultApplied: transportEnabled ? prev.transportDefaultApplied : false,
+                                                    showTransporterField: transportEnabled ? prev.showTransporterField : false,
+                                                    requireTransporterWhenApplied:
+                                                        transportEnabled && prev.showTransporterField
+                                                            ? prev.requireTransporterWhenApplied
+                                                            : false
+                                                };
+                                            })
+                                        }
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="grid m-0 mt-2">
+                            <div className="col-12 md:col-6 p-0 md:pr-2">
+                                <div className="flex align-items-center justify-content-between border-1 border-200 border-round px-3 py-2">
+                                    <span className="text-700">Transport Default Applied</span>
+                                    <InputSwitch
+                                        checked={profileSalesOptions.transportDefaultApplied}
+                                        disabled={!profileSalesOptions.transportEnabled}
+                                        onChange={(event) =>
+                                            setProfileSalesOptions((prev) => ({
+                                                ...prev,
+                                                transportDefaultApplied: Boolean(event.value)
+                                            }))
+                                        }
+                                    />
+                                </div>
+                            </div>
+                            <div className="col-12 md:col-6 p-0 md:pl-2 mt-2 md:mt-0">
+                                <div className="flex align-items-center justify-content-between border-1 border-200 border-round px-3 py-2">
+                                    <span className="text-700">Show Transporter Field</span>
+                                    <InputSwitch
+                                        checked={profileSalesOptions.showTransporterField}
+                                        disabled={!profileSalesOptions.transportEnabled}
+                                        onChange={(event) =>
+                                            setProfileSalesOptions((prev) => {
+                                                const showTransporterField = Boolean(event.value);
+                                                return {
+                                                    ...prev,
+                                                    showTransporterField,
+                                                    requireTransporterWhenApplied: showTransporterField
+                                                        ? prev.requireTransporterWhenApplied
+                                                        : false
+                                                };
+                                            })
+                                        }
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="grid m-0 mt-2">
+                            <div className="col-12 md:col-6 p-0 md:pr-2">
+                                <div className="flex align-items-center justify-content-between border-1 border-200 border-round px-3 py-2">
+                                    <span className="text-700">Require Transporter When Applied</span>
+                                    <InputSwitch
+                                        checked={profileSalesOptions.requireTransporterWhenApplied}
+                                        disabled={!profileSalesOptions.transportEnabled || !profileSalesOptions.showTransporterField}
+                                        onChange={(event) =>
+                                            setProfileSalesOptions((prev) => ({
+                                                ...prev,
+                                                requireTransporterWhenApplied: Boolean(event.value)
+                                            }))
+                                        }
+                                    />
+                                </div>
+                            </div>
+                            <div className="col-12 md:col-6 p-0 md:pl-2 mt-2 md:mt-0">
+                                <div className="flex align-items-center justify-content-between border-1 border-200 border-round px-3 py-2">
+                                    <span className="text-700">Dry Check Required</span>
+                                    <InputSwitch
+                                        checked={profileSalesOptions.dryCheckRequired}
+                                        onChange={(event) =>
+                                            setProfileSalesOptions((prev) => ({
+                                                ...prev,
+                                                dryCheckRequired: Boolean(event.value)
+                                            }))
+                                        }
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="grid m-0 mt-2">
+                            <div className="col-12 md:col-6 p-0 md:pr-2">
+                                <div className="flex align-items-center justify-content-between border-1 border-200 border-round px-3 py-2">
+                                    <span className="text-700">Strict Posting Parity</span>
+                                    <InputSwitch
+                                        checked={profileSalesOptions.strictPostingParity}
+                                        onChange={(event) =>
+                                            setProfileSalesOptions((prev) => ({
+                                                ...prev,
+                                                strictPostingParity: Boolean(event.value)
+                                            }))
+                                        }
+                                    />
+                                </div>
+                            </div>
+                            <div className="col-12 md:col-6 p-0 md:pl-2 mt-2 md:mt-0">
+                                <div className="flex align-items-center justify-content-between border-1 border-200 border-round px-3 py-2">
+                                    <span className="text-700">Estimate Action Enabled</span>
+                                    <InputSwitch
+                                        checked={profileSalesOptions.linkedEstimateEnabled}
+                                        onChange={(event) =>
+                                            setProfileSalesOptions((prev) => ({
+                                                ...prev,
+                                                linkedEstimateEnabled: Boolean(event.value)
+                                            }))
+                                        }
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="grid m-0 mt-2">
+                            <div className="col-12 md:col-6 p-0 md:pr-2">
+                                <div className="flex align-items-center justify-content-between border-1 border-200 border-round px-3 py-2">
+                                    <span className="text-700">Credit Note Action Enabled</span>
+                                    <InputSwitch
+                                        checked={profileSalesOptions.linkedCreditNoteEnabled}
+                                        onChange={(event) =>
+                                            setProfileSalesOptions((prev) => ({
+                                                ...prev,
+                                                linkedCreditNoteEnabled: Boolean(event.value)
+                                            }))
+                                        }
+                                    />
+                                </div>
+                            </div>
+                            <div className="col-12 md:col-6 p-0 md:pl-2 mt-2 md:mt-0">
+                                <div className="flex align-items-center justify-content-between border-1 border-200 border-round px-3 py-2">
+                                    <span className="text-700">Debit Note Action Enabled</span>
+                                    <InputSwitch
+                                        checked={profileSalesOptions.linkedDebitNoteEnabled}
+                                        onChange={(event) =>
+                                            setProfileSalesOptions((prev) => ({
+                                                ...prev,
+                                                linkedDebitNoteEnabled: Boolean(event.value)
+                                            }))
+                                        }
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </Dialog>
+
+            <Dialog
                 header={deleteTenant ? `Delete Tenant • ${deleteTenant.name}` : 'Delete Tenant'}
                 visible={deleteOpen}
                 style={{ width: '32rem' }}
@@ -761,3 +1296,5 @@ export default function AdminTenantsPage() {
         </div>
     );
 }
+
+

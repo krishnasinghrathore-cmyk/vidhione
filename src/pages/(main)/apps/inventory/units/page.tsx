@@ -3,12 +3,17 @@ import React, { useMemo, useRef, useState } from 'react';
 import { Column } from 'primereact/column';
 import { ConfirmPopup, confirmPopup } from 'primereact/confirmpopup';
 import { Dialog } from 'primereact/dialog';
-import { InputText } from 'primereact/inputtext';
+import AppInput from '@/components/AppInput';
 import { Toast } from 'primereact/toast';
 import { Button } from 'primereact/button';
+import { AppHelpDialogButton } from '@/components/AppHelpDialogButton';
+import { getMasterPageHelp } from '@/lib/masterPageHelp';
 import { gql, useMutation, useQuery } from '@apollo/client';
 import AppDataTable from '@/components/AppDataTable';
-import AppDropdown from '@/components/AppDropdown';
+import { MasterDetailDialogFooter, MasterEditDialogFooter } from '@/components/MasterDialogFooter';
+import { MasterDetailCard } from '@/components/MasterDetailCard';
+import { MasterDetailGrid } from '@/components/MasterDetailLayout';
+import { findMasterRowIndex, getMasterRowByDirection, type MasterDialogDirection } from '@/lib/masterDialogNavigation';
 import { z } from 'zod';
 import { inventoryApolloClient } from '@/lib/inventoryApolloClient';
 import { getDeleteConfirmMessage, getDeleteFailureMessage } from '@/lib/deleteGuardrails';
@@ -20,10 +25,13 @@ import {
     useMasterActionPermissions
 } from '@/lib/masterActionPermissions';
 import { ensureDryEditCheck } from '@/lib/masterDryRun';
+import { MASTER_DETAIL_DIALOG_WIDTHS } from '@/lib/masterDialogLayout';
 
 interface UnitRow {
     unitId: number;
     name: string | null;
+    einvoiceUnitName: string | null;
+    einvoiceUnitAlias: string | null;
 }
 
 const UNITS = gql`
@@ -31,21 +39,28 @@ const UNITS = gql`
         units(search: $search, limit: $limit) {
             unitId
             name
+            einvoiceUnitName
+            einvoiceUnitAlias
         }
     }
 `;
 
 const CREATE_UNIT = gql`
-    mutation CreateUnit($name: String!) {
-        createUnit(name: $name) {
+    mutation CreateUnit($name: String!, $einvoiceUnitName: String, $einvoiceUnitAlias: String) {
+        createUnit(name: $name, einvoiceUnitName: $einvoiceUnitName, einvoiceUnitAlias: $einvoiceUnitAlias) {
             unitId
         }
     }
 `;
 
 const UPDATE_UNIT = gql`
-    mutation UpdateUnit($unitId: Int!, $name: String) {
-        updateUnit(unitId: $unitId, name: $name) {
+    mutation UpdateUnit($unitId: Int!, $name: String, $einvoiceUnitName: String, $einvoiceUnitAlias: String) {
+        updateUnit(
+            unitId: $unitId
+            name: $name
+            einvoiceUnitName: $einvoiceUnitName
+            einvoiceUnitAlias: $einvoiceUnitAlias
+        ) {
             unitId
         }
     }
@@ -59,39 +74,51 @@ const DELETE_UNIT = gql`
 
 type FormState = {
     name: string;
+    einvoiceUnitName: string;
+    einvoiceUnitAlias: string;
 };
 
 const formSchema = z.object({
-    name: z.string().trim().min(1, 'Name is required')
+    name: z.string().trim().min(1, 'Name is required'),
+    einvoiceUnitName: z.string(),
+    einvoiceUnitAlias: z.string()
 });
 
 const DEFAULT_FORM: FormState = {
-    name: ''
+    name: '',
+    einvoiceUnitName: '',
+    einvoiceUnitAlias: ''
 };
-const limitOptions = [100, 250, 500, 1000, 2000].map((value) => ({
-    label: String(value),
-    value
-}));
 
 export default function InventoryUnitsPage() {
+    const nameInputId = 'unit-name-input';
+    const einvoiceNameInputId = 'unit-einvoice-name-input';
+    const einvoiceAliasInputId = 'unit-einvoice-alias-input';
+    const saveButtonId = 'unit-save-button';
+
     const toastRef = useRef<Toast>(null);
     const dtRef = useRef<any>(null);
 
     const [search, setSearch] = useState('');
-    const [limit, setLimit] = useState(2000);
+    const limit = 2000;
     const [dialogVisible, setDialogVisible] = useState(false);
     const [saving, setSaving] = useState(false);
     const [editing, setEditing] = useState<UnitRow | null>(null);
     const [detailVisible, setDetailVisible] = useState(false);
     const [detailRow, setDetailRow] = useState<UnitRow | null>(null);
     const [form, setForm] = useState<FormState>(DEFAULT_FORM);
+    const [initialForm, setInitialForm] = useState<FormState>(DEFAULT_FORM);
     const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+    const [isBulkMode, setIsBulkMode] = useState(false);
 
     const [dryEditDigest, setDryEditDigest] = useState('');
 
     const { data, loading, error, refetch } = useQuery(UNITS, {
         client: inventoryApolloClient,
-        variables: { search: search.trim() || null, limit }
+        variables: { search: search.trim() || null, limit },
+        fetchPolicy: 'cache-and-network',
+        nextFetchPolicy: 'cache-first',
+        notifyOnNetworkStatusChange: true
     });
     const [createUnit] = useMutation(CREATE_UNIT, { client: inventoryApolloClient });
     const [updateUnit] = useMutation(UPDATE_UNIT, { client: inventoryApolloClient });
@@ -100,6 +127,26 @@ export default function InventoryUnitsPage() {
     const { permissions: masterPermissions } = useMasterActionPermissions(inventoryApolloClient);
 
     const rows: UnitRow[] = useMemo(() => data?.units ?? [], [data]);
+    const isFormDirty = useMemo(() => JSON.stringify(form) !== JSON.stringify(initialForm), [form, initialForm]);
+    const editingIndex = useMemo(() => findMasterRowIndex(rows, editing), [rows, editing]);
+    const detailIndex = useMemo(() => findMasterRowIndex(rows, detailRow), [rows, detailRow]);
+
+    const focusElementById = (id: string) => {
+        if (typeof document === 'undefined') return false;
+        const element = document.getElementById(id);
+        if (!element) return false;
+        element.focus();
+        return true;
+    };
+
+    const focusNameInput = () => {
+        if (typeof window === 'undefined') return;
+        window.requestAnimationFrame(() => {
+            window.requestAnimationFrame(() => {
+                focusElementById(nameInputId);
+            });
+        });
+    };
 
     const assertActionAllowed = (action: MasterAction) => {
         if (isMasterActionAllowed(masterPermissions, action)) return true;
@@ -124,7 +171,11 @@ export default function InventoryUnitsPage() {
         setDryEditDigest('');
         if (!assertActionAllowed('edit')) return;
         setEditing(row);
-        setForm({ name: row.name ?? '' });
+        setForm({
+            name: row.name ?? '',
+            einvoiceUnitName: row.einvoiceUnitName ?? '',
+            einvoiceUnitAlias: row.einvoiceUnitAlias ?? ''
+        });
         setFormErrors({});
         setDialogVisible(true);
     };
@@ -133,6 +184,18 @@ export default function InventoryUnitsPage() {
         if (!assertActionAllowed('view')) return;
         setDetailRow(row);
         setDetailVisible(true);
+    };
+
+    const navigateEditRecord = (direction: MasterDialogDirection) => {
+        const nextRow = getMasterRowByDirection(rows, editingIndex, direction);
+        if (!nextRow) return;
+        openEdit(nextRow);
+    };
+
+    const navigateDetailRecord = (direction: MasterDialogDirection) => {
+        const nextRow = getMasterRowByDirection(rows, detailIndex, direction);
+        if (!nextRow) return;
+        openView(nextRow);
     };
 
     const save = async () => {
@@ -159,7 +222,9 @@ export default function InventoryUnitsPage() {
         setSaving(true);
         try {
             const variables = {
-                name: form.name.trim()
+                name: form.name.trim(),
+                einvoiceUnitName: form.einvoiceUnitName.trim() || null,
+                einvoiceUnitAlias: form.einvoiceUnitAlias.trim() || null
             };
 
             if (editing) {
@@ -174,7 +239,10 @@ export default function InventoryUnitsPage() {
             }
 
             await refetch();
-            setDialogVisible(false);
+            setInitialForm(form);
+            if (!isBulkMode) {
+                setDialogVisible(false);
+            }
             toastRef.current?.show({
                 severity: 'success',
                 summary: 'Saved',
@@ -209,7 +277,7 @@ export default function InventoryUnitsPage() {
         }
     };
 
-    const confirmDelete = async () => {
+    const confirmDelete = async (event: React.MouseEvent<HTMLElement>, row: UnitRow) => {
         if (!assertActionAllowed('delete')) return;
         const impact = await fetchInventoryMasterDeleteImpact('UNIT', row.unitId);
         if (!impact.canDelete) {
@@ -227,9 +295,9 @@ export default function InventoryUnitsPage() {
             message: `Dry Delete Check passed. ${getDeleteConfirmMessage('unit')}`,
             icon: 'pi pi-exclamation-triangle',
             acceptClassName: 'p-button-danger',
-            acceptLabel: 'Delete',
-            rejectLabel: 'Cancel',
-            defaultFocus: 'none',
+            acceptLabel: 'Yes',
+            rejectLabel: 'No',
+            defaultFocus: 'reject',
             dismissable: true,
             accept: () => handleDelete(row.unitId)
         });
@@ -256,8 +324,9 @@ export default function InventoryUnitsPage() {
                             Maintain unit definitions for the agency inventory masters.
                         </p>
                     </div>
-                    <div className="flex gap-2 flex-wrap">
-                        <Button label="New Unit" icon="pi pi-plus" onClick={openNew} disabled={!masterPermissions.canAdd} />
+                    <div className="flex gap-2 flex-wrap justify-content-end align-items-start">
+                        <Button label="New Unit" icon="pi pi-plus" className="app-action-compact" onClick={openNew} disabled={!masterPermissions.canAdd} />
+                        <AppHelpDialogButton {...getMasterPageHelp('units')} buttonAriaLabel="Open Units help" />
                     </div>
                 </div>
                 {error && <p className="text-red-500 m-0">Error loading units: {error.message}</p>}
@@ -273,11 +342,12 @@ export default function InventoryUnitsPage() {
                 stripedRows
                 size="small"
                 loading={loading}
+                emptyMessage={search.trim() ? 'No units match your search.' : 'No units found.'}
                 onRowDoubleClick={(e) => (masterPermissions.canEdit ? openEdit(e.data as UnitRow) : openView(e.data as UnitRow))}
                 headerLeft={
                     <span className="p-input-icon-left" style={{ minWidth: '320px' }}>
                         <i className="pi pi-search" />
-                        <InputText
+                        <AppInput
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                             placeholder="Search unit"
@@ -288,11 +358,10 @@ export default function InventoryUnitsPage() {
                 headerRight={
                     <>
                         <Button
-                            label="Export"
-                            icon="pi pi-download"
-                            className="p-button-info"
-                            onClick={() => dtRef.current?.exportCSV()}
-                            disabled={rows.length === 0}
+                            label="Refresh"
+                            icon="pi pi-refresh"
+                            className="p-button-text"
+                            onClick={() => refetch()}
                         />
                         <Button
                             label="Print"
@@ -301,20 +370,12 @@ export default function InventoryUnitsPage() {
                             onClick={() => window.print()}
                         />
                         <Button
-                            label="Refresh"
-                            icon="pi pi-refresh"
-                            className="p-button-text"
-                            onClick={() => refetch()}
+                            label="Export"
+                            icon="pi pi-download"
+                            className="p-button-info"
+                            onClick={() => dtRef.current?.exportCSV()}
+                            disabled={rows.length === 0}
                         />
-                        <span className="flex align-items-center gap-2">
-                            <span className="text-600 text-sm">Limit</span>
-                            <AppDropdown
-                                value={limit}
-                                options={limitOptions}
-                                onChange={(e) => setLimit(e.value ?? 2000)}
-                                className="w-6rem"
-                            />
-                        </span>
                         <span className="text-600 text-sm">
                             Showing {rows.length} unit{rows.length === 1 ? '' : 's'}
                         </span>
@@ -323,36 +384,77 @@ export default function InventoryUnitsPage() {
                 recordSummary={`${rows.length} unit${rows.length === 1 ? '' : 's'}`}
             >
                 <Column field="name" header="Name" sortable />
+                <Column field="einvoiceUnitName" header="eInvoice Unit Name" sortable />
+                <Column field="einvoiceUnitAlias" header="eInvoice Unit Alias" sortable />
                 <Column header="Actions" body={actionsBody} style={{ width: '11rem' }} />
             </AppDataTable>
 
             <Dialog
                 header={editing ? 'Edit Unit' : 'New Unit'}
                 visible={dialogVisible}
-                style={{ width: 'min(620px, 96vw)' }}
+                style={{ width: 'min(680px, 96vw)' }}
+                onShow={() => {
+                    setInitialForm(form);
+                    focusNameInput();
+                }}
                 onHide={() => setDialogVisible(false)}
                 footer={
-                    <div className="flex justify-content-end gap-2 w-full">
-                        <Button
-                            label="Cancel"
-                            className="p-button-text"
-                            onClick={() => setDialogVisible(false)}
-                            disabled={saving}
-                        />
-                        <Button label={saving ? 'Saving...' : 'Save'} icon="pi pi-check" onClick={save} disabled={saving} />
-                    </div>
+                    <MasterEditDialogFooter
+                        index={editingIndex}
+                        total={rows.length}
+                        onNavigate={navigateEditRecord}
+                        navigateDisabled={saving}
+                        bulkMode={{
+                            checked: isBulkMode,
+                            onChange: setIsBulkMode,
+                            onLabel: 'Bulk',
+                            offLabel: 'Standard',
+                            disabled: saving
+                        }}
+                        onCancel={() => setDialogVisible(false)}
+                        cancelDisabled={saving}
+                        onSave={save}
+                        saveDisabled={saving || !isFormDirty}
+                        saveLabel={saving ? 'Saving...' : 'Save'}
+                        saveButtonId={saveButtonId}
+                    />
                 }
             >
                 <div className="grid">
-                    <div className="col-12">
+                    <div className="col-12 md:col-4">
                         <label className="block text-600 mb-1">Name</label>
-                        <InputText
+                        <AppInput
+                            id={nameInputId}
+                            autoFocus
                             value={form.name}
                             onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))}
+                            onEnterNext={() => focusElementById(einvoiceNameInputId)}
                             style={{ width: '100%' }}
                             className={formErrors.name ? 'p-invalid' : undefined}
                         />
                         {formErrors.name && <small className="p-error">{formErrors.name}</small>}
+                    </div>
+                    <div className="col-12 md:col-4">
+                        <label className="block text-600 mb-1">eInvoice Unit Name</label>
+                        <AppInput
+                            id={einvoiceNameInputId}
+                            value={form.einvoiceUnitName}
+                            onChange={(e) => setForm((s) => ({ ...s, einvoiceUnitName: e.target.value }))}
+                            onEnterNext={() => focusElementById(einvoiceAliasInputId)}
+                            style={{ width: '100%' }}
+                            placeholder="Optional"
+                        />
+                    </div>
+                    <div className="col-12 md:col-4">
+                        <label className="block text-600 mb-1">eInvoice Unit Alias</label>
+                        <AppInput
+                            id={einvoiceAliasInputId}
+                            value={form.einvoiceUnitAlias}
+                            onChange={(e) => setForm((s) => ({ ...s, einvoiceUnitAlias: e.target.value }))}
+                            onEnterNext={() => focusElementById(saveButtonId)}
+                            style={{ width: '100%' }}
+                            placeholder="Optional"
+                        />
                     </div>
                 </div>
             </Dialog>
@@ -360,18 +462,24 @@ export default function InventoryUnitsPage() {
             <Dialog
                 header="Unit Details"
                 visible={detailVisible}
-                style={{ width: 'min(520px, 96vw)' }}
+                style={{ width: MASTER_DETAIL_DIALOG_WIDTHS.standard }}
+                contentClassName="pt-2 pb-2"
                 onHide={() => setDetailVisible(false)}
                 footer={
-                    <div className="flex justify-content-end w-full">
-                        <Button label="Close" className="p-button-text" onClick={() => setDetailVisible(false)} />
-                    </div>
+                    <MasterDetailDialogFooter
+                        index={detailIndex}
+                        total={rows.length}
+                        onNavigate={navigateDetailRecord}
+                        onClose={() => setDetailVisible(false)}
+                    />
                 }
             >
                 {detailRow && (
-                    <div className="flex flex-column gap-2">
-                        <div><strong>Name:</strong> {detailRow.name ?? '-'}</div>
-                    </div>
+                    <MasterDetailGrid columns={3}>
+                        <MasterDetailCard label="Name" value={detailRow.name ?? '-'} />
+                        <MasterDetailCard label="eInvoice Unit Name" value={detailRow.einvoiceUnitName ?? '-'} />
+                        <MasterDetailCard label="eInvoice Unit Alias" value={detailRow.einvoiceUnitAlias ?? '-'} />
+                    </MasterDetailGrid>
                 )}
             </Dialog>
         </div>

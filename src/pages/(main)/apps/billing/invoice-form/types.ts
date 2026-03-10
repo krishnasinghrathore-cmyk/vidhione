@@ -30,13 +30,26 @@ export type TaxProfile = {
     effectiveDateText: string | null;
 };
 
+export type InvoiceProductAttributeSelection = {
+    productAttributeId: number;
+    productAttributeTypeId: number | null;
+    detail: string | null;
+    isSelectedFlag: number | null;
+    orderNo: number | null;
+};
+
 export type InvoiceProduct = {
     productId: number;
     name: string;
     code: string | null;
+    productGroupId: number | null;
+    productGroupName: string | null;
+    productBrandId: number | null;
+    productBrandName: string | null;
     hsnCodeId: number | null;
     hsnCode: string;
     productAttributeTypeId: number | null;
+    productAttributes: InvoiceProductAttributeSelection[];
     unitId: number | null;
     unitName: string | null;
     searchText: string;
@@ -52,8 +65,15 @@ export type InvoiceHeaderDraft = {
     estimateId: number | null;
     partyLedgerId: number | null;
     ledgerGroupId: number | null;
+    salesmanId: number | null;
+    salesman2Id: number | null;
+    textileJobberLedgerId: number | null;
+    textileJobberChallanNo: string;
+    textileJobberChallanDate: Date | null;
+    textileRemarkForStatement: string;
     partyName: string;
     partyGstin: string;
+    partyAddress: string;
     placeOfSupply: PlaceOfSupplyMode;
     priceList: PriceListType;
     warehouseId: number | null;
@@ -114,6 +134,7 @@ export type InvoiceLineDraft = {
     minFreeQuantity: number;
     tmpTypeId: number | null;
     estimateLineId: number | null;
+    textileJobberLedgerId: number | null;
     inventory: LineInventoryDraft;
 };
 
@@ -211,10 +232,28 @@ export type InvoiceTypeDetailDraft = {
     tmpTypeId: number | null;
 };
 
+export type InvoiceGiftCertificateApplicationDraft = {
+    key: string;
+    giftCertificateId: string;
+    certificateCode: string;
+    redeemedAmount: number;
+    balanceAmount: number | null;
+    status: string | null;
+    notes: string;
+};
+
+export type InvoiceLoyaltyApplicationDraft = {
+    pointsRedeemed: number;
+    amountApplied: number;
+    notes: string;
+};
+
 export type InvoicePreservedDetails = {
     taxLines: SaleInvoiceTaxLineInput[];
     creditNotes: SaleInvoiceCreditNoteInput[];
     debitNotes: SaleInvoiceDebitNoteInput[];
+    loyaltyApplication: InvoiceLoyaltyApplicationDraft | null;
+    giftCertificateApplications: InvoiceGiftCertificateApplicationDraft[];
     otherLedgerId: number | null;
     itemBrandId: number | null;
     isChecked: boolean;
@@ -223,3 +262,49 @@ export type InvoicePreservedDetails = {
     g1IsAmountMatched: boolean;
     g1Remark: string | null;
 };
+
+export type RegisterInvoiceLineSummary = {
+    saleInvoiceLineId: number;
+    lineNumber: number;
+    itemId: number | null;
+    itemName: string;
+    itemCode: string | null;
+    itemFreeName: string | null;
+    hsnCodeId: number | null;
+    hsnCode: string | null;
+    unitName: string | null;
+    unitFreeName: string | null;
+    tmpTypeId: number | null;
+    typeDetailsText: string | null;
+    quantity: number;
+    freeQuantity: number;
+    mrp: number | null;
+    sellingRate: number | null;
+    rate: number;
+    displayAmount: number;
+    qpsRate: number;
+    qpsAmount: number;
+    productDiscountRate: number;
+    productDiscountAmount: number;
+    cashDiscountRate: number;
+    cashDiscountAmount: number;
+    grossAmount: number;
+    taxableAmount: number;
+    taxableAmount2: number;
+    taxableAmount3: number;
+    taxableTotalAmount: number;
+    taxLedgerId: number | null;
+    taxRate: number;
+    taxAmount: number;
+    taxLedger2Id: number | null;
+    taxRate2: number;
+    taxAmount2: number;
+    taxLedger3Id: number | null;
+    taxRate3: number;
+    taxAmount3: number;
+    taxTotalAmount: number;
+    finalAmount: number;
+    remarks: string | null;
+};
+
+

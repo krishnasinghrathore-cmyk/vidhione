@@ -11,6 +11,7 @@ import { Menu } from 'primereact/menu';
 import { Tag } from 'primereact/tag';
 import { Toast } from 'primereact/toast';
 import type { AutoComplete } from 'primereact/autocomplete';
+import AppCompactToggle from '@/components/AppCompactToggle';
 import AppDataTable from '@/components/AppDataTable';
 import AppDateInput from '@/components/AppDateInput';
 import AppDropdown from '@/components/AppDropdown';
@@ -947,15 +948,15 @@ export default function AccountsBankChequeIssuePage() {
                             style={{ minWidth: '240px' }}
                         />
                         <div className="flex align-items-center gap-2">
-                            <InputSwitch
+                            <AppCompactToggle
                                 checked={cancelled === 1}
-                                onChange={(e) => {
+                                onChange={(checked) => {
                                     setFirst(0);
-                                    setCancelled(e.value ? 1 : 0);
+                                    setCancelled(checked ? 1 : 0);
                                 }}
-                                className="app-inputswitch"
+                                onLabel="Cancelled"
+                                offLabel="Not cancelled"
                             />
-                            <span className="text-600 text-sm">{cancelled === 1 ? 'Cancelled' : 'Not cancelled'}</span>
                         </div>
                     </>
                 }

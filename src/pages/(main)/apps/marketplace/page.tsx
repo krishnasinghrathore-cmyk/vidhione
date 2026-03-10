@@ -1,6 +1,6 @@
 'use client';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from 'primereact/button';
 import { Dialog } from 'primereact/dialog';
 import { InputText } from 'primereact/inputtext';
@@ -29,7 +29,7 @@ const loadRazorpayScript = async () => {
 
 export default function MarketplaceAppPage() {
     const navigate = useNavigate();
-    const { refresh, enabledApps, tenantId } = useAuth();
+    const { refresh, enabledApps, tenantId, user } = useAuth();
     const [searchParams] = useSearchParams();
 
     const [loading, setLoading] = useState(false);
@@ -45,21 +45,17 @@ export default function MarketplaceAppPage() {
     const [paying, setPaying] = useState(false);
 
     const appMap = useMemo(() => new Map(APPS.map((a) => [a.id, a])), []);
-    const industryEnabled = useMemo(
-        () => (enabledApps ?? []).some((id) => APPS.some((app) => app.id === id && app.category === 'industry')),
-        [enabledApps]
-    );
     const allowedAppKeys = useMemo(() => {
-        if (!tenantId || !industryEnabled) return null;
+        if (!tenantId) return null;
         return new Set(APPS.filter((app) => app.category === 'addon').map((app) => app.id));
-    }, [tenantId, industryEnabled]);
+    }, [tenantId]);
     const visibleItems = useMemo(() => {
         if (!allowedAppKeys) return items;
         return items.filter((item) => allowedAppKeys.has(item.productKey));
     }, [items, allowedAppKeys]);
 
     const money = useCallback((cents: number | null, currency: string) => {
-        if (cents == null) return '—';
+        if (cents == null) return '-';
         const amount = cents / 100;
         try {
             return new Intl.NumberFormat('en-IN', { style: 'currency', currency }).format(amount);
@@ -113,6 +109,10 @@ export default function MarketplaceAppPage() {
         [unlockKey, items]
     );
     const returnTo = searchParams.get('returnTo');
+
+    if (tenantId && user?.role !== 'tenant_admin' && user?.role !== 'superadmin') {
+        return <Navigate to="/" replace />;
+    }
 
     const canCheckout = Boolean(
         selected &&
@@ -214,7 +214,7 @@ export default function MarketplaceAppPage() {
             </div>
 
             <Dialog
-                header={selected ? `Unlock • ${selected.name}` : 'Unlock App'}
+                header={selected ? `Unlock - ${selected.name}` : 'Unlock App'}
                 visible={unlockOpen}
                 style={{ width: '34rem' }}
                 modal

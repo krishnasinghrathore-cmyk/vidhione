@@ -5,6 +5,7 @@ import { Button } from 'primereact/button';
 import { Column } from 'primereact/column';
 import { ColumnGroup } from 'primereact/columngroup';
 import { Row } from 'primereact/row';
+import { AppRegisterSearch } from '@/components/AppRegisterSearch';
 import { ReportPrintHeader } from '@/components/ReportPrintHeader';
 import { ReportPrintFooter } from '@/components/ReportPrintFooter';
 import { buildSkeletonRows, skeletonCell } from '@/components/reportSkeleton';
@@ -55,6 +56,9 @@ export function BalanceSheetReportContainer({ initialView = 'detailed' }: Balanc
     const [fromDate, setFromDate] = useState<Date | null>(initialRangeRef.current?.start ?? null);
     const [toDate, setToDate] = useState<Date | null>(initialRangeRef.current?.end ?? null);
     const [dateErrors, setDateErrors] = useState<DateRangeErrors>({});
+    const [globalSearchValue, setGlobalSearchValue] = useState('');
+    const [globalSearchMatchCase, setGlobalSearchMatchCase] = useState(false);
+    const [globalSearchWholeWord, setGlobalSearchWholeWord] = useState(false);
     const [appliedFilters, setAppliedFilters] = useState<BalanceSheetFilters | null>(null);
     const [expandedGroups, setExpandedGroups] = useState<Set<number>>(new Set());
     const fromDateInputRef = useRef<HTMLInputElement>(null);
@@ -849,6 +853,20 @@ export function BalanceSheetReportContainer({ initialView = 'detailed' }: Balanc
             : `${visibleRows.length} line${visibleRows.length === 1 ? '' : 's'} | Assets ${formatAmount(totals.assets)} | Liab ${formatAmount(totals.liabilities)}`
         : 'Press Refresh to load balance sheet';
     const errorMessage = detailedError?.message ?? null;
+    const headerSearch = (
+        <AppRegisterSearch
+            value={globalSearchValue}
+            onValueChange={setGlobalSearchValue}
+            matchCase={globalSearchMatchCase}
+            onMatchCaseChange={setGlobalSearchMatchCase}
+            wholeWord={globalSearchWholeWord}
+            onWholeWordChange={setGlobalSearchWholeWord}
+            placeholder="Search register..."
+            helperText="Aa: Match Case · W: Whole Word"
+            className="app-report-header-search app-register-search--compact"
+            disabled={reportLoadingApplied && tableRows.length === 0}
+        />
+    );
 
     return (
         <div className="card app-gradient-card">
@@ -860,13 +878,19 @@ export function BalanceSheetReportContainer({ initialView = 'detailed' }: Balanc
                 subtitle={filterSummary ?? undefined}
             />
             <ReportPrintFooter left={printFooterLeft} />
-            <BalanceSheetReportSummary errorMessage={errorMessage} />
+            <BalanceSheetReportSummary errorMessage={errorMessage} rightSlot={headerSearch} />
             <BalanceSheetReportTable
                 tableRows={tableRows}
                 isPrinting={isPrinting}
                 tablePageSize={tablePageSize}
                 reportLoadingApplied={reportLoadingApplied}
                 hasApplied={hasApplied}
+                globalSearchValue={globalSearchValue}
+                onGlobalSearchValueChange={setGlobalSearchValue}
+                globalSearchMatchCase={globalSearchMatchCase}
+                onGlobalSearchMatchCaseChange={setGlobalSearchMatchCase}
+                globalSearchWholeWord={globalSearchWholeWord}
+                onGlobalSearchWholeWordChange={setGlobalSearchWholeWord}
                 headerColumnGroup={headerGroup}
                 emptyMessage={emptyMessage}
                 headerLeft={headerLeft}

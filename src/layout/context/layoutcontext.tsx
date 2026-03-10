@@ -21,7 +21,50 @@ const DEFAULT_LAYOUT_CONFIG: LayoutConfig = {
     mobileTopbarActive: false
 };
 
-export const LayoutContext = React.createContext({} as LayoutContextProps);
+const DEFAULT_LAYOUT_STATE: LayoutState = {
+    staticMenuDesktopInactive: false,
+    overlayMenuActive: false,
+    configSidebarVisible: false,
+    profileSidebarVisible: false,
+    staticMenuMobileActive: false,
+    menuHoverActive: false,
+    rightMenuActive: false,
+    topbarMenuActive: false,
+    sidebarActive: false,
+    anchored: false,
+    overlaySubmenuActive: false,
+    menuProfileActive: false,
+    resetMenu: false
+};
+
+const noopLayoutConfigSetter: React.Dispatch<React.SetStateAction<LayoutConfig>> = () => undefined;
+const noopLayoutStateSetter: React.Dispatch<React.SetStateAction<LayoutState>> = () => undefined;
+const noopBreadcrumbSetter: React.Dispatch<React.SetStateAction<Breadcrumb[]>> = () => undefined;
+const noopStringSetter: React.Dispatch<React.SetStateAction<string | null>> = () => undefined;
+
+const DEFAULT_LAYOUT_CONTEXT: LayoutContextProps = {
+    layoutConfig: DEFAULT_LAYOUT_CONFIG,
+    setLayoutConfig: noopLayoutConfigSetter,
+    layoutState: DEFAULT_LAYOUT_STATE,
+    setLayoutState: noopLayoutStateSetter,
+    onMenuProfileToggle: () => undefined,
+    onMenuToggle: () => undefined,
+    onTopbarMenuToggle: () => undefined,
+    showRightSidebar: () => undefined,
+    isSlim: () => DEFAULT_LAYOUT_CONFIG.menuMode === 'slim',
+    isSlimPlus: () => DEFAULT_LAYOUT_CONFIG.menuMode === 'slim-plus',
+    isHorizontal: () => DEFAULT_LAYOUT_CONFIG.menuMode === 'horizontal',
+    isDesktop: () => true,
+    isSidebarActive: () => false,
+    breadcrumbs: [],
+    setBreadcrumbs: noopBreadcrumbSetter,
+    routeTitle: null,
+    setRouteTitle: noopStringSetter,
+    pageTitle: null,
+    setPageTitle: noopStringSetter
+};
+
+export const LayoutContext = React.createContext<LayoutContextProps>(DEFAULT_LAYOUT_CONTEXT);
 
 export const LayoutProvider = (props: PropsWithChildren) => {
     const { companyContext, loading: authLoading, user, layoutConfig: savedLayoutConfig } = useAuth();
@@ -35,21 +78,7 @@ export const LayoutProvider = (props: PropsWithChildren) => {
     const [pageTitle, setPageTitle] = useState<string | null>(null);
     const [layoutConfig, setLayoutConfig] = useState<LayoutConfig>(DEFAULT_LAYOUT_CONFIG);
 
-    const [layoutState, setLayoutState] = useState<LayoutState>({
-        staticMenuDesktopInactive: false,
-        overlayMenuActive: false,
-        configSidebarVisible: false,
-        profileSidebarVisible: false,
-        staticMenuMobileActive: false,
-        menuHoverActive: false,
-        rightMenuActive: false,
-        topbarMenuActive: false,
-        sidebarActive: false,
-        anchored: false,
-        overlaySubmenuActive: false,
-        menuProfileActive: false,
-        resetMenu: false
-    });
+    const [layoutState, setLayoutState] = useState<LayoutState>(DEFAULT_LAYOUT_STATE);
 
     const applyLayoutConfig = useCallback(
         (nextConfig: LayoutConfig) => {
@@ -280,3 +309,4 @@ export const LayoutProvider = (props: PropsWithChildren) => {
         </LayoutContext.Provider>
     );
 };
+

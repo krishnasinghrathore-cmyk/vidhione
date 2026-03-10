@@ -17,7 +17,7 @@ export type InventoryMasterDeleteEntity =
     | 'GODOWN'
     | 'PRODUCT';
 
-export type AccountsMasterDeleteEntity = 'LEDGER' | 'LEDGER_GROUP' | 'SALESMAN';
+export type AccountsMasterDeleteEntity = 'LEDGER' | 'LEDGER_GROUP' | 'SALESMAN' | 'MANAGER';
 
 export interface MasterDeleteDependencyCount {
     key: string;

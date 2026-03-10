@@ -32,6 +32,8 @@ export type AuthState = {
 export type LoginResult = {
     user: AuthUser;
     tenantId: string | null;
+    enabledApps: string[] | null;
+    tenantIndustryKey: string | null;
 };
 
 export type AuthContextValue = AuthState & {
@@ -248,10 +250,12 @@ export const AuthProvider = ({ children, initialState = null, skipInitialRefresh
             }
             setUser(result.user);
             setTenantId(result.tenantId);
+            let nextTenantIndustryKey: string | null = null;
             try {
                 const me = await authApi.me();
                 setTenantSettings(me.tenantSettings);
-                setTenantIndustryKey(me.tenantIndustryKey ?? null);
+                nextTenantIndustryKey = me.tenantIndustryKey ?? null;
+                setTenantIndustryKey(nextTenantIndustryKey);
                 setLayoutConfig(me.layoutConfig ?? null);
             } catch {
                 setTenantSettings(null);
@@ -298,7 +302,9 @@ export const AuthProvider = ({ children, initialState = null, skipInitialRefresh
             }
             return {
                 user: result.user,
-                tenantId: result.tenantId
+                tenantId: result.tenantId,
+                enabledApps: enabled,
+                tenantIndustryKey: nextTenantIndustryKey
             };
         } finally {
             setLoading(false);
@@ -330,10 +336,12 @@ export const AuthProvider = ({ children, initialState = null, skipInitialRefresh
             setAccessToken(result.accessToken);
             setAccessTokenState(result.accessToken);
             setTenantId(result.tenantId);
+            let nextTenantIndustryKey: string | null = null;
             try {
                 const me = await authApi.me();
                 setTenantSettings(me.tenantSettings);
-                setTenantIndustryKey(me.tenantIndustryKey ?? null);
+                nextTenantIndustryKey = me.tenantIndustryKey ?? null;
+                setTenantIndustryKey(nextTenantIndustryKey);
                 setLayoutConfig(me.layoutConfig ?? null);
             } catch {
                 setTenantSettings(null);
@@ -382,11 +390,13 @@ export const AuthProvider = ({ children, initialState = null, skipInitialRefresh
             setAdminToken(result.accessToken);
             setAdminTokenState(result.accessToken);
             setTenantId(result.tenantId);
+            let nextTenantIndustryKey: string | null = null;
             try {
                 const me = await authApi.me();
                 setUser(me.user);
                 setTenantSettings(me.tenantSettings);
-                setTenantIndustryKey(me.tenantIndustryKey ?? null);
+                nextTenantIndustryKey = me.tenantIndustryKey ?? null;
+                setTenantIndustryKey(nextTenantIndustryKey);
                 setLayoutConfig(me.layoutConfig ?? null);
             } catch {
                 setTenantSettings(null);
@@ -453,3 +463,4 @@ export const AuthProvider = ({ children, initialState = null, skipInitialRefresh
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
+

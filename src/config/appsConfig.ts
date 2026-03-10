@@ -14,7 +14,6 @@ export const APPS: AppDefinition[] = [
     { id: 'retail', name: 'Retail', path: '/apps/retail', icon: 'pi pi-shopping-bag', category: 'industry' },
     { id: 'textile', name: 'Textile', path: '/apps/textile', icon: 'pi pi-sitemap', category: 'industry' },
     { id: 'restaurant', name: 'Restaurant', path: '/apps/restaurant', icon: 'pi pi-microsoft', category: 'industry' },
-    { id: 'wealth', name: 'Wealth', path: '/apps/wealth', icon: 'pi pi-chart-line', category: 'industry' },
     { id: 'media', name: 'Media', path: '/apps/media', icon: 'pi pi-image', category: 'industry' },
 
     // Core platform apps
@@ -30,6 +29,7 @@ export const APPS: AppDefinition[] = [
     { id: 'crm', name: 'CRM', path: '/apps/crm', icon: 'pi pi-users', category: 'addon' },
     { id: 'website', name: 'Website', path: '/apps/website', icon: 'pi pi-globe', category: 'addon' },
     { id: 'ecommerce', name: 'E-commerce', path: '/apps/ecommerce', icon: 'pi pi-shopping-cart', category: 'addon' },
+    { id: 'wealth', name: 'Wealth', path: '/apps/wealth', icon: 'pi pi-chart-line', category: 'addon' },
     { id: 'mobileapp', name: 'Mobile App', path: '/apps/mobileapp', icon: 'pi pi-mobile', category: 'addon' },
     { id: 'giftcoupon', name: 'Gift Coupon', path: '/apps/giftcoupon', icon: 'pi pi-ticket', category: 'addon' },
     { id: 'adcampaigns', name: 'Ad Campaigns', path: '/apps/adcampaigns', icon: 'pi pi-megaphone', category: 'addon' }

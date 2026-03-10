@@ -13,10 +13,10 @@ import { Column, type ColumnFilterElementTemplateOptions } from 'primereact/colu
 import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
 import { Dialog } from 'primereact/dialog';
 import type { DataTableFilterEvent, DataTableFilterMeta, DataTablePageEvent } from 'primereact/datatable';
-import { InputSwitch } from 'primereact/inputswitch';
 import { Tag } from 'primereact/tag';
 import { Toast } from 'primereact/toast';
 import AppAutoComplete from '@/components/AppAutoComplete';
+import AppCompactToggle from '@/components/AppCompactToggle';
 import AppDataTable from '@/components/AppDataTable';
 import AppDateInput from '@/components/AppDateInput';
 import AppInput from '@/components/AppInput';
@@ -1651,16 +1651,16 @@ export default function BillingReceiptBookIssuePage() {
                             <small className="text-red-500">{dateErrors.fromDate || dateErrors.toDate}</small>
                         )}
                         <div className="flex align-items-center gap-2">
-                            <InputSwitch
+                            <AppCompactToggle
                                 checked={cancelled === 1}
-                                onChange={(event) => {
+                                onChange={(checked) => {
                                     clearPageIndexLoadMeasurement();
                                     setFirst(0);
-                                    setCancelledFilter(event.value ? 1 : 0);
+                                    setCancelledFilter(checked ? 1 : 0);
                                 }}
-                                className="app-inputswitch"
+                                onLabel="Cancelled"
+                                offLabel="Not cancelled"
                             />
-                            <span className="text-600 text-sm">{cancelled === 1 ? 'Cancelled' : 'Not cancelled'}</span>
                         </div>
                     </>
                 }

@@ -1,5 +1,6 @@
 'use client';
 import React, { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery, gql } from '@apollo/client';
 import { Button } from 'primereact/button';
 import AppDataTable from '@/components/AppDataTable';
@@ -9,8 +10,15 @@ import AppDropdown from '@/components/AppDropdown';
 import { wealthApolloClient } from '@/lib/wealthApolloClient';
 import { extractWealthSegment, stripWealthMetaTags } from '@/lib/wealthNotes';
 import { addDays, toYmd, toYmdOrNull } from '@/lib/date';
-
-type Account = { id: string; name: string; code?: string | null };
+import { parseWealthReportSearchParams } from '../reportSearchParams';
+import {
+    WEALTH_ACCOUNTS_QUERY,
+    WEALTH_INVESTOR_PROFILES_QUERY,
+    type WealthDematAccount,
+    type WealthInvestorProfile,
+    formatAccountLabel,
+    formatInvestorProfileLabel
+} from '../shared';
 
 type TxRow = {
     id: string;
@@ -27,11 +35,17 @@ type TxRow = {
     symbol?: string | null;
     name?: string | null;
     accountId?: string | null;
+    accountName?: string | null;
+    accountCode?: string | null;
+    investorProfileId?: string | null;
+    investorProfileName?: string | null;
 };
 
 type LedgerRow = {
     id: string;
     tdate: string;
+    investorName: string;
+    accountName: string;
     particulars: string;
     folio: string;
     debit: number;
@@ -39,19 +53,9 @@ type LedgerRow = {
     running: number;
 };
 
-const ACCOUNTS_QUERY = gql`
-    query Accounts {
-        accounts {
-            id
-            name
-            code
-        }
-    }
-`;
-
 const CASH_LEDGER_QUERY = gql`
-    query CashLedger($fromDate: String, $toDate: String, $accountId: String, $segment: String, $limit: Int) {
-        transactionsPage(fromDate: $fromDate, toDate: $toDate, accountId: $accountId, segment: $segment, limit: $limit, offset: 0) {
+    query CashLedger($fromDate: String, $toDate: String, $accountId: String, $investorProfileId: String, $segment: String, $limit: Int) {
+        transactionsPage(fromDate: $fromDate, toDate: $toDate, accountId: $accountId, investorProfileId: $investorProfileId, segment: $segment, limit: $limit, offset: 0) {
             items {
                 id
                 tdate
@@ -67,6 +71,10 @@ const CASH_LEDGER_QUERY = gql`
                 symbol
                 name
                 accountId
+                accountName
+                accountCode
+                investorProfileId
+                investorProfileName
             }
             meta {
                 total
@@ -113,11 +121,11 @@ const computeCashMovement = (tx: TxRow) => {
     const units = qty > 0 ? qty : 1;
     const gross = ttype === 'DIVIDEND' || ttype === 'EXPENSE' ? price * units : qty * price;
 
-    let debit = 0; // receipts (cash in)
-    let credit = 0; // payments (cash out)
+    let debit = 0;
+    let credit = 0;
 
     if (ttype === 'SELL') debit = gross - fees;
-    else if (ttype === 'DIVIDEND') debit = gross - fees; // fees = TDS
+    else if (ttype === 'DIVIDEND') debit = gross - fees;
     else if (ttype === 'BUY' || ttype === 'RIGHTS') credit = gross + fees;
     else if (ttype === 'EXPENSE') credit = gross + fees;
 
@@ -125,38 +133,58 @@ const computeCashMovement = (tx: TxRow) => {
 };
 
 export default function WealthCashLedgerPage() {
+    const [searchParams] = useSearchParams();
+    const initialSearch = useMemo(() => parseWealthReportSearchParams(searchParams), [searchParams]);
     const [rowsLimit] = useState(5000);
-    const [accountId, setAccountId] = useState<string>('');
-    const [segment, setSegment] = useState<string>('');
-    const [fromDate, setFromDate] = useState<Date | null>(null);
-    const [toDate, setToDate] = useState<Date | null>(null);
+    const [accountId, setAccountId] = useState<string>(initialSearch.accountId);
+    const [investorProfileId, setInvestorProfileId] = useState<string>(initialSearch.investorProfileId);
+    const [segment, setSegment] = useState<string>(initialSearch.segment);
+    const [fromDate, setFromDate] = useState<Date | null>(initialSearch.fromDate);
+    const [toDate, setToDate] = useState<Date | null>(initialSearch.toDate);
     const [cashOnly, setCashOnly] = useState(true);
     const [printMode, setPrintMode] = useState(false);
 
-    const { data: accountsData } = useQuery(ACCOUNTS_QUERY, { client: wealthApolloClient });
-    const accounts = accountsData?.accounts ?? [];
+    const { data: accountsData } = useQuery(WEALTH_ACCOUNTS_QUERY, { client: wealthApolloClient });
+    const { data: investorProfilesData } = useQuery(WEALTH_INVESTOR_PROFILES_QUERY, { client: wealthApolloClient });
+
+    const accounts: WealthDematAccount[] = accountsData?.accounts ?? [];
+    const investorProfiles: WealthInvestorProfile[] = investorProfilesData?.investorProfiles ?? [];
+
+    const filteredAccounts = useMemo(() => {
+        if (!investorProfileId) return accounts;
+        return accounts.filter((account) => account.investorProfileId === investorProfileId);
+    }, [accounts, investorProfileId]);
 
     const accountOptions = useMemo(
-        () => accounts.map((a: Account) => ({ label: a.code ? `${a.name} (${a.code})` : a.name, value: a.id })),
-        [accounts]
+        () => filteredAccounts.map((account) => ({ label: formatAccountLabel(account), value: account.id })),
+        [filteredAccounts]
+    );
+    const investorProfileOptions = useMemo(
+        () => investorProfiles.map((profile) => ({ label: formatInvestorProfileLabel(profile), value: profile.id })),
+        [investorProfiles]
     );
     const accountById = useMemo(() => {
-        const map: Record<string, Account> = {};
-        accounts.forEach((a: Account) => {
-            map[a.id] = a;
+        const map: Record<string, WealthDematAccount> = {};
+        accounts.forEach((account) => {
+            map[account.id] = account;
         });
         return map;
     }, [accounts]);
-
-    const getAccountLabel = (id: string) => {
-        const account = accountById[id];
-        if (!account) return id;
-        return account.code ? `${account.name} (${account.code})` : account.name;
-    };
+    const investorById = useMemo(() => {
+        const map: Record<string, WealthInvestorProfile> = {};
+        investorProfiles.forEach((profile) => {
+            map[profile.id] = profile;
+        });
+        return map;
+    }, [investorProfiles]);
 
     useEffect(() => {
-        if (!accountId && accountOptions.length) setAccountId(accountOptions[0].value);
-    }, [accountId, accountOptions]);
+        if (!accountId || !investorProfileId) return;
+        const selectedAccount = accountById[accountId];
+        if (selectedAccount?.investorProfileId !== investorProfileId) {
+            setAccountId('');
+        }
+    }, [accountById, accountId, investorProfileId]);
 
     useEffect(() => {
         const onAfterPrint = () => setPrintMode(false);
@@ -164,28 +192,36 @@ export default function WealthCashLedgerPage() {
         return () => window.removeEventListener('afterprint', onAfterPrint);
     }, []);
 
+    const selectedInvestor = investorProfileId ? investorById[investorProfileId] : null;
+    const selectedAccount = accountId ? accountById[accountId] : null;
     const fromYmd = toYmdOrNull(fromDate);
     const toYmdValue = toYmdOrNull(toDate);
     const openingToYmd = fromDate ? toYmd(addDays(fromDate, -1)) : null;
+    const showInvestorColumn = !investorProfileId;
+    const showAccountColumn = !accountId;
+
+    const queryVariables = {
+        fromDate: fromYmd,
+        toDate: toYmdValue,
+        accountId: accountId || null,
+        investorProfileId: investorProfileId || null,
+        segment: segment || null,
+        limit: rowsLimit
+    };
 
     const { data, loading, error, refetch } = useQuery(CASH_LEDGER_QUERY, {
         client: wealthApolloClient,
-        variables: {
-            fromDate: fromYmd,
-            toDate: toYmdValue,
-            accountId: accountId || null,
-            segment: segment || null,
-            limit: rowsLimit
-        }
+        variables: queryVariables
     });
 
     const { data: openingData } = useQuery(CASH_LEDGER_QUERY, {
         client: wealthApolloClient,
-        skip: !openingToYmd || !accountId,
+        skip: !openingToYmd,
         variables: {
             fromDate: null,
             toDate: openingToYmd,
             accountId: accountId || null,
+            investorProfileId: investorProfileId || null,
             segment: segment || null,
             limit: rowsLimit
         }
@@ -205,10 +241,10 @@ export default function WealthCashLedgerPage() {
     }, [openingRows]);
 
     const rowsWithBalance: LedgerRow[] = useMemo(() => {
-        const sorted = [...rawRows].sort((a, b) => {
-            const d = String(a.tdate || '').localeCompare(String(b.tdate || ''));
-            if (d !== 0) return d;
-            return Number(a.id) - Number(b.id);
+        const sorted = [...rawRows].sort((left, right) => {
+            const dateCompare = String(left.tdate || '').localeCompare(String(right.tdate || ''));
+            if (dateCompare !== 0) return dateCompare;
+            return Number(left.id) - Number(right.id);
         });
 
         const out: LedgerRow[] = [];
@@ -218,6 +254,8 @@ export default function WealthCashLedgerPage() {
             out.push({
                 id: 'opening',
                 tdate: '',
+                investorName: selectedInvestor ? formatInvestorProfileLabel(selectedInvestor) : '',
+                accountName: selectedAccount ? formatAccountLabel(selectedAccount) : '',
                 particulars: 'Opening Balance',
                 folio: '',
                 debit: 0,
@@ -228,12 +266,14 @@ export default function WealthCashLedgerPage() {
 
         for (const tx of sorted) {
             const { debit, credit, gross, fees, qty, price } = computeCashMovement(tx);
-            const seg = tx.segment || extractWealthSegment(tx.notes) || 'CASH';
+            const resolvedSegment = tx.segment || extractWealthSegment(tx.notes) || 'CASH';
             const baseNotes = stripWealthMetaTags(tx.notes ?? '');
             const security = tx.symbol || tx.name || tx.isin || '';
+            const investorName = tx.investorProfileName || (tx.accountId ? accountById[tx.accountId]?.investorProfileName || '' : '');
+            const accountName = tx.accountName ? (tx.accountCode ? `${tx.accountName} (${tx.accountCode})` : tx.accountName) : tx.accountId ? formatAccountLabel(accountById[tx.accountId] ?? { id: tx.accountId, name: tx.accountId }) : '';
 
             const particularsParts = [
-                `${seg !== 'CASH' ? `[${seg}] ` : ''}${tx.ttype}${security ? ` - ${security}` : ''}`.trim(),
+                `${resolvedSegment !== 'CASH' ? `[${resolvedSegment}] ` : ''}${tx.ttype}${security ? ` - ${security}` : ''}`.trim(),
                 qty ? `Qty ${formatAmount(qty)}` : '',
                 price ? `Rate ${formatAmount(price)}` : '',
                 fees ? `Fees ${formatAmount(fees)}` : '',
@@ -241,7 +281,7 @@ export default function WealthCashLedgerPage() {
                 baseNotes ? baseNotes : ''
             ].filter(Boolean);
 
-            const rowParticulars = particularsParts.join(' • ');
+            const rowParticulars = particularsParts.join(' | ');
 
             if (cashOnly && debit === 0 && credit === 0) continue;
 
@@ -249,6 +289,8 @@ export default function WealthCashLedgerPage() {
             out.push({
                 id: tx.id,
                 tdate: tx.tdate,
+                investorName,
+                accountName,
                 particulars: rowParticulars,
                 folio: tx.sourceDoc || tx.id,
                 debit,
@@ -258,43 +300,84 @@ export default function WealthCashLedgerPage() {
         }
 
         return out;
-    }, [cashOnly, fromYmd, openingBalance, rawRows]);
+    }, [accountById, cashOnly, fromYmd, openingBalance, rawRows, selectedAccount, selectedInvestor]);
 
     const totals = useMemo(() => {
-        const debitTotal = rowsWithBalance.reduce((acc, r) => acc + (r.debit || 0), 0);
-        const creditTotal = rowsWithBalance.reduce((acc, r) => acc + (r.credit || 0), 0);
+        const debitTotal = rowsWithBalance.reduce((acc, row) => acc + (row.debit || 0), 0);
+        const creditTotal = rowsWithBalance.reduce((acc, row) => acc + (row.credit || 0), 0);
         const closing = rowsWithBalance.length ? rowsWithBalance[rowsWithBalance.length - 1].running : openingBalance;
         return { debitTotal, creditTotal, closing };
     }, [openingBalance, rowsWithBalance]);
 
     const balanceSide = (running: number) => (running >= 0 ? 'Dr' : 'Cr');
 
+    const scopeLabel = useMemo(() => {
+        if (selectedAccount) return formatAccountLabel(selectedAccount);
+        if (selectedInvestor) return `${formatInvestorProfileLabel(selectedInvestor)} (All Accounts)`;
+        return 'Household (All Investors and Accounts)';
+    }, [selectedAccount, selectedInvestor]);
+
     const downloadCsv = () => {
+        const headers = ['Date'];
+        if (showInvestorColumn) headers.push('Investor');
+        if (showAccountColumn) headers.push('Account');
+        headers.push('Particulars', 'Folio', 'Debit', 'Credit', 'DrCr', 'Balance');
+
         const lines = [
-            ['Date', 'Particulars', 'Folio', 'Debit', 'Credit', 'DrCr', 'Balance'].join(','),
-            ...rowsWithBalance.map((r) => {
-                const side = balanceSide(r.running);
-                return [
-                    csvEscape(r.tdate),
-                    csvEscape(r.particulars),
-                    csvEscape(r.folio),
-                    csvEscape(r.debit ? formatAmount(r.debit) : ''),
-                    csvEscape(r.credit ? formatAmount(r.credit) : ''),
+            headers.join(','),
+            ...rowsWithBalance.map((row) => {
+                const side = balanceSide(row.running);
+                const values = [csvEscape(row.tdate)];
+                if (showInvestorColumn) values.push(csvEscape(row.investorName));
+                if (showAccountColumn) values.push(csvEscape(row.accountName));
+                values.push(
+                    csvEscape(row.particulars),
+                    csvEscape(row.folio),
+                    csvEscape(row.debit ? formatAmount(row.debit) : ''),
+                    csvEscape(row.credit ? formatAmount(row.credit) : ''),
                     csvEscape(side),
-                    csvEscape(formatAmount(Math.abs(r.running)))
-                ].join(',');
+                    csvEscape(formatAmount(Math.abs(row.running)))
+                );
+                return values.join(',');
             })
         ].join('\n');
 
         const blob = new Blob([lines], { type: 'text/csv;charset=utf-8' });
         const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `wealth-cash-ledger-${accountId || 'all'}.csv`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = `wealth-cash-ledger-${accountId || investorProfileId || 'household'}.csv`;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
         URL.revokeObjectURL(url);
+    };
+
+    const applyFilters = () =>
+        refetch({
+            fromDate: toYmdOrNull(fromDate),
+            toDate: toYmdOrNull(toDate),
+            accountId: accountId || null,
+            investorProfileId: investorProfileId || null,
+            segment: segment || null,
+            limit: rowsLimit
+        });
+
+    const clearFilters = () => {
+        setFromDate(null);
+        setToDate(null);
+        setInvestorProfileId('');
+        setAccountId('');
+        setSegment('');
+        setCashOnly(true);
+        refetch({
+            fromDate: null,
+            toDate: null,
+            accountId: null,
+            investorProfileId: null,
+            segment: null,
+            limit: rowsLimit
+        });
     };
 
     return (
@@ -325,21 +408,21 @@ export default function WealthCashLedgerPage() {
             <div className="mb-3">
                 <h2 className="m-0">Ledger (Khata)</h2>
                 <p className="mt-2 mb-0 text-600">
-                    Ledger-style cash movements computed from wealth transactions (BUY/SELL/DIVIDEND/EXPENSE) with Cash/SLBM/F&amp;O segments.
+                    Ledger-style cash movements computed from wealth transactions with investor and demat-account scoping for household reporting.
                 </p>
             </div>
 
-                            {printMode ? (
+            {printMode ? (
                 <div className="mb-3">
                     <div className="flex align-items-start justify-content-between gap-3 flex-wrap mb-2">
                         <div>
-                            <div className="text-900 font-medium">Account of: {accountId ? getAccountLabel(accountId) : 'All'}</div>
+                            <div className="text-900 font-medium">Scope: {scopeLabel}</div>
                             <div className="text-600 text-sm">
-                                Period: {fromYmd ?? '…'} to {toYmdValue ?? '…'} {segment ? `• Segment: ${segment}` : ''} {cashOnly ? '• Cash only' : ''}
+                                Period: {fromYmd ?? 'Open'} to {toYmdValue ?? 'Latest'} {segment ? `| Segment: ${segment}` : ''} {cashOnly ? '| Cash only' : ''}
                             </div>
                         </div>
                         <div className="text-600 text-sm">
-                            Opening: {formatAmount(Math.abs(openingBalance))} {balanceSide(openingBalance)} • Closing: {formatAmount(Math.abs(totals.closing))}{' '}
+                            Opening: {formatAmount(Math.abs(openingBalance))} {balanceSide(openingBalance)} | Closing: {formatAmount(Math.abs(totals.closing))}{' '}
                             {balanceSide(totals.closing)}
                         </div>
                     </div>
@@ -348,6 +431,8 @@ export default function WealthCashLedgerPage() {
                         <thead>
                             <tr>
                                 <th style={{ width: '7rem' }}>Date</th>
+                                {showInvestorColumn ? <th style={{ width: '10rem' }}>Investor</th> : null}
+                                {showAccountColumn ? <th style={{ width: '11rem' }}>Account</th> : null}
                                 <th>Particulars</th>
                                 <th style={{ width: '9rem' }}>Folio</th>
                                 <th style={{ width: '7rem', textAlign: 'right' }}>Debit</th>
@@ -357,24 +442,26 @@ export default function WealthCashLedgerPage() {
                             </tr>
                         </thead>
                         <tbody>
-                            {rowsWithBalance.map((r) => {
-                                const side = balanceSide(r.running);
+                            {rowsWithBalance.map((row) => {
+                                const side = balanceSide(row.running);
                                 return (
-                                    <tr key={r.id}>
-                                        <td>{r.tdate}</td>
-                                        <td>{r.particulars}</td>
-                                        <td>{r.folio}</td>
-                                        <td style={{ textAlign: 'right' }}>{r.debit ? formatAmount(r.debit) : ''}</td>
-                                        <td style={{ textAlign: 'right' }}>{r.credit ? formatAmount(r.credit) : ''}</td>
+                                    <tr key={row.id}>
+                                        <td>{row.tdate}</td>
+                                        {showInvestorColumn ? <td>{row.investorName}</td> : null}
+                                        {showAccountColumn ? <td>{row.accountName}</td> : null}
+                                        <td>{row.particulars}</td>
+                                        <td>{row.folio}</td>
+                                        <td style={{ textAlign: 'right' }}>{row.debit ? formatAmount(row.debit) : ''}</td>
+                                        <td style={{ textAlign: 'right' }}>{row.credit ? formatAmount(row.credit) : ''}</td>
                                         <td>{side}</td>
-                                        <td style={{ textAlign: 'right' }}>{formatAmount(Math.abs(r.running))}</td>
+                                        <td style={{ textAlign: 'right' }}>{formatAmount(Math.abs(row.running))}</td>
                                     </tr>
                                 );
                             })}
                             {!rowsWithBalance.length && (
                                 <tr>
-                                    <td colSpan={7} className="text-center text-600">
-                                        {loading ? 'Loading…' : 'No ledger rows found'}
+                                    <td colSpan={showInvestorColumn && showAccountColumn ? 9 : showInvestorColumn || showAccountColumn ? 8 : 7} className="text-center text-600">
+                                        {loading ? 'Loading...' : 'No ledger rows found'}
                                     </td>
                                 </tr>
                             )}
@@ -383,118 +470,104 @@ export default function WealthCashLedgerPage() {
                 </div>
             ) : null}
 
-            {!printMode ? <div className="grid no-print mb-3">
-                <div className="col-12 md:col-4 flex flex-column gap-1">
-                    <label className="font-medium">Account</label>
-                    <AppDropdown
-                        value={accountId}
-                        options={accountOptions}
-                        onChange={(e) => setAccountId(e.value)}
-                        placeholder="Select account"
-                        filter
-                        showClear
-                    />
-                </div>
-                <div className="col-12 md:col-3 flex flex-column gap-1">
-                    <label className="font-medium">From</label>
-                    <AppDateInput value={fromDate} onChange={(value) => setFromDate(value)} />
-                </div>
-                <div className="col-12 md:col-3 flex flex-column gap-1">
-                    <label className="font-medium">To</label>
-                    <AppDateInput value={toDate} onChange={(value) => setToDate(value)} />
-                </div>
-                <div className="col-12 md:col-2 flex flex-column gap-1">
-                    <label className="font-medium">Segment</label>
-                    <AppDropdown value={segment} options={TX_SEGMENTS} onChange={(e) => setSegment(e.value)} />
-                </div>
-
-                <div className="col-12 flex align-items-center justify-content-between flex-wrap gap-2">
-                    <div className="flex gap-2 flex-wrap">
-                        <Button
-                            label="Apply"
-                            icon="pi pi-filter"
-                            onClick={() =>
-                                refetch({
-                                    fromDate: toYmdOrNull(fromDate),
-                                    toDate: toYmdOrNull(toDate),
-                                    accountId: accountId || null,
-                                    segment: segment || null,
-                                    limit: rowsLimit
-                                })
-                            }
-                        />
-                        <Button
-                            label="Clear"
-                            icon="pi pi-times"
-                            className="p-button-text"
-                            onClick={() => {
-                                setFromDate(null);
-                                setToDate(null);
-                                setSegment('');
-                                setCashOnly(true);
-                                refetch({
-                                    fromDate: null,
-                                    toDate: null,
-                                    accountId: accountId || null,
-                                    segment: null,
-                                    limit: rowsLimit
-                                });
-                            }}
-                        />
-                        <Button label="Refresh" icon="pi pi-refresh" className="p-button-secondary" onClick={() => refetch()} />
-                    </div>
-
-                    <div className="flex gap-2 flex-wrap">
-                        <Button
-                            label={cashOnly ? 'Cash Only' : 'All Types'}
-                            icon={cashOnly ? 'pi pi-check-square' : 'pi pi-square'}
-                            className="p-button-outlined"
-                            onClick={() => setCashOnly((v) => !v)}
-                        />
-                        <Button label="Export CSV" icon="pi pi-download" className="p-button-outlined" onClick={downloadCsv} disabled={!rowsWithBalance.length} />
-                        <Button
-                            label="Print"
-                            icon="pi pi-print"
-                            className="p-button-warning"
-                            onClick={() => {
-                                setPrintMode(true);
-                                setTimeout(() => window.print(), 50);
-                            }}
+            {!printMode ? (
+                <div className="grid no-print mb-3">
+                    <div className="col-12 md:col-3 flex flex-column gap-1">
+                        <label className="font-medium">Investor</label>
+                        <AppDropdown
+                            value={investorProfileId}
+                            options={investorProfileOptions}
+                            onChange={(e) => setInvestorProfileId(e.value ?? '')}
+                            placeholder="All investors"
+                            filter
+                            showClear
                         />
                     </div>
+                    <div className="col-12 md:col-3 flex flex-column gap-1">
+                        <label className="font-medium">Account</label>
+                        <AppDropdown
+                            value={accountId}
+                            options={accountOptions}
+                            onChange={(e) => setAccountId(e.value ?? '')}
+                            placeholder="All accounts"
+                            filter
+                            showClear
+                        />
+                    </div>
+                    <div className="col-12 md:col-2 flex flex-column gap-1">
+                        <label className="font-medium">From</label>
+                        <AppDateInput value={fromDate} onChange={(value) => setFromDate(value)} />
+                    </div>
+                    <div className="col-12 md:col-2 flex flex-column gap-1">
+                        <label className="font-medium">To</label>
+                        <AppDateInput value={toDate} onChange={(value) => setToDate(value)} />
+                    </div>
+                    <div className="col-12 md:col-2 flex flex-column gap-1">
+                        <label className="font-medium">Segment</label>
+                        <AppDropdown value={segment} options={TX_SEGMENTS} onChange={(e) => setSegment(e.value ?? '')} />
+                    </div>
+
+                    <div className="col-12 flex align-items-center justify-content-between flex-wrap gap-2">
+                        <div className="flex gap-2 flex-wrap">
+                            <Button label="Apply" icon="pi pi-filter" onClick={applyFilters} />
+                            <Button label="Clear" icon="pi pi-times" className="p-button-text" onClick={clearFilters} />
+                            <Button label="Refresh" icon="pi pi-refresh" className="p-button-secondary" onClick={() => refetch()} />
+                        </div>
+
+                        <div className="flex gap-2 flex-wrap">
+                            <Button
+                                label={cashOnly ? 'Cash Only' : 'All Types'}
+                                icon={cashOnly ? 'pi pi-check-square' : 'pi pi-square'}
+                                className="p-button-outlined"
+                                onClick={() => setCashOnly((value) => !value)}
+                            />
+                            <Button label="Export CSV" icon="pi pi-download" className="p-button-outlined" onClick={downloadCsv} disabled={!rowsWithBalance.length} />
+                            <Button
+                                label="Print"
+                                icon="pi pi-print"
+                                className="p-button-warning"
+                                onClick={() => {
+                                    setPrintMode(true);
+                                    setTimeout(() => window.print(), 50);
+                                }}
+                            />
+                        </div>
+                    </div>
                 </div>
-            </div> : null}
+            ) : null}
 
             {!printMode && error && <p className="text-red-500 mb-2">Error loading ledger: {error.message}</p>}
 
-            {!printMode ? <div className="mb-2">
-                <div className="flex align-items-center justify-content-between flex-wrap gap-2">
-                    <div className="text-600 text-sm">
-                        Account: <span className="font-medium">{accountId ? getAccountLabel(accountId) : 'All'}</span>
+            {!printMode ? (
+                <div className="mb-2">
+                    <div className="flex align-items-center justify-content-between flex-wrap gap-2">
+                        <div className="text-600 text-sm">
+                            Scope: <span className="font-medium">{scopeLabel}</span>
+                        </div>
+                        <div className="flex gap-3 text-600 text-sm">
+                            <span>
+                                Opening: {formatAmount(Math.abs(openingBalance))} {balanceSide(openingBalance)}
+                            </span>
+                            <span>Debit: {formatAmount(totals.debitTotal)}</span>
+                            <span>Credit: {formatAmount(totals.creditTotal)}</span>
+                            <span className="font-medium">
+                                Closing: {formatAmount(Math.abs(totals.closing))} {balanceSide(totals.closing)}
+                            </span>
+                        </div>
                     </div>
-                    <div className="flex gap-3 text-600 text-sm">
-                        <span>
-                            Opening: {formatAmount(Math.abs(openingBalance))} {balanceSide(openingBalance)}
-                        </span>
-                        <span>Debit: {formatAmount(totals.debitTotal)}</span>
-                        <span>Credit: {formatAmount(totals.creditTotal)}</span>
-                        <span className="font-medium">
-                            Closing: {formatAmount(Math.abs(totals.closing))} {balanceSide(totals.closing)}
-                        </span>
-                    </div>
+                    {page?.meta?.hasMore && (
+                        <div className="mt-2 p-2 border-round surface-50 border-1 border-yellow-200 text-700">
+                            Showing first {page.meta.limit} rows out of {page.meta.total}. Narrow your date range to print or export all rows.
+                        </div>
+                    )}
+                    {openingData?.transactionsPage?.meta?.hasMore && (
+                        <div className="mt-2 p-2 border-round surface-50 border-1 border-yellow-200 text-700">
+                            Opening balance is computed from the first {openingData.transactionsPage.meta.limit} rows before {fromYmd}. Narrow your
+                            date range or export in smaller ranges if the opening looks incomplete.
+                        </div>
+                    )}
                 </div>
-                {page?.meta?.hasMore && (
-                    <div className="mt-2 p-2 border-round surface-50 border-1 border-yellow-200 text-700">
-                        Showing first {page.meta.limit} rows out of {page.meta.total}. Narrow your date range to print/export all rows.
-                    </div>
-                )}
-                {openingData?.transactionsPage?.meta?.hasMore && (
-                    <div className="mt-2 p-2 border-round surface-50 border-1 border-yellow-200 text-700">
-                        Opening balance is computed from the first {openingData.transactionsPage.meta.limit} rows before {fromYmd}. Narrow your
-                        date range (or run export in chunks) if opening looks incomplete.
-                    </div>
-                )}
-            </div> : null}
+            ) : null}
 
             {!printMode ? (
                 <AppDataTable
@@ -504,23 +577,22 @@ export default function WealthCashLedgerPage() {
                     rowsPerPageOptions={[50, 100, 250, 500]}
                     dataKey="id"
                     loading={loading}
-                    emptyMessage={loading ? 'Loading…' : 'No ledger rows found'}
+                    emptyMessage={loading ? 'Loading...' : 'No ledger rows found'}
                     stripedRows
                     size="small"
                 >
                     <Column field="tdate" header="Date" style={{ width: '8rem' }} />
+                    {showInvestorColumn ? <Column field="investorName" header="Investor" style={{ width: '11rem' }} /> : null}
+                    {showAccountColumn ? <Column field="accountName" header="Account" style={{ width: '12rem' }} /> : null}
                     <Column field="particulars" header="Particulars" />
                     <Column field="folio" header="Folio" style={{ width: '10rem' }} />
-                    <Column header="Debit" body={(r: any) => (r.debit ? formatAmount(r.debit) : '')} style={{ textAlign: 'right', width: '8rem' }} />
-                    <Column header="Credit" body={(r: any) => (r.credit ? formatAmount(r.credit) : '')} style={{ textAlign: 'right', width: '8rem' }} />
-                    <Column header="Dr/Cr" body={(r: any) => balanceSide(Number(r.running || 0))} style={{ width: '5rem' }} />
-                    <Column
-                        header="Balance"
-                        body={(r: any) => formatAmount(Math.abs(Number(r.running || 0)))}
-                        style={{ textAlign: 'right', width: '10rem' }}
-                    />
+                    <Column header="Debit" body={(row: LedgerRow) => (row.debit ? formatAmount(row.debit) : '')} style={{ textAlign: 'right', width: '8rem' }} />
+                    <Column header="Credit" body={(row: LedgerRow) => (row.credit ? formatAmount(row.credit) : '')} style={{ textAlign: 'right', width: '8rem' }} />
+                    <Column header="Dr/Cr" body={(row: LedgerRow) => balanceSide(Number(row.running || 0))} style={{ width: '5rem' }} />
+                    <Column header="Balance" body={(row: LedgerRow) => formatAmount(Math.abs(Number(row.running || 0)))} style={{ textAlign: 'right', width: '10rem' }} />
                 </AppDataTable>
             ) : null}
         </div>
     );
 }
+

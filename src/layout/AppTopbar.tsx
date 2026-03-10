@@ -10,7 +10,7 @@ import { Ripple } from 'primereact/ripple';
 import { useAuth } from '@/lib/auth/context';
 import { APPS } from '@/config/appsConfig';
 
-const AppTopbar = forwardRef<AppTopbarRef>((props, ref) => {
+const AppTopbar = forwardRef<AppTopbarRef>((_props, ref) => {
     const { onMenuToggle, showRightSidebar, onTopbarMenuToggle } = useContext(LayoutContext);
     const navigate = useNavigate();
     const location = useLocation();
@@ -39,17 +39,30 @@ const AppTopbar = forwardRef<AppTopbarRef>((props, ref) => {
 
     const focusSearchInput = () => {
         setTimeout(() => {
-            (searchInputRef.current as any).focus();
+            (searchInputRef.current as any)?.focus();
         }, 0);
     };
 
     const isAdminMode = user?.role === 'superadmin' && !tenantId;
     const enabledSet = useMemo(() => (tenantId && enabledApps ? new Set(enabledApps) : null), [tenantId, enabledApps]);
-    const alwaysAllowedApps = useMemo(() => new Set<string>(['marketplace']), []);
+    const canAccessMarketplace = Boolean(tenantId && (user?.role === 'superadmin' || user?.role === 'tenant_admin'));
+    const accessibleApps = useMemo(() => {
+        if (tenantId) {
+            if (!enabledSet) return [];
+            return APPS.filter((app) => enabledSet.has(app.id));
+        }
+        if (user?.role === 'superadmin') {
+            return APPS.filter((app) => app.category !== 'addon');
+        }
+        return APPS;
+    }, [enabledSet, tenantId, user?.role]);
+    const canChangeSession = Boolean(tenantId && enabledSet?.has('accounts'));
     const currentAppName = useMemo(() => {
         if (!location.pathname.startsWith('/apps/')) return null;
         const match = APPS.find((app) => location.pathname === app.path || location.pathname.startsWith(`${app.path}/`));
-        return match?.name ?? null;
+        if (match) return match.name;
+        if (location.pathname.startsWith('/apps/marketplace')) return 'Marketplace';
+        return null;
     }, [location.pathname]);
     const brandLabel = currentAppName ? `Vidhione - ${currentAppName}` : 'Vidhione';
     const companyBanner = useMemo(() => {
@@ -173,7 +186,7 @@ const AppTopbar = forwardRef<AppTopbarRef>((props, ref) => {
                                 </ul>
                             </div>
                         </li>
-                        {!isAdminMode && (
+                        {!isAdminMode && (accessibleApps.length > 0 || canAccessMarketplace) && (
                             <li>
                                 <StyleClass
                                     nodeRef={tableRef}
@@ -191,41 +204,28 @@ const AppTopbar = forwardRef<AppTopbarRef>((props, ref) => {
                                 </StyleClass>
                                 <div className="hidden">
                                     <div className="flex flex-wrap">
-                                        {APPS.map((app) => {
-                                            const isAddon = app.category === 'addon';
-                                            const hasEntitlement = enabledSet ? enabledSet.has(app.id) : true;
-                                            const isEnabled =
-                                                alwaysAllowedApps.has(app.id) ||
-                                                hasEntitlement ||
-                                                (user?.role === 'superadmin' && !isAddon);
-                                            return (
-                                                <div key={app.id} className="w-4 flex flex-column align-items-center p-3">
-                                                    <Button
-                                                        rounded
-                                                        className="mb-2"
-                                                        icon={app.icon}
-                                                        severity={isEnabled ? undefined : 'secondary'}
-                                                        onClick={() => {
-                                                            if (isEnabled) {
-                                                                navigate(app.path);
-                                                            } else {
-                                                                const qp = new URLSearchParams({ unlock: app.id, returnTo: app.path });
-                                                                navigate(`/apps/marketplace?${qp.toString()}`);
-                                                            }
-                                                        }}
-                                                    />
-                                                    <span className="flex align-items-center gap-2">
-                                                        {app.name}
-                                                        {!isEnabled && <i className="pi pi-lock text-500"></i>}
-                                                    </span>
-                                                </div>
-                                            );
-                                        })}
+                                        {accessibleApps.map((app) => (
+                                            <div key={app.id} className="w-4 flex flex-column align-items-center p-3">
+                                                <Button rounded className="mb-2" icon={app.icon} onClick={() => navigate(app.path)} />
+                                                <span>{app.name}</span>
+                                            </div>
+                                        ))}
+                                        {canAccessMarketplace && (
+                                            <div className="w-4 flex flex-column align-items-center p-3">
+                                                <Button
+                                                    rounded
+                                                    className="mb-2"
+                                                    icon="pi pi-shop"
+                                                    onClick={() => navigate('/apps/marketplace')}
+                                                />
+                                                <span>Marketplace</span>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </li>
                         )}
-                        {tenantId && (
+                        {canChangeSession && (
                             <li>
                                 <a className="p-ripple" onClick={() => navigate('/apps/accounts/change-session')}>
                                     <i className="pi pi-refresh"></i>

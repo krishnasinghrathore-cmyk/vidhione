@@ -3,6 +3,7 @@ import { Column } from 'primereact/column';
 import { Button } from 'primereact/button';
 import type { DataTableFilterEvent, DataTableFilterMeta } from 'primereact/datatable';
 import type { MenuItem } from 'primereact/menuitem';
+import { classNames } from 'primereact/utils';
 import AppReportActions from '@/components/AppReportActions';
 import { ReportDataTable } from '@/components/ReportDataTable';
 
@@ -21,6 +22,12 @@ type TrialBalanceReportTableProps = {
     baseRowsCount: number;
     columnFilters: DataTableFilterMeta;
     onColumnFilter: (event: DataTableFilterEvent) => void;
+    globalSearchValue: string;
+    onGlobalSearchValueChange: (nextValue: string) => void;
+    globalSearchMatchCase: boolean;
+    onGlobalSearchMatchCaseChange: (nextValue: boolean) => void;
+    globalSearchWholeWord: boolean;
+    onGlobalSearchWholeWordChange: (nextValue: boolean) => void;
     headerLeft: React.ReactNode;
     canToggleExpand: boolean;
     expandAllDisabled: boolean;
@@ -37,6 +44,13 @@ type TrialBalanceReportTableProps = {
     printDisabled: boolean;
     exportDisabled: boolean;
     refreshButtonId: string;
+    hasAnyDiff: boolean;
+    hasOpeningDiff: boolean;
+    hasPeriodDiff: boolean;
+    hasClosingDiff: boolean;
+    openingDiffLabel: string;
+    periodDiffLabel: string;
+    closingDiffLabel: string;
     viewMode: TrialBalanceViewMode;
     ledgerGroupBody: RowTemplate;
     annexureBody: RowTemplate;
@@ -75,6 +89,12 @@ export function TrialBalanceReportTable({
     baseRowsCount,
     columnFilters,
     onColumnFilter,
+    globalSearchValue,
+    onGlobalSearchValueChange,
+    globalSearchMatchCase,
+    onGlobalSearchMatchCaseChange,
+    globalSearchWholeWord,
+    onGlobalSearchWholeWordChange,
     headerLeft,
     canToggleExpand,
     expandAllDisabled,
@@ -91,6 +111,13 @@ export function TrialBalanceReportTable({
     printDisabled,
     exportDisabled,
     refreshButtonId,
+    hasAnyDiff,
+    hasOpeningDiff,
+    hasPeriodDiff,
+    hasClosingDiff,
+    openingDiffLabel,
+    periodDiffLabel,
+    closingDiffLabel,
     viewMode,
     ledgerGroupBody,
     annexureBody,
@@ -118,41 +145,67 @@ export function TrialBalanceReportTable({
     closingDrCrFilterElement,
     transferToFilterElement
 }: TrialBalanceReportTableProps) {
+    const balanceDiffItems = [
+        { label: 'Opening', value: openingDiffLabel, hasDiff: hasOpeningDiff },
+        { label: 'Dr/Cr', value: periodDiffLabel, hasDiff: hasPeriodDiff },
+        { label: 'Closing', value: closingDiffLabel, hasDiff: hasClosingDiff }
+    ];
+
+    const balanceDiffSummary = (
+        <div className={classNames('trial-balance-diff-summary', hasAnyDiff && 'trial-balance-diff-summary--alert')}>
+            <span className="trial-balance-diff-summary__title">Balance Difference</span>
+            <div className="trial-balance-diff-items">
+                {balanceDiffItems.map((item) => (
+                    <span
+                        key={item.label}
+                        className={classNames('trial-balance-diff-chip', item.hasDiff && 'trial-balance-diff-chip--alert')}
+                    >
+                        <span className="trial-balance-diff-chip__label">{item.label}</span>
+                        <span className="trial-balance-diff-chip__value">{item.value}</span>
+                    </span>
+                ))}
+            </div>
+        </div>
+    );
+
     const headerRight = (
-        <div className="flex align-items-center gap-2">
-            {canToggleExpand && (
-                <div className="flex align-items-center gap-2">
-                    <Button
-                        type="button"
-                        label="Expand all"
-                        icon="pi pi-plus"
-                        className="p-button-text p-button-sm"
-                        onClick={onExpandAll}
-                        disabled={expandAllDisabled}
-                    />
-                    <Button
-                        type="button"
-                        label="Collapse all"
-                        icon="pi pi-minus"
-                        className="p-button-text p-button-sm"
-                        onClick={onCollapseAll}
-                        disabled={collapseAllDisabled}
-                    />
-                </div>
-            )}
-            <AppReportActions
-                onRefresh={onRefresh}
-                onPrint={onPrint}
-                printMenuItems={printMenuItems}
-                onExportCsv={onExportCsv}
-                onExportExcel={onExportExcel}
-                onExportPdf={onExportPdf}
-                loadingState={loadingApplied}
-                refreshDisabled={refreshDisabled}
-                printDisabled={printDisabled}
-                exportDisabled={exportDisabled}
-                refreshButtonId={refreshButtonId}
-            />
+        <div className="trial-balance-actions">
+            {appliedFilters ? balanceDiffSummary : null}
+            <div className="trial-balance-actions__buttons">
+                {canToggleExpand && (
+                    <div className="flex align-items-center gap-2">
+                        <Button
+                            type="button"
+                            label="Expand all"
+                            icon="pi pi-plus"
+                            className="p-button-text p-button-sm"
+                            onClick={onExpandAll}
+                            disabled={expandAllDisabled}
+                        />
+                        <Button
+                            type="button"
+                            label="Collapse all"
+                            icon="pi pi-minus"
+                            className="p-button-text p-button-sm"
+                            onClick={onCollapseAll}
+                            disabled={collapseAllDisabled}
+                        />
+                    </div>
+                )}
+                <AppReportActions
+                    onRefresh={onRefresh}
+                    onPrint={onPrint}
+                    printMenuItems={printMenuItems}
+                    onExportCsv={onExportCsv}
+                    onExportExcel={onExportExcel}
+                    onExportPdf={onExportPdf}
+                    loadingState={loadingApplied}
+                    refreshDisabled={refreshDisabled}
+                    printDisabled={printDisabled}
+                    exportDisabled={exportDisabled}
+                    refreshButtonId={refreshButtonId}
+                />
+            </div>
         </div>
     );
 
@@ -173,6 +226,13 @@ export function TrialBalanceReportTable({
             loadingSummaryEnabled={Boolean(appliedFilters)}
             filters={columnFilters}
             onFilter={onColumnFilter}
+            globalSearchRenderInTableHeader={false}
+            globalSearchValue={globalSearchValue}
+            onGlobalSearchValueChange={onGlobalSearchValueChange}
+            globalSearchMatchCase={globalSearchMatchCase}
+            onGlobalSearchMatchCaseChange={onGlobalSearchMatchCaseChange}
+            globalSearchWholeWord={globalSearchWholeWord}
+            onGlobalSearchWholeWordChange={onGlobalSearchWholeWordChange}
             filterDisplay="menu"
             filterDelay={400}
             emptyMessage={reportLoading ? '' : appliedFilters ? 'No results found' : 'Press Refresh to load trial balance'}

@@ -3,17 +3,24 @@ import React, { useMemo, useRef, useState } from 'react';
 import { Column } from 'primereact/column';
 import { ConfirmPopup, confirmPopup } from 'primereact/confirmpopup';
 import { Dialog } from 'primereact/dialog';
-import { InputText } from 'primereact/inputtext';
+import AppInput from '@/components/AppInput';
 import { Toast } from 'primereact/toast';
 import { Button } from 'primereact/button';
+import { AppHelpDialogButton } from '@/components/AppHelpDialogButton';
+import { getMasterPageHelp } from '@/lib/masterPageHelp';
 import { gql, useMutation, useQuery } from '@apollo/client';
 import AppDataTable from '@/components/AppDataTable';
 import AppDropdown from '@/components/AppDropdown';
+import { MasterDetailDialogFooter, MasterEditDialogFooter } from '@/components/MasterDialogFooter';
+import { MasterDetailCard } from '@/components/MasterDetailCard';
+import { MasterDetailGrid } from '@/components/MasterDetailLayout';
+import { findMasterRowIndex, getMasterRowByDirection, type MasterDialogDirection } from '@/lib/masterDialogNavigation';
 import GeoImportDialog from '@/components/GeoImportDialog';
 import { z } from 'zod';
 import { apolloClient } from '@/lib/apolloClient';
 import { useGeoCityOptions } from '@/lib/accounts/cities';
 import { ACCOUNT_MASTER_QUERY_OPTIONS, invalidateAccountMasterLookups } from '@/lib/accounts/masterLookupCache';
+import { MASTER_DETAIL_DIALOG_WIDTHS, MASTER_EDIT_DIALOG_WIDTHS } from '@/lib/masterDialogLayout';
 
 interface AreaRow {
     areaId: number;
@@ -68,23 +75,22 @@ const DEFAULT_FORM: FormState = {
     cityId: null
 };
 
-const limitOptions = [50, 100, 250, 500, 1000, 2000].map((value) => ({
-    label: String(value),
-    value
-}));
-
 export default function AccountsAreasPage() {
     const toastRef = useRef<Toast>(null);
     const dtRef = useRef<any>(null);
 
     const [search, setSearch] = useState('');
-    const [limit, setLimit] = useState(2000);
+    const limit = 2000;
     const [dialogVisible, setDialogVisible] = useState(false);
     const [saving, setSaving] = useState(false);
     const [editing, setEditing] = useState<AreaRow | null>(null);
+    const [detailVisible, setDetailVisible] = useState(false);
+    const [detailRow, setDetailRow] = useState<AreaRow | null>(null);
     const [form, setForm] = useState<FormState>(DEFAULT_FORM);
+    const [initialForm, setInitialForm] = useState<FormState>(DEFAULT_FORM);
     const [formErrors, setFormErrors] = useState<Record<string, string>>({});
     const [geoImportVisible, setGeoImportVisible] = useState(false);
+    const [isBulkMode, setIsBulkMode] = useState(false);
 
     const { data, loading, error, refetch } = useQuery(AREAS, {
         client: apolloClient,
@@ -97,6 +103,9 @@ export default function AccountsAreasPage() {
     const [deleteArea] = useMutation(DELETE_AREA, { client: apolloClient });
 
     const rows: AreaRow[] = useMemo(() => data?.areas ?? [], [data]);
+    const isFormDirty = useMemo(() => JSON.stringify(form) !== JSON.stringify(initialForm), [form, initialForm]);
+    const editingIndex = useMemo(() => findMasterRowIndex(rows, editing), [rows, editing]);
+    const detailIndex = useMemo(() => findMasterRowIndex(rows, detailRow), [rows, detailRow]);
 
     const cityMap = useMemo(() => {
         const map = new Map<number, string>();
@@ -137,6 +146,23 @@ export default function AccountsAreasPage() {
         setDialogVisible(true);
     };
 
+    const openView = (row: AreaRow) => {
+        setDetailRow(row);
+        setDetailVisible(true);
+    };
+
+    const navigateEditRecord = (direction: MasterDialogDirection) => {
+        const nextRow = getMasterRowByDirection(rows, editingIndex, direction);
+        if (!nextRow) return;
+        openEdit(nextRow);
+    };
+
+    const navigateDetailRecord = (direction: MasterDialogDirection) => {
+        const nextRow = getMasterRowByDirection(rows, detailIndex, direction);
+        if (!nextRow) return;
+        openView(nextRow);
+    };
+
     const save = async () => {
         const parsed = formSchema.safeParse(form);
         if (!parsed.success) {
@@ -169,7 +195,10 @@ export default function AccountsAreasPage() {
 
             invalidateAccountMasterLookups(apolloClient);
             await refetch();
-            setDialogVisible(false);
+            setInitialForm(form);
+            if (!isBulkMode) {
+                setDialogVisible(false);
+            }
             toastRef.current?.show({
                 severity: 'success',
                 summary: 'Saved',
@@ -211,9 +240,9 @@ export default function AccountsAreasPage() {
             message: 'Delete this area?',
             icon: 'pi pi-exclamation-triangle',
             acceptClassName: 'p-button-danger',
-            acceptLabel: 'Delete',
-            rejectLabel: 'Cancel',
-            defaultFocus: 'none',
+            acceptLabel: 'Yes',
+            rejectLabel: 'No',
+            defaultFocus: 'reject',
             dismissable: true,
             accept: () => handleDelete(row.areaId)
         });
@@ -226,6 +255,7 @@ export default function AccountsAreasPage() {
 
     const actionsBody = (row: AreaRow) => (
         <div className="flex gap-2">
+            <Button icon="pi pi-eye" className="p-button-text" onClick={() => openView(row)} />
             <Button icon="pi pi-pencil" className="p-button-text" onClick={() => openEdit(row)} />
             <Button icon="pi pi-trash" className="p-button-text" severity="danger" onClick={(e) => confirmDelete(e, row)} />
         </div>
@@ -244,8 +274,9 @@ export default function AccountsAreasPage() {
                             Maintain area records for the agency accounts masters.
                         </p>
                     </div>
-                    <div className="flex gap-2 flex-wrap">
-                        <Button label="New Area" icon="pi pi-plus" onClick={openNew} />
+                    <div className="flex gap-2 flex-wrap justify-content-end align-items-start">
+                        <Button className="app-action-compact" label="New Area" icon="pi pi-plus" onClick={openNew} />
+                        <AppHelpDialogButton {...getMasterPageHelp('areas')} buttonAriaLabel="Open Areas help" />
                     </div>
                 </div>
                 {error && <p className="text-red-500 m-0">Error loading areas: {error.message}</p>}
@@ -265,7 +296,7 @@ export default function AccountsAreasPage() {
                 headerLeft={
                     <span className="p-input-icon-left" style={{ minWidth: '320px' }}>
                         <i className="pi pi-search" />
-                        <InputText
+                        <AppInput
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                             placeholder="Search area"
@@ -276,11 +307,10 @@ export default function AccountsAreasPage() {
                 headerRight={
                     <>
                         <Button
-                            label="Export"
-                            icon="pi pi-download"
-                            className="p-button-info"
-                            onClick={() => dtRef.current?.exportCSV()}
-                            disabled={filteredRows.length === 0}
+                            label="Refresh"
+                            icon="pi pi-refresh"
+                            className="p-button-text"
+                            onClick={() => refetch()}
                         />
                         <Button
                             label="Print"
@@ -289,20 +319,12 @@ export default function AccountsAreasPage() {
                             onClick={() => window.print()}
                         />
                         <Button
-                            label="Refresh"
-                            icon="pi pi-refresh"
-                            className="p-button-text"
-                            onClick={() => refetch()}
+                            label="Export"
+                            icon="pi pi-download"
+                            className="p-button-info"
+                            onClick={() => dtRef.current?.exportCSV()}
+                            disabled={filteredRows.length === 0}
                         />
-                        <span className="flex align-items-center gap-2">
-                            <span className="text-600 text-sm">Limit</span>
-                            <AppDropdown
-                                value={limit}
-                                options={limitOptions}
-                                onChange={(e) => setLimit(e.value ?? 2000)}
-                                className="w-6rem"
-                            />
-                        </span>
                         <span className="text-600 text-sm">
                             Showing {filteredRows.length} area{filteredRows.length === 1 ? '' : 's'}
                         </span>
@@ -318,24 +340,28 @@ export default function AccountsAreasPage() {
             <Dialog
                 header={editing ? 'Edit Area' : 'New Area'}
                 visible={dialogVisible}
-                style={{ width: 'min(640px, 96vw)' }}
+                style={{ width: MASTER_EDIT_DIALOG_WIDTHS.medium }}
+                onShow={() => setInitialForm(form)}
                 onHide={() => setDialogVisible(false)}
                 footer={
-                    <div className="flex justify-content-end gap-2 w-full">
-                        <Button
-                            label="Cancel"
-                            className="p-button-text"
-                            onClick={() => setDialogVisible(false)}
-                            disabled={saving}
-                        />
-                        <Button label={saving ? 'Saving...' : 'Save'} icon="pi pi-check" onClick={save} disabled={saving} />
-                    </div>
+                    <MasterEditDialogFooter
+                        index={editingIndex}
+                        total={rows.length}
+                        onNavigate={navigateEditRecord}
+                        navigateDisabled={saving}
+                        bulkMode={{ checked: isBulkMode, onChange: setIsBulkMode, disabled: saving }}
+                        onCancel={() => setDialogVisible(false)}
+                        cancelDisabled={saving}
+                        onSave={save}
+                        saveLabel={saving ? 'Saving...' : 'Save'}
+                        saveDisabled={saving || !isFormDirty}
+                    />
                 }
             >
                 <div className="grid">
                     <div className="col-12">
                         <label className="block text-600 mb-1">Name</label>
-                        <InputText
+                        <AppInput
                             value={form.name}
                             onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))}
                             style={{ width: '100%' }}
@@ -373,6 +399,28 @@ export default function AccountsAreasPage() {
                         />
                     </div>
                 </div>
+            </Dialog>
+
+            <Dialog
+                header="Area Details"
+                visible={detailVisible}
+                style={{ width: MASTER_DETAIL_DIALOG_WIDTHS.medium }}
+                onHide={() => setDetailVisible(false)}
+                footer={
+                    <MasterDetailDialogFooter
+                        index={detailIndex}
+                        total={rows.length}
+                        onNavigate={navigateDetailRecord}
+                        onClose={() => setDetailVisible(false)}
+                    />
+                }
+            >
+                {detailRow && (
+                    <MasterDetailGrid columns={2}>
+                        <MasterDetailCard label="Name" value={detailRow.name ?? '-'} />
+                        <MasterDetailCard label="City" value={cityMap.get(detailRow.cityId ?? -1) ?? '-'} />
+                    </MasterDetailGrid>
+                )}
             </Dialog>
 
             <GeoImportDialog

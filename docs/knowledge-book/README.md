@@ -19,6 +19,9 @@ Current topics:
 - `sales-invoice-master-forms-uat-playbook.md`: form-by-form UAT flow for Sales Invoice master parity (rights + CRUD + delete guardrails).
 - `sales-invoice-master-forms-uat-log-template.csv`: execution/evidence template for Sales Invoice master UAT scenarios.
 - `sales-invoice-master-forms-uat-run-plan-template.csv`: run-order, priority, and owner-assignment tracker for Sales Invoice master UAT execution.
+- `wealth-household-uat-playbook.md`: first-tenant Wealth UAT checklist for household investors and demat accounts.
+- `wealth-household-uat-execution-2026-03-10.md`: executed browser/UAT evidence for the sample household Wealth tenant.
+- `wealth-household-go-live-runbook.md`: repeatable onboarding and go-live steps for a real Wealth client tenant.
 
 Planned topics:
 - Dr/Cr conventions and ledger-side mapping by voucher type.

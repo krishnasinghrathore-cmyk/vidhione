@@ -94,7 +94,7 @@ export const ACCOUNTS_MENU_MAP: Record<string, AccountsMenuMapItem> = {
     'balance-sheet-2': {
         slug: 'balance-sheet-2',
         label: 'Balance Sheet',
-        icon: 'pi pi-objects-column',
+        icon: 'pi pi-chart-bar',
         groupLabel: 'Financial Statements'
     }
 };

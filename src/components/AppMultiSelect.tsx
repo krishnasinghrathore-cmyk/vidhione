@@ -1,12 +1,14 @@
 import React, { forwardRef, useImperativeHandle, useRef } from 'react';
 import { MultiSelect, type MultiSelectProps } from 'primereact/multiselect';
 import { classNames, DomHandler } from 'primereact/utils';
+import { queueAutoOpenFocusedOverlayControl } from '@/lib/enterNavigation';
 
 type AppMultiSelectProps = MultiSelectProps & {
     loading?: boolean;
     openOnFocus?: boolean;
     enterFocusNext?: boolean;
     enterSelectOnEnter?: boolean;
+    onEnterNext?: () => boolean | void;
 };
 
 const DEFAULT_SCROLL_HEIGHT = '280px';
@@ -33,6 +35,7 @@ const AppMultiSelect = forwardRef<MultiSelect, AppMultiSelectProps>(({
     openOnFocus,
     enterFocusNext,
     enterSelectOnEnter,
+    onEnterNext,
     ...rest
 }, ref) => {
     const multiSelectRef = useRef<MultiSelect | null>(null);
@@ -135,6 +138,42 @@ const AppMultiSelect = forwardRef<MultiSelect, AppMultiSelectProps>(({
         }
         const element = instance.getElement?.();
         if (element) element.focus();
+    };
+
+    const runEnterNext = (current: HTMLElement | null) => {
+        if (!resolvedEnterFocusNext || !current) return;
+        const moveToNext = () => {
+            focusNextControl(current);
+        };
+        if (!onEnterNext) {
+            moveToNext();
+            return;
+        }
+        const activeBefore = typeof document !== 'undefined' ? document.activeElement : null;
+        window.setTimeout(() => {
+            const handled = onEnterNext();
+            if (handled === true) {
+                if (typeof window !== 'undefined') {
+                    window.requestAnimationFrame(() => {
+                        const activeAfter = document.activeElement as HTMLElement | null;
+                        if (!activeAfter || activeAfter === activeBefore || activeAfter === current) return;
+                        queueAutoOpenFocusedOverlayControl(activeAfter);
+                    });
+                }
+                return;
+            }
+            if (typeof window !== 'undefined') {
+                window.requestAnimationFrame(() => {
+                    window.requestAnimationFrame(() => {
+                        const activeAfter = typeof document !== 'undefined' ? document.activeElement : null;
+                        if (activeAfter && activeAfter !== activeBefore && activeAfter !== current) return;
+                        moveToNext();
+                    });
+                });
+                return;
+            }
+            moveToNext();
+        }, 0);
     };
 
     const handleFilterKeyDown = (event: React.KeyboardEvent<HTMLElement>) => {
@@ -298,9 +337,9 @@ const AppMultiSelect = forwardRef<MultiSelect, AppMultiSelectProps>(({
         }
         pendingFocusNextRef.current = null;
         if (typeof window !== 'undefined') {
-            window.requestAnimationFrame(() => focusNextControl(nextTarget));
+            window.requestAnimationFrame(() => runEnterNext(nextTarget));
         } else {
-            focusNextControl(nextTarget);
+            runEnterNext(nextTarget);
         }
     };
 
@@ -324,9 +363,9 @@ const AppMultiSelect = forwardRef<MultiSelect, AppMultiSelectProps>(({
             return;
         }
         if (typeof window !== 'undefined') {
-            window.requestAnimationFrame(() => focusNextControl(root));
+            window.requestAnimationFrame(() => runEnterNext(root));
         } else {
-            focusNextControl(root);
+            runEnterNext(root);
         }
     };
 

@@ -10,8 +10,40 @@ export type AuthUser = {
     role: AuthRole;
 };
 
+export type SalesInvoiceProfileOptions = {
+    showTaxColumns?: boolean;
+    showTypeDetails?: boolean;
+    showAdditionalTaxation?: boolean;
+    showSchemeToggle?: boolean;
+    showBizomInvoiceField?: boolean;
+    showInterStateToggle?: boolean;
+    transportEnabled?: boolean;
+    transportDefaultApplied?: boolean;
+    showTransporterField?: boolean;
+    requireTransporterWhenApplied?: boolean;
+    dryCheckRequired?: boolean;
+    strictPostingParity?: boolean;
+    linkedEstimateEnabled?: boolean;
+    linkedCreditNoteEnabled?: boolean;
+    linkedDebitNoteEnabled?: boolean;
+    salesmanMode?: 'none' | 'single' | 'dual';
+} | null;
+
+export type TextilePresetKey = 'textile_processing' | 'textile_processing_jobwork' | 'textile_full';
+
+export type TextileCapabilities = {
+    processor?: boolean;
+    jobwork?: boolean;
+    inhouse?: boolean;
+    design?: boolean;
+    colorCosting?: boolean;
+} | null;
+
 export type TenantSettings = {
     salesInvoiceProfileKey: string | null;
+    salesInvoiceProfileOptions: SalesInvoiceProfileOptions;
+    textilePresetKey: TextilePresetKey | null;
+    textileCapabilities: TextileCapabilities;
     purchaseInvoiceProfileKey: string | null;
 } | null;
 
@@ -32,6 +64,14 @@ export type TenantMigrationResult = {
     message?: string | null;
 };
 
+export type UserAppAccessState = {
+    userId: string;
+    tenantId: string;
+    role: AuthRole;
+    hasExplicitAssignments: boolean;
+    items: { appKey: string; isEnabled: boolean }[];
+};
+
 type GraphqlError = {
     message: string;
     extensions?: { code?: string };
@@ -42,9 +82,223 @@ type GraphqlResponse<T> = {
     errors?: GraphqlError[];
 };
 
+type MeResponse = {
+    me: {
+        user: AuthUser;
+        tenantId: string | null;
+        expiresAt: number;
+        tenantSettings: TenantSettings;
+        tenantIndustryKey: string | null;
+        layoutConfig: UserLayoutConfig;
+    };
+};
+
+type LegacyTenantSettingsResponse = {
+    salesInvoiceProfileKey: string | null;
+    salesInvoiceProfileOptions: SalesInvoiceProfileOptions;
+    purchaseInvoiceProfileKey: string | null;
+};
+
+type MeLegacyResponse = {
+    me: Omit<MeResponse['me'], 'tenantSettings'> & {
+        tenantSettings: LegacyTenantSettingsResponse | null;
+    };
+};
+
+type AdminTenantRowResponse = {
+    id: string;
+    tenantCode: string | null;
+    name: string;
+    industry: string | null;
+    isActive: boolean;
+    databaseUrl: string | null;
+    migrationDatabaseUrl: string | null;
+    salesInvoiceProfileKey: string | null;
+    salesInvoiceProfileOptions: SalesInvoiceProfileOptions;
+    textilePresetKey: TextilePresetKey | null;
+    textileCapabilities: TextileCapabilities;
+    purchaseInvoiceProfileKey: string | null;
+    hasUsers?: boolean | null;
+    hasDatabase?: boolean | null;
+    hasBilling?: boolean | null;
+    isLocked?: boolean | null;
+};
+
+type LegacyAdminTenantRowResponse = Omit<
+    AdminTenantRowResponse,
+    'textilePresetKey' | 'textileCapabilities'
+>;
+
+type AdminTenantsResponse = {
+    adminTenants: { items: AdminTenantRowResponse[] };
+};
+
+type LegacyAdminTenantsResponse = {
+    adminTenants: { items: LegacyAdminTenantRowResponse[] };
+};
+
 const authGraphqlUrl = apiUrl('/auth/graphql');
 
+const SALES_INVOICE_PROFILE_OPTIONS_FIELDS = `
+    showTaxColumns
+    showTypeDetails
+    showAdditionalTaxation
+    showSchemeToggle
+    showBizomInvoiceField
+    showInterStateToggle
+    transportEnabled
+    transportDefaultApplied
+    showTransporterField
+    requireTransporterWhenApplied
+    dryCheckRequired
+    strictPostingParity
+    linkedEstimateEnabled
+    linkedCreditNoteEnabled
+    linkedDebitNoteEnabled
+    salesmanMode
+`;
+
+const TEXTILE_CAPABILITIES_FIELDS = `
+    processor
+    jobwork
+    inhouse
+    design
+    colorCosting
+`;
+
+const LAYOUT_CONFIG_FIELDS = `
+    ripple
+    inputStyle
+    menuMode
+    menuTheme
+    colorScheme
+    scale
+    desktopMenuActive
+    mobileMenuActive
+    mobileTopbarActive
+    menuProfilePosition
+    componentTheme
+    topbarTheme
+`;
+
+const ME_QUERY = `query Me {
+    me {
+        user { id email role }
+        tenantId
+        expiresAt
+        tenantSettings {
+            salesInvoiceProfileKey
+            salesInvoiceProfileOptions {
+${SALES_INVOICE_PROFILE_OPTIONS_FIELDS}
+            }
+            textilePresetKey
+            textileCapabilities {
+${TEXTILE_CAPABILITIES_FIELDS}
+            }
+            purchaseInvoiceProfileKey
+        }
+        tenantIndustryKey
+        layoutConfig {
+${LAYOUT_CONFIG_FIELDS}
+        }
+    }
+}`;
+
+const ME_LEGACY_QUERY = `query Me {
+    me {
+        user { id email role }
+        tenantId
+        expiresAt
+        tenantSettings {
+            salesInvoiceProfileKey
+            salesInvoiceProfileOptions {
+${SALES_INVOICE_PROFILE_OPTIONS_FIELDS}
+            }
+            purchaseInvoiceProfileKey
+        }
+        tenantIndustryKey
+        layoutConfig {
+${LAYOUT_CONFIG_FIELDS}
+        }
+    }
+}`;
+
+const ADMIN_TENANTS_QUERY = `query AdminTenants {
+    adminTenants {
+        items {
+            id
+            tenantCode
+            name
+            industry
+            isActive
+            databaseUrl
+            migrationDatabaseUrl
+            salesInvoiceProfileKey
+            salesInvoiceProfileOptions {
+${SALES_INVOICE_PROFILE_OPTIONS_FIELDS}
+            }
+            textilePresetKey
+            textileCapabilities {
+${TEXTILE_CAPABILITIES_FIELDS}
+            }
+            purchaseInvoiceProfileKey
+            hasUsers
+            hasDatabase
+            hasBilling
+            isLocked
+        }
+    }
+}`;
+
+const ADMIN_TENANTS_LEGACY_QUERY = `query AdminTenants {
+    adminTenants {
+        items {
+            id
+            tenantCode
+            name
+            industry
+            isActive
+            databaseUrl
+            migrationDatabaseUrl
+            salesInvoiceProfileKey
+            salesInvoiceProfileOptions {
+${SALES_INVOICE_PROFILE_OPTIONS_FIELDS}
+            }
+            purchaseInvoiceProfileKey
+            hasUsers
+            hasDatabase
+            hasBilling
+            isLocked
+        }
+    }
+}`;
+
 let refreshPromise: Promise<string | null> | null = null;
+
+const isMissingTextileFieldError = (error: unknown) =>
+    error instanceof Error
+    && /Cannot query field "(textilePresetKey|textileCapabilities)" on type "(Tenant|TenantSettings)"/.test(
+        error.message
+    );
+
+const withLegacyTenantSettings = (
+    tenantSettings: LegacyTenantSettingsResponse | null
+): TenantSettings =>
+    tenantSettings
+        ? {
+              ...tenantSettings,
+              textilePresetKey: null,
+              textileCapabilities: null
+          }
+        : null;
+
+const withLegacyAdminTenantRow = (
+    row: LegacyAdminTenantRowResponse
+): AdminTenantRowResponse => ({
+    ...row,
+    textilePresetKey: null,
+    textileCapabilities: null
+});
 
 const requestAuthGraphql = async <T>(
     query: string,
@@ -256,41 +510,17 @@ export const resetPassword = async (input: { token: string; password: string }) 
 };
 
 export const me = async () => {
-    const data = await requestAuthGraphql<{
-        me: {
-            user: AuthUser;
-            tenantId: string | null;
-            expiresAt: number;
-            tenantSettings: TenantSettings;
-            tenantIndustryKey: string | null;
-            layoutConfig: UserLayoutConfig;
+    try {
+        const data = await requestAuthGraphql<MeResponse>(ME_QUERY);
+        return data.me;
+    } catch (error) {
+        if (!isMissingTextileFieldError(error)) throw error;
+        const data = await requestAuthGraphql<MeLegacyResponse>(ME_LEGACY_QUERY);
+        return {
+            ...data.me,
+            tenantSettings: withLegacyTenantSettings(data.me.tenantSettings)
         };
-    }>(
-        `query Me {
-            me {
-                user { id email role }
-                tenantId
-                expiresAt
-                tenantSettings { salesInvoiceProfileKey purchaseInvoiceProfileKey }
-                tenantIndustryKey
-                layoutConfig {
-                    ripple
-                    inputStyle
-                    menuMode
-                    menuTheme
-                    colorScheme
-                    scale
-                    desktopMenuActive
-                    mobileMenuActive
-                    mobileTopbarActive
-                    menuProfilePosition
-                    componentTheme
-                    topbarTheme
-                }
-            }
-        }`
-    );
-    return data.me;
+    }
 };
 
 export const saveLayoutConfig = async (input: LayoutConfig) => {
@@ -311,38 +541,16 @@ export const enabledApps = async () => {
 };
 
 export const listTenants = async () => {
-    const data = await requestAuthGraphql<{ adminTenants: { items: {
-        id: string;
-        tenantCode: string | null;
-        name: string;
-        industry: string | null;
-        isActive: boolean;
-        databaseUrl: string | null;
-        migrationDatabaseUrl: string | null;
-        hasUsers?: boolean | null;
-        hasDatabase?: boolean | null;
-        hasBilling?: boolean | null;
-        isLocked?: boolean | null;
-    }[] } }>(
-        `query AdminTenants {
-            adminTenants {
-                items {
-                    id
-                    tenantCode
-                    name
-                    industry
-                    isActive
-                    databaseUrl
-                    migrationDatabaseUrl
-                    hasUsers
-                    hasDatabase
-                    hasBilling
-                    isLocked
-                }
-            }
-        }`
-    );
-    return data.adminTenants;
+    try {
+        const data = await requestAuthGraphql<AdminTenantsResponse>(ADMIN_TENANTS_QUERY);
+        return data.adminTenants;
+    } catch (error) {
+        if (!isMissingTextileFieldError(error)) throw error;
+        const data = await requestAuthGraphql<LegacyAdminTenantsResponse>(ADMIN_TENANTS_LEGACY_QUERY);
+        return {
+            items: data.adminTenants.items.map(withLegacyAdminTenantRow)
+        };
+    }
 };
 
 export const createTenant = async (input: { name: string; industry: string }) => {
@@ -496,6 +704,9 @@ export const setTenantApps = async (input: { tenantId: string; items: { appKey: 
 export const setTenantSettings = async (input: {
     tenantId: string;
     salesInvoiceProfileKey: string | null;
+    salesInvoiceProfileOptions?: SalesInvoiceProfileOptions;
+    textilePresetKey?: TextilePresetKey | null;
+    textileCapabilities?: TextileCapabilities;
     purchaseInvoiceProfileKey: string | null;
 }) => {
     const data = await requestAuthGraphql<{ adminSetTenantSettings: { ok: boolean } }>(
@@ -575,3 +786,35 @@ export const setUserTenant = async (input: { userId: string; tenantId: string })
     );
     return data.adminSetUserTenant;
 };
+
+export const getUserAppAccess = async (input: { userId: string; tenantId: string }) => {
+    const data = await requestAuthGraphql<{ adminUserAppAccess: UserAppAccessState }>(
+        `query AdminUserAppAccess($input: UserTenantInput!) {
+            adminUserAppAccess(input: $input) {
+                userId
+                tenantId
+                role
+                hasExplicitAssignments
+                items { appKey isEnabled }
+            }
+        }`,
+        { input }
+    );
+    return data.adminUserAppAccess;
+};
+
+export const setUserAppAccess = async (input: {
+    userId: string;
+    tenantId: string;
+    useTenantDefaultAccess: boolean;
+    items: { appKey: string; isEnabled: boolean }[];
+}) => {
+    const data = await requestAuthGraphql<{ adminSetUserAppAccess: { ok: boolean } }>(
+        `mutation AdminSetUserAppAccess($input: SetUserAppAccessInput!) {
+            adminSetUserAppAccess(input: $input) { ok }
+        }`,
+        { input }
+    );
+    return data.adminSetUserAppAccess;
+};
+

@@ -1,4 +1,4 @@
-import { Tooltip } from 'primereact/tooltip';
+﻿import { Tooltip } from 'primereact/tooltip';
 import { useContext, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import AppMenuitem from './AppMenuitem';
@@ -20,7 +20,7 @@ const AppSubMenu = (props: MenuProps) => {
 
     useEffect(() => {
         generateBreadcrumbs(props.model);
-    }, []);
+    }, [props.model]);
 
     useEffect(() => {
         const onClickOutside = (event: MouseEvent) => {
@@ -84,3 +84,6 @@ const AppSubMenu = (props: MenuProps) => {
 };
 
 export default AppSubMenu;
+
+
+

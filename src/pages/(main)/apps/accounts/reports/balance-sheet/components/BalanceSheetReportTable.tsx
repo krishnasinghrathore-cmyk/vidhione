@@ -15,6 +15,12 @@ type BalanceSheetReportTableProps = {
     tablePageSize: number;
     reportLoadingApplied: boolean;
     hasApplied: boolean;
+    globalSearchValue: string;
+    onGlobalSearchValueChange: (nextValue: string) => void;
+    globalSearchMatchCase: boolean;
+    onGlobalSearchMatchCaseChange: (nextValue: boolean) => void;
+    globalSearchWholeWord: boolean;
+    onGlobalSearchWholeWordChange: (nextValue: boolean) => void;
     headerColumnGroup: React.ReactNode;
     emptyMessage: string;
     headerLeft: React.ReactNode;
@@ -62,6 +68,12 @@ export function BalanceSheetReportTable({
     tablePageSize,
     reportLoadingApplied,
     hasApplied,
+    globalSearchValue,
+    onGlobalSearchValueChange,
+    globalSearchMatchCase,
+    onGlobalSearchMatchCaseChange,
+    globalSearchWholeWord,
+    onGlobalSearchWholeWordChange,
     headerColumnGroup,
     emptyMessage,
     headerLeft,
@@ -104,6 +116,13 @@ export function BalanceSheetReportTable({
             size="small"
             loadingState={reportLoadingApplied}
             loadingSummaryEnabled={hasApplied}
+            globalSearchRenderInTableHeader={false}
+            globalSearchValue={globalSearchValue}
+            onGlobalSearchValueChange={onGlobalSearchValueChange}
+            globalSearchMatchCase={globalSearchMatchCase}
+            onGlobalSearchMatchCaseChange={onGlobalSearchMatchCaseChange}
+            globalSearchWholeWord={globalSearchWholeWord}
+            onGlobalSearchWholeWordChange={onGlobalSearchWholeWordChange}
             headerColumnGroup={headerColumnGroup}
             emptyMessage={emptyMessage}
             className="summary-table balance-sheet-table"

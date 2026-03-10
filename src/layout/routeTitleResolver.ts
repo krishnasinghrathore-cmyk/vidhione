@@ -32,6 +32,25 @@ const VOUCHER_ENGINE_MODE_LABELS_BY_TYPE: Record<string, Record<string, string>>
     'tax-invoice': { cash: 'Sales', bank: 'Purchase' }
 };
 
+const WEALTH_ROUTE_LABELS: Array<{ prefix: string; labels: string[] }> = [
+    { prefix: '/apps/wealth/statements/pack', labels: ['Wealth', 'Statement Pack'] },
+    { prefix: '/apps/wealth/investor-profiles', labels: ['Wealth', 'Investor Profiles'] },
+    { prefix: '/apps/wealth/demat-accounts', labels: ['Wealth', 'Demat Accounts'] },
+    { prefix: '/apps/wealth/corporate-actions', labels: ['Wealth', 'Corporate Actions'] },
+    { prefix: '/apps/wealth/manual-transactions', labels: ['Wealth', 'Manual Entry'] },
+    { prefix: '/apps/wealth/transactions', labels: ['Wealth', 'Transactions'] },
+    { prefix: '/apps/wealth/statements', labels: ['Wealth', 'Statements'] },
+    { prefix: '/apps/wealth/securities', labels: ['Wealth', 'Securities'] },
+    { prefix: '/apps/wealth/dividends', labels: ['Wealth', 'Dividend Register'] },
+    { prefix: '/apps/wealth/holdings', labels: ['Wealth', 'Holdings'] },
+    { prefix: '/apps/wealth/realized', labels: ['Wealth', 'Realized P&L'] },
+    { prefix: '/apps/wealth/rollout', labels: ['Wealth', 'Rollout Kit'] },
+    { prefix: '/apps/wealth/import', labels: ['Wealth', 'Import'] },
+    { prefix: '/apps/wealth/prices', labels: ['Wealth', 'Prices & FMV'] },
+    { prefix: '/apps/wealth/ledger', labels: ['Wealth', 'Ledger'] },
+    { prefix: '/apps/wealth', labels: ['Wealth', 'Dashboard'] }
+];
+
 const EXACT_PATH_LABELS: Record<string, string[]> = {
     '/': ['Dashboard'],
     '/dashboard': ['Dashboard'],
@@ -75,7 +94,7 @@ const formatSegmentLabel = (segment: string) => {
     if (override) return override;
     return normalized
         .replace(/[-_]+/g, ' ')
-        .replace(/([a-z])([A-Z])/g, '$1 $2')
+        .replace(/([a-z])([A-Z])/g, ' ')
         .replace(/\s+/g, ' ')
         .replace(/\b\w/g, (value) => value.toUpperCase());
 };
@@ -150,6 +169,12 @@ const resolveVoucherEngineBreadcrumb = (pathname: string): Breadcrumb | null => 
     };
 };
 
+const resolveWealthBreadcrumb = (pathname: string): Breadcrumb | null => {
+    const match = WEALTH_ROUTE_LABELS.find((entry) => isPrefixPathMatch(pathname, entry.prefix));
+    if (!match) return null;
+    return { labels: match.labels, to: pathname };
+};
+
 const resolveMenuBreadcrumb = (pathname: string): Breadcrumb | null => {
     let activeBreadcrumb: Breadcrumb | null = null;
     let activeMatchLength = -1;
@@ -209,6 +234,9 @@ export const resolveBreadcrumbFromPath = (pathname: string): Breadcrumb => {
     const voucherEngineBreadcrumb = resolveVoucherEngineBreadcrumb(pathname);
     if (voucherEngineBreadcrumb) return voucherEngineBreadcrumb;
 
+    const wealthBreadcrumb = resolveWealthBreadcrumb(pathname);
+    if (wealthBreadcrumb) return wealthBreadcrumb;
+
     const menuBreadcrumb = resolveMenuBreadcrumb(pathname);
     if (menuBreadcrumb) return menuBreadcrumb;
 
@@ -219,5 +247,6 @@ export const resolveRouteTitleFromPath = (pathname: string) => {
     const labels = resolveBreadcrumbFromPath(pathname).labels ?? [];
     if (!labels.length) return null;
     const contextualLabels = labels.slice(-3);
-    return contextualLabels.join(' • ');
+    return contextualLabels.join(' - ');
 };
+

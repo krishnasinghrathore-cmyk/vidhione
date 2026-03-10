@@ -116,7 +116,28 @@ const bootstrapAuthState = async (cookie: string | null | undefined): Promise<Au
                 me {
                     user { id email role }
                     tenantId
-                    tenantSettings { salesInvoiceProfileKey purchaseInvoiceProfileKey }
+                    tenantSettings {
+                        salesInvoiceProfileKey
+                        salesInvoiceProfileOptions {
+                            showTaxColumns
+                            showTypeDetails
+                            showAdditionalTaxation
+                            showSchemeToggle
+                            showBizomInvoiceField
+                            showInterStateToggle
+                            transportEnabled
+                            transportDefaultApplied
+                            showTransporterField
+                            requireTransporterWhenApplied
+                            dryCheckRequired
+                            strictPostingParity
+                            linkedEstimateEnabled
+                            linkedCreditNoteEnabled
+                            linkedDebitNoteEnabled
+                            salesmanMode
+                        }
+                        purchaseInvoiceProfileKey
+                    }
                     tenantIndustryKey
                     layoutConfig {
                         ripple

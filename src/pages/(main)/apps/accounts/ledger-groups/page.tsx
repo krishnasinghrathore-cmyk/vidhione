@@ -8,14 +8,18 @@ import { Message } from 'primereact/message';
 import { Tag } from 'primereact/tag';
 import { Toast } from 'primereact/toast';
 import { Button } from 'primereact/button';
+import { AppHelpDialogButton } from '@/components/AppHelpDialogButton';
 import { Link } from 'react-router-dom';
 import { gql, useApolloClient, useMutation, useQuery } from '@apollo/client';
 import AppDataTable from '@/components/AppDataTable';
 import AppDropdown from '@/components/AppDropdown';
 import AppInput from '@/components/AppInput';
 import AppPassword from '@/components/AppPassword';
+import { MasterDetailDialogFooter, MasterEditDialogFooter } from '@/components/MasterDialogFooter';
+import { findMasterRowIndex, getMasterRowByDirection, type MasterDialogDirection } from '@/lib/masterDialogNavigation';
 import { ACCOUNT_MASTER_QUERY_OPTIONS, invalidateAccountMasterLookups } from '@/lib/accounts/masterLookupCache';
 import { getLedgerGroupTypeLabel, getLedgerGroupTypeOptions } from '@/lib/accounts/ledgerGroupTypeLabels';
+import { getMasterPageHelp } from '@/lib/masterPageHelp';
 import { getDeleteConfirmMessage, getDeleteFailureMessage } from '@/lib/deleteGuardrails';
 import { fetchAccountsMasterDeleteImpact, getDeleteBlockedMessage } from '@/lib/masterDeleteImpact';
 import {
@@ -188,8 +192,10 @@ export default function AccountsLedgerGroupsPage() {
     const [form, setForm] = useState<FormState>(DEFAULT_FORM);
     const [formErrors, setFormErrors] = useState<Record<string, string>>({});
     const [showPassword, setShowPassword] = useState(false);
+    const [isBulkMode, setIsBulkMode] = useState(false);
 
     const [dryEditDigest, setDryEditDigest] = useState('');
+    const [initialFormDigest, setInitialFormDigest] = useState(JSON.stringify(DEFAULT_FORM));
 
     const { data, loading, error, refetch } = useQuery(LEDGER_GROUPS, {
         variables: { search: search.trim() || null, limit },
@@ -202,6 +208,8 @@ export default function AccountsLedgerGroupsPage() {
     const { permissions: masterPermissions } = useMasterActionPermissions(apolloClient);
 
     const rows: LedgerGroupRow[] = useMemo(() => data?.ledgerGroups ?? [], [data]);
+    const editingIndex = useMemo(() => findMasterRowIndex(rows, editing), [rows, editing]);
+    const detailIndex = useMemo(() => findMasterRowIndex(rows, detailRow), [rows, detailRow]);
     const groupHeaderOptions = useMemo(() => {
         const base = LEGACY_GROUP_HEADER_OPTIONS.map((option) => ({
             label: option.label,
@@ -213,6 +221,7 @@ export default function AccountsLedgerGroupsPage() {
         return [{ label: getLedgerGroupTypeLabel(currentCode), value: currentCode }, ...base];
     }, [form.groupTypeCode]);
     const currentFormDigest = useMemo(() => JSON.stringify(form), [form]);
+    const isFormDirty = useMemo(() => currentFormDigest !== initialFormDigest, [currentFormDigest, initialFormDigest]);
     const isDryEditReady = useMemo(
         () => Boolean(editing && dryEditDigest && dryEditDigest === currentFormDigest),
         [currentFormDigest, dryEditDigest, editing]
@@ -280,6 +289,18 @@ export default function AccountsLedgerGroupsPage() {
         setDetailVisible(true);
     };
 
+    const navigateEditRecord = (direction: MasterDialogDirection) => {
+        const nextRow = getMasterRowByDirection(rows, editingIndex, direction);
+        if (!nextRow) return;
+        openEdit(nextRow);
+    };
+
+    const navigateDetailRecord = (direction: MasterDialogDirection) => {
+        const nextRow = getMasterRowByDirection(rows, detailIndex, direction);
+        if (!nextRow) return;
+        openView(nextRow);
+    };
+
     const save = async () => {
         const parsed = formSchema.safeParse(form);
         if (!parsed.success) {
@@ -323,7 +344,10 @@ export default function AccountsLedgerGroupsPage() {
 
             invalidateAccountMasterLookups(apolloClient);
             await refetch();
-            closeDialog();
+            setInitialFormDigest(currentFormDigest);
+            if (!isBulkMode) {
+                closeDialog();
+            }
             toastRef.current?.show({ severity: 'success', summary: 'Saved', detail: 'Ledger group saved.' });
         } catch (e: any) {
             toastRef.current?.show({ severity: 'error', summary: 'Error', detail: e?.message ?? 'Save failed.' });
@@ -381,9 +405,9 @@ export default function AccountsLedgerGroupsPage() {
             message: `Dry Delete Check passed. ${getDeleteConfirmMessage('ledger group')}`,
             icon: 'pi pi-exclamation-triangle',
             acceptClassName: 'p-button-danger',
-            acceptLabel: 'Delete',
-            rejectLabel: 'Cancel',
-            defaultFocus: 'none',
+            acceptLabel: 'Yes',
+            rejectLabel: 'No',
+            defaultFocus: 'reject',
             dismissable: true,
             accept: () => handleDelete(row.ledgerGroupId)
         });
@@ -490,14 +514,15 @@ export default function AccountsLedgerGroupsPage() {
                         <h2 className="m-0">Ledger Groups</h2>
                         <p className="mt-2 mb-0 text-600">Create and maintain ledger groups for Accounts.</p>
                     </div>
-                    <div className="flex gap-2 flex-wrap">
-                        <Button label="New Group" icon="pi pi-plus" onClick={openNew} disabled={!masterPermissions.canAdd} />
+                    <div className="flex gap-2 flex-wrap justify-content-end align-items-start">
+                        <Button label="New Group" icon="pi pi-plus" className="app-action-compact" onClick={openNew} disabled={!masterPermissions.canAdd} />
                         <Link to="/apps/accounts/ledgers">
-                            <Button label="Ledgers" icon="pi pi-book" className="p-button-outlined" />
+                            <Button label="Ledgers" icon="pi pi-book" className="app-action-compact p-button-outlined" />
                         </Link>
                         <Link to="/apps/accounts">
-                            <Button label="Back" icon="pi pi-arrow-left" className="p-button-outlined" />
+                            <Button label="Back" icon="pi pi-arrow-left" className="app-action-compact p-button-outlined" />
                         </Link>
+                        <AppHelpDialogButton {...getMasterPageHelp('ledgerGroups')} buttonAriaLabel="Open Ledger Groups help" />
                     </div>
                 </div>
                 {error && <p className="text-red-500 m-0">Error loading ledger groups: {error.message}</p>}
@@ -529,9 +554,9 @@ export default function AccountsLedgerGroupsPage() {
                 }
                 headerRight={
                     <>
-                        <Button label="Export" icon="pi pi-download" className="p-button-info" onClick={() => dtRef.current?.exportCSV()} disabled={rows.length === 0} />
-                        <Button label="Print" icon="pi pi-print" className="p-button-text" onClick={() => window.print()} />
                         <Button label="Refresh" icon="pi pi-refresh" className="p-button-text" onClick={() => refetch()} />
+                        <Button label="Print" icon="pi pi-print" className="p-button-text" onClick={() => window.print()} />
+                        <Button label="Export" icon="pi pi-download" className="p-button-text" onClick={() => dtRef.current?.exportCSV()} disabled={rows.length === 0} />
                         <span className="text-600 text-sm">Showing {rows.length} group{rows.length === 1 ? '' : 's'}</span>
                     </>
                 }
@@ -549,12 +574,21 @@ export default function AccountsLedgerGroupsPage() {
                 header={editing ? 'Edit Ledger Group' : 'New Ledger Group'}
                 visible={dialogVisible}
                 style={{ width: 'min(720px, 96vw)' }}
+                onShow={() => setInitialFormDigest(currentFormDigest)}
                 onHide={closeDialog}
                 footer={
-                    <div className="flex justify-content-end gap-2 w-full">
-                        <Button label="Cancel" className="p-button-text" onClick={closeDialog} disabled={saving} />
-                        <Button label={saveButtonLabel} icon="pi pi-check" onClick={save} disabled={saving} />
-                    </div>
+                    <MasterEditDialogFooter
+                        index={editingIndex}
+                        total={rows.length}
+                        onNavigate={navigateEditRecord}
+                        navigateDisabled={saving}
+                        bulkMode={{ checked: isBulkMode, onChange: setIsBulkMode, disabled: saving }}
+                        onCancel={closeDialog}
+                        cancelDisabled={saving}
+                        onSave={save}
+                        saveLabel={saveButtonLabel}
+                        saveDisabled={saving || !isFormDirty}
+                    />
                 }
             >
                 {editing && (
@@ -680,9 +714,12 @@ export default function AccountsLedgerGroupsPage() {
                 className="ledger-group-details-dialog"
                 onHide={() => setDetailVisible(false)}
                 footer={
-                    <div className="flex justify-content-end w-full">
-                        <Button label="Close" className="p-button-text" onClick={() => setDetailVisible(false)} />
-                    </div>
+                    <MasterDetailDialogFooter
+                        index={detailIndex}
+                        total={rows.length}
+                        onNavigate={navigateDetailRecord}
+                        onClose={() => setDetailVisible(false)}
+                    />
                 }
             >
                 {renderDetailContent()}

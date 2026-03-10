@@ -18,6 +18,8 @@ This project contains a Vite + React frontend and an Encore TS backend (GraphQL 
 - Pages live under `src/pages/`; shared UI in `src/components/`; layout pieces in `src/layout/`.
 - Shared helpers live in `src/lib/`, configuration in `src/config/`, styles in `src/styles/`, types in `src/types/`.
 - Prefer PrimeReact/PrimeFlex/PrimeIcons components and patterns; use Toast-style notifications when available.
+- Default to project custom form components first (`AppInput`, `AppDateInput`, `AppDropdown`, `AppAutoComplete`, `AppNotchedField`) before raw PrimeReact inputs; use raw Prime controls only when custom components cannot satisfy the requirement.
+- Prefer compact project action buttons first for master/header actions (`Button` with `app-action-compact`); use default/non-compact button styles only when the UX explicitly requires it.
 
 **Naming & exports**
 

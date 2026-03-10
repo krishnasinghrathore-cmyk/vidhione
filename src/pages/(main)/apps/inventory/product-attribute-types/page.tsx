@@ -4,12 +4,17 @@ import { Column } from 'primereact/column';
 import { ConfirmPopup, confirmPopup } from 'primereact/confirmpopup';
 import { Dialog } from 'primereact/dialog';
 import { DataTable, DataTableRowEditCompleteEvent } from 'primereact/datatable';
-import { InputText } from 'primereact/inputtext';
+import AppInput from '@/components/AppInput';
 import { Toast } from 'primereact/toast';
 import { Button } from 'primereact/button';
+import { AppHelpDialogButton } from '@/components/AppHelpDialogButton';
+import { getMasterPageHelp } from '@/lib/masterPageHelp';
 import { gql, useLazyQuery, useMutation, useQuery } from '@apollo/client';
 import AppDataTable from '@/components/AppDataTable';
-import AppDropdown from '@/components/AppDropdown';
+import { MasterDetailDialogFooter, MasterEditDialogFooter } from '@/components/MasterDialogFooter';
+import { MasterDetailCard } from '@/components/MasterDetailCard';
+import { MasterDetailGrid, MasterDetailSection } from '@/components/MasterDetailLayout';
+import { findMasterRowIndex, getMasterRowByDirection, type MasterDialogDirection } from '@/lib/masterDialogNavigation';
 import { z } from 'zod';
 import { inventoryApolloClient } from '@/lib/inventoryApolloClient';
 import { getDeleteConfirmMessage, getDeleteFailureMessage } from '@/lib/deleteGuardrails';
@@ -21,6 +26,7 @@ import {
     useMasterActionPermissions
 } from '@/lib/masterActionPermissions';
 import { ensureDryEditCheck } from '@/lib/masterDryRun';
+import { MASTER_DETAIL_DIALOG_WIDTHS } from '@/lib/masterDialogLayout';
 
 interface ProductAttributeTypeRow {
     productAttributeTypeId: number;
@@ -95,11 +101,6 @@ const DEFAULT_FORM: FormState = {
     name: '',
     details: []
 };
-const limitOptions = [100, 250, 500, 1000, 2000].map((value) => ({
-    label: String(value),
-    value
-}));
-
 export default function InventoryProductAttributeTypesPage() {
     const toastRef = useRef<Toast>(null);
     const dtRef = useRef<any>(null);
@@ -107,14 +108,16 @@ export default function InventoryProductAttributeTypesPage() {
     const newDetailInputRef = useRef<HTMLInputElement>(null);
 
     const [search, setSearch] = useState('');
-    const [limit, setLimit] = useState(2000);
+    const limit = 2000;
     const [dialogVisible, setDialogVisible] = useState(false);
     const [saving, setSaving] = useState(false);
     const [editing, setEditing] = useState<ProductAttributeTypeRow | null>(null);
     const [detailVisible, setDetailVisible] = useState(false);
     const [detailRow, setDetailRow] = useState<ProductAttributeTypeRow | null>(null);
     const [form, setForm] = useState<FormState>(DEFAULT_FORM);
+    const [initialForm, setInitialForm] = useState<FormState>(DEFAULT_FORM);
     const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+    const [isBulkMode, setIsBulkMode] = useState(false);
 
     const [dryEditDigest, setDryEditDigest] = useState('');
     const [newDetail, setNewDetail] = useState('');
@@ -132,6 +135,9 @@ export default function InventoryProductAttributeTypesPage() {
     const { permissions: masterPermissions } = useMasterActionPermissions(inventoryApolloClient);
 
     const rows: ProductAttributeTypeRow[] = useMemo(() => data?.productAttributeTypes ?? [], [data]);
+    const isFormDirty = useMemo(() => JSON.stringify(form) !== JSON.stringify(initialForm), [form, initialForm]);
+    const editingIndex = useMemo(() => findMasterRowIndex(rows, editing), [rows, editing]);
+    const detailIndex = useMemo(() => findMasterRowIndex(rows, detailRow), [rows, detailRow]);
 
     const assertActionAllowed = (action: MasterAction) => {
         if (isMasterActionAllowed(masterPermissions, action)) return true;
@@ -189,14 +195,31 @@ export default function InventoryProductAttributeTypesPage() {
         loadProductAttributeType({ variables: { productAttributeTypeId: row.productAttributeTypeId } });
     };
 
+    const navigateEditRecord = (direction: MasterDialogDirection) => {
+        const nextRow = getMasterRowByDirection(rows, editingIndex, direction);
+        if (!nextRow) return;
+        openEdit(nextRow);
+    };
+
+    const navigateDetailRecord = (direction: MasterDialogDirection) => {
+        const nextRow = getMasterRowByDirection(rows, detailIndex, direction);
+        if (!nextRow) return;
+        openView(nextRow);
+    };
+
     useEffect(() => {
         if (!editing || !productAttributeTypeData?.productAttributeTypeById) return;
         if (productAttributeTypeData.productAttributeTypeById.productAttributeTypeId !== editing.productAttributeTypeId) return;
         const details = (productAttributeTypeData.productAttributeTypeById.productAttributes ?? []) as ProductAttributeRow[];
+        const nextForm: FormState = {
+            name: editing.name ?? '',
+            details: details.map((detail) => createDetail(detail.detail ?? '', detail.productAttributeId ?? null))
+        };
         setForm((prev) => ({
             ...prev,
-            details: details.map((detail) => createDetail(detail.detail ?? '', detail.productAttributeId ?? null))
+            details: nextForm.details
         }));
+        setInitialForm(nextForm);
     }, [productAttributeTypeData, editing, createDetail]);
 
     useEffect(() => {
@@ -236,7 +259,7 @@ export default function InventoryProductAttributeTypesPage() {
     };
 
     const detailEditor = (options: { value?: string; editorCallback?: (value: string) => void }) => (
-        <InputText
+        <AppInput
             value={options.value ?? ''}
             onChange={(e) => options.editorCallback?.(e.target.value)}
             className="p-inputtext-sm"
@@ -296,7 +319,12 @@ export default function InventoryProductAttributeTypesPage() {
             }
 
             await refetch();
-            closeDialog();
+            setInitialForm(form);
+            if (!isBulkMode) {
+                closeDialog();
+            } else {
+                setFormErrors({});
+            }
             toastRef.current?.show({
                 severity: 'success',
                 summary: 'Saved',
@@ -349,9 +377,9 @@ export default function InventoryProductAttributeTypesPage() {
             message: `Dry Delete Check passed. ${getDeleteConfirmMessage('product attribute type')}`,
             icon: 'pi pi-exclamation-triangle',
             acceptClassName: 'p-button-danger',
-            acceptLabel: 'Delete',
-            rejectLabel: 'Cancel',
-            defaultFocus: 'none',
+            acceptLabel: 'Yes',
+            rejectLabel: 'No',
+            defaultFocus: 'reject',
             dismissable: true,
             accept: () => handleDelete(row.productAttributeTypeId)
         });
@@ -359,7 +387,7 @@ export default function InventoryProductAttributeTypesPage() {
 
     const actionsBody = (row: ProductAttributeTypeRow) => (
         <div className="flex gap-2">
-            <Button icon="pi pi-eye" className="p-button-text" onClick={() => openView(row)} disabled={!masterPermissions.canView} />
+                        <Button icon="pi pi-eye" className="p-button-text" onClick={() => openView(row)} disabled={!masterPermissions.canView} />
             <Button icon="pi pi-pencil" className="p-button-text" onClick={() => openEdit(row)} disabled={!masterPermissions.canEdit} />
             <Button icon="pi pi-trash" className="p-button-text" severity="danger" onClick={(e) => { void confirmDelete(e, row); }} disabled={!masterPermissions.canDelete} />
         </div>
@@ -378,8 +406,9 @@ export default function InventoryProductAttributeTypesPage() {
                             Maintain product attribute types and attribute lists for the agency inventory masters.
                         </p>
                     </div>
-                    <div className="flex gap-2 flex-wrap">
-                        <Button label="New Type" icon="pi pi-plus" onClick={openNew} disabled={!masterPermissions.canAdd} />
+                    <div className="flex gap-2 flex-wrap justify-content-end align-items-start">
+                        <Button className="app-action-compact" label="New Type" icon="pi pi-plus" onClick={openNew} disabled={!masterPermissions.canAdd} />
+                        <AppHelpDialogButton {...getMasterPageHelp('productAttributeTypes')} buttonAriaLabel="Open Product Attribute Types help" />
                     </div>
                 </div>
                 {error && <p className="text-red-500 m-0">Error loading product attribute types: {error.message}</p>}
@@ -399,7 +428,7 @@ export default function InventoryProductAttributeTypesPage() {
                 headerLeft={
                     <span className="p-input-icon-left" style={{ minWidth: '320px' }}>
                         <i className="pi pi-search" />
-                        <InputText
+                        <AppInput
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                             placeholder="Search product attribute type"
@@ -410,11 +439,10 @@ export default function InventoryProductAttributeTypesPage() {
                 headerRight={
                     <>
                         <Button
-                            label="Export"
-                            icon="pi pi-download"
-                            className="p-button-info"
-                            onClick={() => dtRef.current?.exportCSV()}
-                            disabled={rows.length === 0}
+                            label="Refresh"
+                            icon="pi pi-refresh"
+                            className="p-button-text"
+                            onClick={() => refetch()}
                         />
                         <Button
                             label="Print"
@@ -423,20 +451,12 @@ export default function InventoryProductAttributeTypesPage() {
                             onClick={() => window.print()}
                         />
                         <Button
-                            label="Refresh"
-                            icon="pi pi-refresh"
-                            className="p-button-text"
-                            onClick={() => refetch()}
+                            label="Export"
+                            icon="pi pi-download"
+                            className="p-button-info"
+                            onClick={() => dtRef.current?.exportCSV()}
+                            disabled={rows.length === 0}
                         />
-                        <span className="flex align-items-center gap-2">
-                            <span className="text-600 text-sm">Limit</span>
-                            <AppDropdown
-                                value={limit}
-                                options={limitOptions}
-                                onChange={(e) => setLimit(e.value ?? 2000)}
-                                className="w-6rem"
-                            />
-                        </span>
                         <span className="text-600 text-sm">
                             Showing {rows.length} type{rows.length === 1 ? '' : 's'}
                         </span>
@@ -452,23 +472,33 @@ export default function InventoryProductAttributeTypesPage() {
                 header={editing ? 'Edit Product Attribute Type' : 'New Product Attribute Type'}
                 visible={dialogVisible}
                 style={{ width: 'min(720px, 96vw)' }}
+                onShow={() => setInitialForm(form)}
                 onHide={closeDialog}
                 footer={
-                    <div className="flex justify-content-end gap-2 w-full">
-                        <Button
-                            label="Cancel"
-                            className="p-button-text"
-                            onClick={closeDialog}
-                            disabled={saving}
-                        />
-                        <Button label={saving ? 'Saving...' : 'Save'} icon="pi pi-check" onClick={save} disabled={saving} />
-                    </div>
+                    <MasterEditDialogFooter
+                        index={editingIndex}
+                        total={rows.length}
+                        onNavigate={navigateEditRecord}
+                        navigateDisabled={saving}
+                        bulkMode={{
+                            checked: isBulkMode,
+                            onChange: setIsBulkMode,
+                            onLabel: 'Bulk',
+                            offLabel: 'Standard',
+                            disabled: saving
+                        }}
+                        onCancel={closeDialog}
+                        cancelDisabled={saving}
+                        onSave={save}
+                        saveDisabled={saving || !isFormDirty}
+                        saveLabel={saving ? 'Saving...' : 'Save'}
+                    />
                 }
             >
                 <div className="grid">
                     <div className="col-12">
                         <label className="block text-600 mb-1">Name</label>
-                        <InputText
+                        <AppInput
                             value={form.name}
                             onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))}
                             style={{ width: '100%' }}
@@ -480,7 +510,7 @@ export default function InventoryProductAttributeTypesPage() {
                         <div className="flex flex-column md:flex-row md:align-items-center md:justify-content-between gap-2 mb-2">
                             <label className="block text-600">Type Details</label>
                             <div className="flex flex-column sm:flex-row align-items-stretch gap-2">
-                                <InputText
+                                <AppInput
                                     ref={newDetailInputRef}
                                     value={newDetail}
                                     onChange={(e) => setNewDetail(e.target.value)}
@@ -549,27 +579,55 @@ export default function InventoryProductAttributeTypesPage() {
             <Dialog
                 header="Product Attribute Type Details"
                 visible={detailVisible}
-                style={{ width: 'min(680px, 96vw)' }}
+                style={{ width: MASTER_DETAIL_DIALOG_WIDTHS.standard }}
                 onHide={() => setDetailVisible(false)}
                 footer={
-                    <div className="flex justify-content-end w-full">
-                        <Button label="Close" className="p-button-text" onClick={() => setDetailVisible(false)} />
-                    </div>
+                    <MasterDetailDialogFooter
+                        index={detailIndex}
+                        total={rows.length}
+                        onNavigate={navigateDetailRecord}
+                        onClose={() => setDetailVisible(false)}
+                    />
                 }
             >
                 {detailRow && (
-                    <div className="flex flex-column gap-2">
-                        <div><strong>Name:</strong> {detailRow.name ?? '-'}</div>
-                        {detailsLoading ? (
-                            <small className="text-500">Loading type details...</small>
-                        ) : (
-                            <div>
-                                <strong>Type Details:</strong>{' '}
-                                {viewDetails.length
-                                    ? viewDetails.map((item) => item.detail || '-').join(', ')
-                                    : '-'}
-                            </div>
-                        )}
+                    <div className="flex flex-column gap-3">
+                        <MasterDetailGrid columns={1}>
+                            <MasterDetailCard label="Name" value={detailRow.name ?? '-'} />
+                        </MasterDetailGrid>
+                        <MasterDetailSection
+                            title="Type Details"
+                            description={detailsLoading ? 'Loading type details...' : undefined}
+                        >
+                            {detailsLoading ? (
+                                <MasterDetailGrid columns={1}>
+                                    <MasterDetailCard label="Status" value="Loading..." />
+                                </MasterDetailGrid>
+                            ) : (
+                                <div className="border-1 surface-border border-round overflow-hidden">
+                                    <DataTable
+                                        value={viewDetails}
+                                        dataKey="productAttributeId"
+                                        responsiveLayout="scroll"
+                                        size="small"
+                                        className="p-datatable-sm"
+                                        emptyMessage="No details added."
+                                        scrollable
+                                        scrollHeight="16rem"
+                                    >
+                                        <Column
+                                            header="#"
+                                            body={(_row: ProductAttributeRow, options) => options.rowIndex + 1}
+                                            style={{ width: '4rem' }}
+                                        />
+                                        <Column
+                                            header="Detail"
+                                            body={(row: ProductAttributeRow) => row.detail || '-'}
+                                        />
+                                    </DataTable>
+                                </div>
+                            )}
+                        </MasterDetailSection>
                     </div>
                 )}
             </Dialog>

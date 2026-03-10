@@ -38,6 +38,7 @@ import { billingApolloClient } from "@/lib/billingApolloClient";
 import { LayoutContext } from "@/layout/context/layoutcontext";
 import { resolveFiscalRange } from "@/lib/fiscalRange";
 import { validateDateRange } from "@/lib/reportDateValidation";
+import { printRowsWithReportTemplate } from "@/lib/reportTemplatePrint";
 
 import type {
   ChequeBookOption,
@@ -10639,26 +10640,150 @@ export const useVoucherState = (
     searchedRows,
     totals,
   ]);
+  const mapVoucherTemplateRow = useCallback(
+    (row: Partial<VoucherRow> | null | undefined) => ({
+      voucherId: row?.voucherId ?? null,
+      voucherTypeName: row?.voucherTypeName ?? null,
+      voucherNumber: row?.voucherNumber ?? null,
+      voucherDateText: row?.voucherDate ?? null,
+      partyLedgerName:
+        row?.primaryLedgerName ??
+        row?.debitLedgerName ??
+        row?.creditLedgerName ??
+        null,
+      narrationText: row?.narration ?? null,
+      totalAmountDetails: toFiniteNumber(row?.totalNetAmount) ?? 0,
+      managerName: row?.managerName ?? null,
+      isCancelledFlag: row?.isCancelledFlag ?? 0,
+    }),
+    []
+  );
+  const tryTemplatePrintVoucherRows = useCallback(
+    async (
+      rowsToPrint: Array<Partial<VoucherRow> | null | undefined>,
+      usageKeys: string[],
+      title: string
+    ) => {
+      const normalizedRows = rowsToPrint
+        .filter((row): row is Partial<VoucherRow> => Boolean(row))
+        .map((row) => mapVoucherTemplateRow(row))
+        .filter((row) => {
+          const voucherId = toPositiveId(row.voucherId);
+          const voucherNo = String(row.voucherNumber ?? "").trim();
+          return voucherId != null || voucherNo.length > 0;
+        })
+        .map((row) => row as Record<string, unknown>);
+      if (!normalizedRows.length) return false;
+      return await printRowsWithReportTemplate({
+        apolloClient,
+        moduleKey: "voucher",
+        usageKeys,
+        rows: normalizedRows,
+        title,
+        subtitle: `${normalizedRows.length} row${
+          normalizedRows.length === 1 ? "" : "s"
+        }`,
+      });
+    },
+    [apolloClient, mapVoucherTemplateRow]
+  );
+  const handleTemplateVoucherPrint = useCallback(() => {
+    void (async () => {
+      const activeRow = resolveDeleteTargetRow();
+      if (!activeRow) {
+        if (typeof window !== "undefined") {
+          window.print();
+        }
+        return;
+      }
+      const managerNameFromForm =
+        typeof managerValue === "string"
+          ? managerValue.trim()
+          : String(managerValue?.label ?? "").trim();
+      const formSnapshotRow: Partial<VoucherRow> = {
+        ...activeRow,
+        voucherNumber: voucherNo.trim() || activeRow.voucherNumber || null,
+        voucherDate:
+          isFormActive && voucherDate
+            ? toDateText(voucherDate)
+            : activeRow.voucherDate ?? null,
+        narration:
+          isFormActive && narration.trim()
+            ? narration.trim()
+            : activeRow.narration ?? null,
+        managerName:
+          isFormActive && managerNameFromForm
+            ? managerNameFromForm
+            : activeRow.managerName ?? null,
+        totalNetAmount:
+          isFormActive && Number.isFinite(Number(totalDebit))
+            ? Number(totalDebit)
+            : Number(activeRow.totalNetAmount ?? 0),
+      };
+      const printed = await tryTemplatePrintVoucherRows(
+        [formSnapshotRow],
+        ["voucher", "print.voucher", "print"],
+        `${voucherLabelSingular} Print`
+      );
+      if (printed) return;
+      if (typeof window !== "undefined") {
+        window.print();
+      }
+    })();
+  }, [
+    isFormActive,
+    managerValue,
+    narration,
+    resolveDeleteTargetRow,
+    totalDebit,
+    tryTemplatePrintVoucherRows,
+    voucherDate,
+    voucherLabelSingular,
+    voucherNo,
+  ]);
+  const handleRegisterTemplatePrint = useCallback(
+    (nextFormat: "format-1" | "format-2") => {
+      setPrintFormat(nextFormat);
+      const usageKeys =
+        nextFormat === "format-2"
+          ? ["format-2", "print.format-2", "print"]
+          : ["format-1", "print.format-1", "print"];
+      const title =
+        nextFormat === "format-2"
+          ? `${voucherLabelSingular} Register (Format 2)`
+          : `${voucherLabelSingular} Register (Format 1)`;
+      void (async () => {
+        const printed = await tryTemplatePrintVoucherRows(
+          filteredRowsForTable,
+          usageKeys,
+          title
+        );
+        if (printed) return;
+        if (typeof window !== "undefined") {
+          window.print();
+        }
+      })();
+    },
+    [filteredRowsForTable, tryTemplatePrintVoucherRows, voucherLabelSingular]
+  );
   const printMenuItems = useMemo(
     () => [
       {
         label: "Format 1",
         icon: printFormat === "format-1" ? "pi pi-check" : undefined,
         command: () => {
-          setPrintFormat("format-1");
-          window.print();
+          handleRegisterTemplatePrint("format-1");
         },
       },
       {
         label: "Format 2",
         icon: printFormat === "format-2" ? "pi pi-check" : undefined,
         command: () => {
-          setPrintFormat("format-2");
-          window.print();
+          handleRegisterTemplatePrint("format-2");
         },
       },
     ],
-    [printFormat]
+    [handleRegisterTemplatePrint, printFormat]
   );
 
   return {
@@ -10949,6 +11074,7 @@ export const useVoucherState = (
     setReconciled,
     totals,
     receiptRegisterTotals,
+    handleTemplateVoucherPrint,
     printMenuItems,
     printMenuRef,
     refreshButtonId,

@@ -107,6 +107,13 @@ const areOptionArraysEqual = (left: OptionComparable[], right: OptionComparable[
 };
 
 const normalizeLabel = (value: string | null | undefined) => value?.trim().toLowerCase() ?? '';
+const resolveSearchText = (option: OptionComparable) => {
+    const label = normalizeLabel(option?.label ?? null);
+    const address = normalizeLabel(option?.address ?? null);
+    if (!label) return address;
+    if (!address) return label;
+    return `${label} ${address}`;
+};
 
 const findExactLabelMatch = <T extends OptionComparable>(
     primary: T[],
@@ -116,7 +123,12 @@ const findExactLabelMatch = <T extends OptionComparable>(
     const needle = normalizeLabel(input);
     if (!needle) return null;
     const findIn = (items: T[]) =>
-        items.find((option) => normalizeLabel(option?.label ?? null) === needle) ?? null;
+        items.find((option) => {
+            const label = normalizeLabel(option?.label ?? null);
+            const address = normalizeLabel(option?.address ?? null);
+            const searchText = resolveSearchText(option);
+            return label === needle || address === needle || searchText === needle;
+        }) ?? null;
     return findIn(primary) ?? findIn(secondary);
 };
 
@@ -129,8 +141,10 @@ const findPrefixLabelMatch = <T extends OptionComparable>(
     if (!needle) return null;
     const findIn = (items: T[]) =>
         items.find((option) => {
-            const label = option?.label;
-            return typeof label === 'string' && label.toLowerCase().startsWith(needle);
+            const label = normalizeLabel(option?.label ?? null);
+            const address = normalizeLabel(option?.address ?? null);
+            const searchText = resolveSearchText(option);
+            return label.startsWith(needle) || address.startsWith(needle) || searchText.startsWith(needle);
         }) ?? null;
     return findIn(primary) ?? findIn(secondary);
 };
@@ -142,8 +156,10 @@ const filterAndRankOptions = <T extends OptionComparable>(options: T[], input: s
     const containsMatches: T[] = [];
     options.forEach((option) => {
         const label = normalizeLabel(option?.label ?? null);
-        if (!label.includes(needle)) return;
-        if (label.startsWith(needle)) {
+        const address = normalizeLabel(option?.address ?? null);
+        const searchText = resolveSearchText(option);
+        if (!searchText.includes(needle)) return;
+        if (label.startsWith(needle) || address.startsWith(needle) || searchText.startsWith(needle)) {
             prefixMatches.push(option);
             return;
         }

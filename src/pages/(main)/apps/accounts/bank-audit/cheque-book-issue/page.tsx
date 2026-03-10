@@ -6,9 +6,9 @@ import { Button } from 'primereact/button';
 import { Column, type ColumnFilterElementTemplateOptions } from 'primereact/column';
 import type { DataTableFilterEvent, DataTableFilterMeta } from 'primereact/datatable';
 import { Dialog } from 'primereact/dialog';
-import { InputSwitch } from 'primereact/inputswitch';
 import { Tag } from 'primereact/tag';
 import { Toast } from 'primereact/toast';
+import AppCompactToggle from '@/components/AppCompactToggle';
 import AppDataTable from '@/components/AppDataTable';
 import AppDateInput from '@/components/AppDateInput';
 import AppInput from '@/components/AppInput';
@@ -1445,15 +1445,15 @@ export default function AccountsChequeBookIssuePage() {
                                 style={{ width: '150px' }}
                             />
                             <div className="flex align-items-center gap-2">
-                                <InputSwitch
+                                <AppCompactToggle
                                     checked={cancelled === 1}
-                                    onChange={(event) => {
+                                    onChange={(checked) => {
                                         setFirst(0);
-                                        setCancelled(event.value ? 1 : 0);
+                                        setCancelled(checked ? 1 : 0);
                                     }}
-                                    className="app-inputswitch"
+                                    onLabel="Cancelled"
+                                    offLabel="Not cancelled"
                                 />
-                                <span className="text-600 text-sm">{cancelled === 1 ? 'Cancelled' : 'Not cancelled'}</span>
                             </div>
                         </div>
                         {(dateErrors.fromDate || dateErrors.toDate) && (
