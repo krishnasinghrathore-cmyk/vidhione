@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="240" viewBox="0 0 920 240" role="img" aria-label="Vidhione balance lockup">
+  <defs>
+    <linearGradient id="vidhione-balance-gradient" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#38bdf8" />
+      <stop offset="0.55" stop-color="#8b5cf6" />
+      <stop offset="1" stop-color="#f97316" />
+    </linearGradient>
+  </defs>
+  <rect width="920" height="240" rx="40" fill="#0f172a" />
+  <g transform="translate(28 28)">
+    <rect width="184" height="184" rx="44" fill="#0f172a" />
+    <g fill="none" stroke="url(#vidhione-balance-gradient)" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M24 52 H160" stroke-width="12" />
+      <path d="M92 52 V156" stroke-width="10" />
+      <rect x="32" y="84" width="56" height="56" rx="14" stroke-width="10" />
+      <rect x="92" y="90" width="56" height="50" rx="14" stroke-width="10" />
+    </g>
+    <circle cx="92" cy="52" r="8" fill="#0f172a" />
+    <circle cx="92" cy="52" r="5" fill="#f8fafc" />
+  </g>
+  <text x="250" y="150" font-family="'Sora', 'Space Grotesk', 'Avenir Next', 'Segoe UI', sans-serif" font-size="96" font-weight="600" letter-spacing="2" fill="#f8fafc">Vidhione</text>
+</svg>

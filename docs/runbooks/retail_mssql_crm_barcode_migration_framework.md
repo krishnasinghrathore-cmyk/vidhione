@@ -22,6 +22,7 @@ Default retail sources wired in the script:
 - `dbo.CustomerMaster`
 - `dbo.GiftCouponH`
 
+For `dbRetailer_SS2018`, do not rely on the generic `GiftCouponH` header import for certificates. Use the line-level `CRM_GIFT_CERTIFICATES_QUERY` override from [retail-crm-barcode-query-templates.sql](/C:/Users/devel/OneDrive/Documents/Krishna-Work/Developer-Panel-SAAS-Model-Projects/vidhione/backend/scripts/mssql-import/retail-crm-barcode-query-templates.sql) so each `GiftCouponL` row becomes one shared gift certificate.
 Retail legacy sources expected but override-driven because schema shape can vary by client/project:
 - loyalty/scheme masters
 - point ledgers / balance history
@@ -81,7 +82,8 @@ export CRM_IDENTIFIER_CODES_QUERY='SELECT ...'
 The new template file includes retail-first starting points for:
 - `CouponMaster`
 - `MemberPointAdjustmentL`
-- `GiftCouponL` redemption history
+- `GiftCouponH + GiftCouponL` line-level gift certificates
+- `SaleInvoiceH` line-level gift-certificate redemption history
 - `BarcodeH` / `BarcodeL`
 
 ## Default Retail Behaviors
@@ -116,12 +118,23 @@ The shared import keeps that pattern by auto-generating `crm.identifier_codes` m
 
 ### Gift coupons to shared gift certificates
 Default script behavior maps `dbo.GiftCouponH` into `crm.gift_certificates`.
-If the client DB stores redemption/balance in richer tables, replace the default with `CRM_GIFT_CERTIFICATES_QUERY`.
+
+For `dbRetailer_SS2018`, override that default with `CRM_GIFT_CERTIFICATES_QUERY` from the retail template file:
+- the scannable coupon unit is the `GiftCouponL` row, not the header
+- invoice scan codes are `GV/GU-YYYYmm-VoucherNo-LineId`
+- each line should become one shared gift certificate with `issued_amount = GiftCouponH.CouponValue`
+- line status should be derived from `GiftCouponH.Cancelled` plus `SaleInvoiceH.F_GiftCouponL`
 
 ### Gift coupon redemptions
 Gift-certificate redemption history is not hardcoded because retail clients vary at the line level. Use `CRM_GIFT_CERTIFICATE_REDEMPTIONS_QUERY` when the client DB exposes line-level or invoice-linked gift coupon usage.
 
 The shared apply step now imports those rows into `crm.gift_certificate_redemptions` idempotently, using the imported gift certificate as the canonical parent.
+
+For `dbRetailer_SS2018`, the confirmed redemption rule is:
+- `source_certificate_key = GiftCouponL.Id`
+- `redeemed_amount = GiftCouponH.CouponValue`
+- there is no separate partial-redemption amount stored on `SaleInvoiceH`
+- the current live data has `0` invoice rows with `F_GiftCouponH` populated but `F_GiftCouponL = 0`
 
 ## Product Barcode Import
 Product barcode history is intentionally not hardcoded because retail variants differ. Use `CRM_IDENTIFIER_CODES_QUERY` to map product codes into the shared identifier table.

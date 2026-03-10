@@ -1,0 +1,1 @@
+import{j as e}from"./index-a2e62377.js";function r(){return e.jsxs("div",{className:"card",children:[e.jsx("h2",{className:"mb-2",children:"GST & E-Invoice"}),e.jsx("p",{className:"text-600",children:"Standardized GST reporting workspace. GSTR-1, GSTR-2, and GSTR-3B now follow a unified filter, table, and export flow."})]})}export{r as default};

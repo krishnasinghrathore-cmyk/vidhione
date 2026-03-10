@@ -1,0 +1,314 @@
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+(node:35656) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+DEPRECATION WARNING [legacy-js-api]: The legacy JS API is deprecated and will be removed in Dart Sass 2.0.0.
+
+More info: https://sass-lang.com/d/legacy-js-api
+
+[2m10:22:06 am[22m [31m[1m[vite][22m[39m [31mInternal server error:   x Expected ',', got '{'
+    ,-[C:/Users/devel/OneDrive/Documents/Krishna-Work/Developer-Panel-SAAS-Model-Projects/vidhione/src/layout/AppMenu.tsx:26:1]
+ 23 |             APPS.find(
+ 24 |                 (app) =>
+ 25 |                     app.category === 'industry' &&
+ 26 |                     (location.pathname === app.path || location.pathname.startsWith(${app.path}/))
+    :                                                                                      ^
+ 27 |             ) ?? null
+ 28 |         );
+ 29 |     }, [location.pathname]);
+    `----
+
+
+Caused by:
+    Syntax Error[39m
+  Plugin: [35mvite:react-swc[39m
+  File: [36mC:/Users/devel/OneDrive/Documents/Krishna-Work/Developer-Panel-SAAS-Model-Projects/vidhione/src/layout/AppMenu.tsx[39m
+  
+  x Expected ',', got '{'
+    ,-[C:/Users/devel/OneDrive/Documents/Krishna-Work/Developer-Panel-SAAS-Model-Projects/vidhione/src/layout/AppMenu.tsx:26:1]
+ 23 |             APPS.find(
+ 24 |                 (app) =>
+ 25 |                     app.category === 'industry' &&
+ 26 |                     (location.pathname === app.path || location.pathname.startsWith(${app.path}/))
+    :                                                                                      ^
+ 27 |             ) ?? null
+ 28 |         );
+ 29 |     }, [location.pathname]);
+    `----
+
+
+Caused by:
+    Syntax Error
+[2m10:22:19 am[22m [31m[1m[vite][22m[39m [31mInternal server error:   x Expected ',', got '{'
+    ,-[C:/Users/devel/OneDrive/Documents/Krishna-Work/Developer-Panel-SAAS-Model-Projects/vidhione/src/layout/AppMenu.tsx:26:1]
+ 23 |             APPS.find(
+ 24 |                 (app) =>
+ 25 |                     app.category === 'industry' &&
+ 26 |                     (location.pathname === app.path || location.pathname.startsWith(${app.path}/))
+    :                                                                                      ^
+ 27 |             ) ?? null
+ 28 |         );
+ 29 |     }, [location.pathname]);
+    `----
+
+
+Caused by:
+    Syntax Error[39m
+  Plugin: [35mvite:react-swc[39m
+  File: [36mC:/Users/devel/OneDrive/Documents/Krishna-Work/Developer-Panel-SAAS-Model-Projects/vidhione/src/layout/AppMenu.tsx[39m
+  
+  x Expected a semicolon
+     ,-[C:/Users/devel/OneDrive/Documents/Krishna-Work/Developer-Panel-SAAS-Model-Projects/vidhione/src/layout/AppMenu.tsx:118:1]
+ 115 |             if (!isTenantMode || !currentIndustryApp) return section;
+ 116 | 
+ 117 |             const items = Array.isArray(section.items) ? [...section.items] : [];
+ 118 |             const dashboardLabel = ${currentIndustryApp.name} Dashboard;
+     :                                     ^
+ 119 |             if (items.length > 0) {
+ 120 |                 items[0] = {
+ 121 |                     ...items[0],
+     `----
+  x Expected a semicolon
+     ,-[C:/Users/devel/OneDrive/Documents/Krishna-Work/Developer-Panel-SAAS-Model-Projects/vidhione/src/layout/AppMenu.tsx:118:1]
+ 115 |             if (!isTenantMode || !currentIndustryApp) return section;
+ 116 | 
+ 117 |             const items = Array.isArray(section.items) ? [...section.items] : [];
+ 118 |             const dashboardLabel = ${currentIndustryApp.name} Dashboard;
+     :                                                        ^
+ 119 |             if (items.length > 0) {
+ 120 |                 items[0] = {
+ 121 |                     ...items[0],
+     `----
+  x Expected ',', got 'ident'
+     ,-[C:/Users/devel/OneDrive/Documents/Krishna-Work/Developer-Panel-SAAS-Model-Projects/vidhione/src/layout/AppMenu.tsx:118:1]
+ 115 |             if (!isTenantMode || !currentIndustryApp) return section;
+ 116 | 
+ 117 |             const items = Array.isArray(section.items) ? [...section.items] : [];
+ 118 |             const dashboardLabel = ${currentIndustryApp.name} Dashboard;
+     :                                                               ^^^^^^^^^
+ 119 |             if (items.length > 0) {
+ 120 |                 items[0] = {
+ 121 |                     ...items[0],
+     `----
+
+
+Caused by:
+    Syntax Error
+[2m10:22:39 am[22m [31m[1m[vite][22m[39m [31mInternal server error:   x Expected a semicolon
+     ,-[C:/Users/devel/OneDrive/Documents/Krishna-Work/Developer-Panel-SAAS-Model-Projects/vidhione/src/layout/AppMenu.tsx:118:1]
+ 115 |             if (!isTenantMode || !currentIndustryApp) return section;
+ 116 | 
+ 117 |             const items = Array.isArray(section.items) ? [...section.items] : [];
+ 118 |             const dashboardLabel = ${currentIndustryApp.name} Dashboard;
+     :                                     ^
+ 119 |             if (items.length > 0) {
+ 120 |                 items[0] = {
+ 121 |                     ...items[0],
+     `----
+  x Expected a semicolon
+     ,-[C:/Users/devel/OneDrive/Documents/Krishna-Work/Developer-Panel-SAAS-Model-Projects/vidhione/src/layout/AppMenu.tsx:118:1]
+ 115 |             if (!isTenantMode || !currentIndustryApp) return section;
+ 116 | 
+ 117 |             const items = Array.isArray(section.items) ? [...section.items] : [];
+ 118 |             const dashboardLabel = ${currentIndustryApp.name} Dashboard;
+     :                                                        ^
+ 119 |             if (items.length > 0) {
+ 120 |                 items[0] = {
+ 121 |                     ...items[0],
+     `----
+  x Expected ',', got 'ident'
+     ,-[C:/Users/devel/OneDrive/Documents/Krishna-Work/Developer-Panel-SAAS-Model-Projects/vidhione/src/layout/AppMenu.tsx:118:1]
+ 115 |             if (!isTenantMode || !currentIndustryApp) return section;
+ 116 | 
+ 117 |             const items = Array.isArray(section.items) ? [...section.items] : [];
+ 118 |             const dashboardLabel = ${currentIndustryApp.name} Dashboard;
+     :                                                               ^^^^^^^^^
+ 119 |             if (items.length > 0) {
+ 120 |                 items[0] = {
+ 121 |                     ...items[0],
+     `----
+
+
+Caused by:
+    Syntax Error[39m
+  Plugin: [35mvite:react-swc[39m
+  File: [36mC:/Users/devel/OneDrive/Documents/Krishna-Work/Developer-Panel-SAAS-Model-Projects/vidhione/src/layout/AppMenu.tsx[39m
+  
+[2m10:22:50 am[22m [31m[1m[vite][22m[39m [31mInternal server error:   x Expected a semicolon
+     ,-[C:/Users/devel/OneDrive/Documents/Krishna-Work/Developer-Panel-SAAS-Model-Projects/vidhione/src/layout/AppMenu.tsx:118:1]
+ 115 |             if (!isTenantMode || !currentIndustryApp) return section;
+ 116 | 
+ 117 |             const items = Array.isArray(section.items) ? [...section.items] : [];
+ 118 |             const dashboardLabel = ${currentIndustryApp.name} Dashboard;
+     :                                     ^
+ 119 |             if (items.length > 0) {
+ 120 |                 items[0] = {
+ 121 |                     ...items[0],
+     `----
+  x Expected a semicolon
+     ,-[C:/Users/devel/OneDrive/Documents/Krishna-Work/Developer-Panel-SAAS-Model-Projects/vidhione/src/layout/AppMenu.tsx:118:1]
+ 115 |             if (!isTenantMode || !currentIndustryApp) return section;
+ 116 | 
+ 117 |             const items = Array.isArray(section.items) ? [...section.items] : [];
+ 118 |             const dashboardLabel = ${currentIndustryApp.name} Dashboard;
+     :                                                        ^
+ 119 |             if (items.length > 0) {
+ 120 |                 items[0] = {
+ 121 |                     ...items[0],
+     `----
+  x Expected ',', got 'ident'
+     ,-[C:/Users/devel/OneDrive/Documents/Krishna-Work/Developer-Panel-SAAS-Model-Projects/vidhione/src/layout/AppMenu.tsx:118:1]
+ 115 |             if (!isTenantMode || !currentIndustryApp) return section;
+ 116 | 
+ 117 |             const items = Array.isArray(section.items) ? [...section.items] : [];
+ 118 |             const dashboardLabel = ${currentIndustryApp.name} Dashboard;
+     :                                                               ^^^^^^^^^
+ 119 |             if (items.length > 0) {
+ 120 |                 items[0] = {
+ 121 |                     ...items[0],
+     `----
+
+
+Caused by:
+    Syntax Error[39m
+  Plugin: [35mvite:react-swc[39m
+  File: [36mC:/Users/devel/OneDrive/Documents/Krishna-Work/Developer-Panel-SAAS-Model-Projects/vidhione/src/layout/AppMenu.tsx[39m
+  
+  x Expected ',', got '{'
+    ,-[C:/Users/devel/OneDrive/Documents/Krishna-Work/Developer-Panel-SAAS-Model-Projects/vidhione/src/layout/routeTitleResolver.ts:87:1]
+ 84 | };
+ 85 | 
+ 86 | const isPrefixPathMatch = (pathname: string, prefix: string) => {
+ 87 |     return pathname === prefix || pathname.startsWith(${prefix}/);
+    :                                                        ^
+ 88 | };
+ 89 | 
+ 90 | const formatSegmentLabel = (segment: string) => {
+    `----
+
+
+Caused by:
+    Syntax Error
+  x Expected ',', got '{'
+    ,-[C:/Users/devel/OneDrive/Documents/Krishna-Work/Developer-Panel-SAAS-Model-Projects/vidhione/src/layout/routeTitleResolver.ts:87:1]
+ 84 | };
+ 85 | 
+ 86 | const isPrefixPathMatch = (pathname: string, prefix: string) => {
+ 87 |     return pathname === prefix || pathname.startsWith(${prefix}/);
+    :                                                        ^
+ 88 | };
+ 89 | 
+ 90 | const formatSegmentLabel = (segment: string) => {
+    `----
+
+
+Caused by:
+    Syntax Error
+[2m11:33:02 am[22m [31m[1m[vite][22m[39m [31mInternal server error:   x Expected ',', got '{'
+    ,-[C:/Users/devel/OneDrive/Documents/Krishna-Work/Developer-Panel-SAAS-Model-Projects/vidhione/src/layout/routeTitleResolver.ts:87:1]
+ 84 | };
+ 85 | 
+ 86 | const isPrefixPathMatch = (pathname: string, prefix: string) => {
+ 87 |     return pathname === prefix || pathname.startsWith(${prefix}/);
+    :                                                        ^
+ 88 | };
+ 89 | 
+ 90 | const formatSegmentLabel = (segment: string) => {
+    `----
+
+
+Caused by:
+    Syntax Error[39m
+  Plugin: [35mvite:react-swc[39m
+  File: [36mC:/Users/devel/OneDrive/Documents/Krishna-Work/Developer-Panel-SAAS-Model-Projects/vidhione/src/layout/routeTitleResolver.ts[39m
+  
+[2m11:33:14 am[22m [31m[1m[vite][22m[39m [31mInternal server error:   x Expected ',', got '{'
+    ,-[C:/Users/devel/OneDrive/Documents/Krishna-Work/Developer-Panel-SAAS-Model-Projects/vidhione/src/layout/routeTitleResolver.ts:87:1]
+ 84 | };
+ 85 | 
+ 86 | const isPrefixPathMatch = (pathname: string, prefix: string) => {
+ 87 |     return pathname === prefix || pathname.startsWith(${prefix}/);
+    :                                                        ^
+ 88 | };
+ 89 | 
+ 90 | const formatSegmentLabel = (segment: string) => {
+    `----
+
+
+Caused by:
+    Syntax Error[39m
+  Plugin: [35mvite:react-swc[39m
+  File: [36mC:/Users/devel/OneDrive/Documents/Krishna-Work/Developer-Panel-SAAS-Model-Projects/vidhione/src/layout/routeTitleResolver.ts[39m
+  
+  x Expected ':', got '#'
+     ,-[C:/Users/devel/OneDrive/Documents/Krishna-Work/Developer-Panel-SAAS-Model-Projects/vidhione/src/layout/routeTitleResolver.ts:125:1]
+ 122 |             ? 'New'
+ 123 |             : sectionSegment === 'edit'
+ 124 |               ? voucherNoSegment
+ 125 |                   ? Edit #
+     :                          ^
+ 126 |                   : 'Edit'
+ 127 |               : 'Register';
+     `----
+
+
+Caused by:
+    Syntax Error
+  x Expected ':', got '#'
+     ,-[C:/Users/devel/OneDrive/Documents/Krishna-Work/Developer-Panel-SAAS-Model-Projects/vidhione/src/layout/routeTitleResolver.ts:125:1]
+ 122 |             ? 'New'
+ 123 |             : sectionSegment === 'edit'
+ 124 |               ? voucherNoSegment
+ 125 |                   ? Edit #
+     :                          ^
+ 126 |                   : 'Edit'
+ 127 |               : 'Register';
+     `----
+
+
+Caused by:
+    Syntax Error
+[2m11:33:30 am[22m [31m[1m[vite][22m[39m [31mInternal server error:   x Expected ':', got '#'
+     ,-[C:/Users/devel/OneDrive/Documents/Krishna-Work/Developer-Panel-SAAS-Model-Projects/vidhione/src/layout/routeTitleResolver.ts:125:1]
+ 122 |             ? 'New'
+ 123 |             : sectionSegment === 'edit'
+ 124 |               ? voucherNoSegment
+ 125 |                   ? Edit #
+     :                          ^
+ 126 |                   : 'Edit'
+ 127 |               : 'Register';
+     `----
+
+
+Caused by:
+    Syntax Error[39m
+  Plugin: [35mvite:react-swc[39m
+  File: [36mC:/Users/devel/OneDrive/Documents/Krishna-Work/Developer-Panel-SAAS-Model-Projects/vidhione/src/layout/routeTitleResolver.ts[39m
+  
+[2m11:33:46 am[22m [31m[1m[vite][22m[39m [31mInternal server error:   x Expected ':', got '#'
+     ,-[C:/Users/devel/OneDrive/Documents/Krishna-Work/Developer-Panel-SAAS-Model-Projects/vidhione/src/layout/routeTitleResolver.ts:125:1]
+ 122 |             ? 'New'
+ 123 |             : sectionSegment === 'edit'
+ 124 |               ? voucherNoSegment
+ 125 |                   ? Edit #
+     :                          ^
+ 126 |                   : 'Edit'
+ 127 |               : 'Register';
+     `----
+
+
+Caused by:
+    Syntax Error[39m
+  Plugin: [35mvite:react-swc[39m
+  File: [36mC:/Users/devel/OneDrive/Documents/Krishna-Work/Developer-Panel-SAAS-Model-Projects/vidhione/src/layout/routeTitleResolver.ts[39m
+  

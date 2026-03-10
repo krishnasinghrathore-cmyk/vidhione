@@ -1,0 +1,1 @@
+import{j as s}from"./index-a2e62377.js";const a=()=>s.jsx("div",{className:"grid",children:s.jsx("div",{className:"col-12",children:s.jsxs("div",{className:"card",children:[s.jsx("h4",{children:"Empty Page"}),s.jsx("p",{children:"Use this page to start from scratch and place your custom content."})]})})});export{a as default};

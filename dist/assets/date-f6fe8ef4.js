@@ -1,0 +1,1 @@
+const o=t=>{const s=t.getFullYear(),n=String(t.getMonth()+1).padStart(2,"0"),a=String(t.getDate()).padStart(2,"0");return`${s}-${n}-${a}`},r=t=>t?o(t):null,e=t=>t?o(t):"",c=(t,s)=>{const n=new Date(t);return n.setDate(n.getDate()+s),n};export{r as a,e as b,c,o as t};

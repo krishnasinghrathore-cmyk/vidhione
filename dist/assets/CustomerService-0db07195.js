@@ -1,0 +1,1 @@
+const t={getCustomersMedium(){return fetch("/demo/data/customers-medium.json",{headers:{"Cache-Control":"no-cache"}}).then(e=>e.json()).then(e=>e.data)},getCustomersLarge(){return fetch("/demo/data/customers-large.json",{headers:{"Cache-Control":"no-cache"}}).then(e=>e.json()).then(e=>e.data)}};export{t as C};

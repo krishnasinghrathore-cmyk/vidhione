@@ -1,0 +1,1 @@
+import{j as e}from"./index-a2e62377.js";function a(){return e.jsxs("div",{className:"card",children:[e.jsx("h2",{className:"mb-2",children:"Email"}),e.jsx("p",{className:"text-600",children:"Email sending, templates, and engagement tracking shared across the suite will live in this module."})]})}export{a as default};

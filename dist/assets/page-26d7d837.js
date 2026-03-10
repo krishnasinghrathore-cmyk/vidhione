@@ -1,0 +1,1 @@
+import{j as e}from"./index-a2e62377.js";const i=()=>e.jsxs("div",{className:"card",children:[e.jsx("h2",{children:"Figma"}),e.jsx("p",{children:"The figma file for the Vidhione theme is available for download. You can use this file to design your own pages and components."})]});export{i as default};

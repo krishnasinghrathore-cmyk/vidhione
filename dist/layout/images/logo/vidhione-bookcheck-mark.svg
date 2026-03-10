@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Vidhione book check mark">
+  <defs>
+    <linearGradient id="vidhione-bookcheck-gradient" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#22d3ee" />
+      <stop offset="0.55" stop-color="#a78bfa" />
+      <stop offset="1" stop-color="#f472b6" />
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="#0f172a" />
+  <g fill="none" stroke="url(#vidhione-bookcheck-gradient)" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M128 144 H320 C352 144 368 160 368 192 V360 C336 336 296 336 256 360 C216 336 176 336 144 360 V192 C144 160 160 144 192 144" stroke-width="26" />
+    <path d="M256 160 V352" stroke-width="18" opacity="0.8" />
+    <path d="M180 206 H232" stroke-width="12" opacity="0.75" />
+    <path d="M180 244 H232" stroke-width="12" opacity="0.7" />
+    <path d="M180 282 H232" stroke-width="12" opacity="0.65" />
+    <path d="M280 206 H320" stroke-width="12" opacity="0.75" />
+    <path d="M280 244 H320" stroke-width="12" opacity="0.7" />
+  </g>
+  <circle cx="368" cy="330" r="48" fill="url(#vidhione-bookcheck-gradient)" />
+  <path d="M346 332 L362 346 L392 314" fill="none" stroke="#0f172a" stroke-width="16" stroke-linecap="round" stroke-linejoin="round" />
+</svg>

@@ -1,0 +1,788 @@
+78[0J8[0J8[0J[1000D[2K[36m  ⠋ Building Encore application graph... [0m
+[1000D[2K[36m  ⠋ Analyzing service topology... [0m
+8[0J[1000D[2K[36m  ⠙ Building Encore application graph... [0m
+[1000D[2K[36m  ⠙ Analyzing service topology... [0m
+8[0J[1000D[2K[36m  ⠚ Building Encore application graph... [0m
+[1000D[2K[36m  ⠚ Analyzing service topology... [0m
+8[0J[1000D[2K[36m  ⠒ Building Encore application graph... [0m
+[1000D[2K[36m  ⠒ Analyzing service topology... [0m
+8[0J[1000D[2K[36m  ⠂ Building Encore application graph... [0m
+[1000D[2K[36m  ⠂ Analyzing service topology... [0m
+8[0J[1000D[2K[36m  ⠂ Building Encore application graph... [0m
+[1000D[2K[36m  ⠂ Analyzing service topology... [0m
+8[0J[1000D[2K[36m  ⠒ Building Encore application graph... [0m
+[1000D[2K[36m  ⠒ Analyzing service topology... [0m
+8[0J[1000D[2K[32m  ✔ Building Encore application graph... Done![0m
+[1000D[2K[32m  ✔ Analyzing service topology... Done![0m
+[1000D[2K[36m  ⠋ Fetching application secrets... [0m
+8[0J[1000D[2K[32m  ✔ Building Encore application graph... Done![0m
+[1000D[2K[32m  ✔ Analyzing service topology... Done![0m
+[1000D[2K[32m  ✔ Fetching application secrets... Done![0m
+8[0J[1000D[2K[32m  ✔ Building Encore application graph... Done![0m
+[1000D[2K[32m  ✔ Analyzing service topology... Done![0m
+[1000D[2K[32m  ✔ Fetching application secrets... Done![0m
+8[0J[1000D[2K[32m  ✔ Building Encore application graph... Done![0m
+[1000D[2K[32m  ✔ Analyzing service topology... Done![0m
+[1000D[2K[32m  ✔ Fetching application secrets... Done![0m
+[1000D[2K[36m  ⠋ Starting Encore application... [0m
+8[0J[1000D[2K[32m  ✔ Building Encore application graph... Done![0m
+[1000D[2K[32m  ✔ Analyzing service topology... Done![0m
+[1000D[2K[32m  ✔ Fetching application secrets... Done![0m
+[1000D[2K[36m  ⠙ Starting Encore application... [0m
+
+  Encore development server running!
+
+  Your API is running at:     [36mhttp://127.0.0.1:4000[0m
+  Development Dashboard URL:  [36mhttp://127.0.0.1:9400/xxifs[0m
+  MCP SSE URL:                [36mhttp://127.0.0.1:9900/sse?appID=xxifs[0m
+
+9:17AM INF starting request endpoint=graphqlPost service=accounts span_id=c6ap3jqrhkcdg trace_id=j695ovonqtj76db50742skvt14
+9:17AM INF request completed code=internal duration=101.7905 endpoint=graphqlPost service=accounts span_id=c6ap3jqrhkcdg trace_id=j695ovonqtj76db50742skvt14
+9:17AM ERR pingora_proxy > Fail to proxy: Downstream ConnectionClosed context: Peer: addr: 127.0.0.1:57075, scheme: HTTP,sni: 127.0.0.1, cause:  context: Peer prematurely closed connection with 32 bytes of body remaining to read, status: 0, tries: 1, retry: false, POST /graphql, Host: 127.0.0.1:4000
+9:19AM INF starting request endpoint=graphqlPost service=auth span_id=h2mbetr8g6uvq trace_id=j2d9gtgap6filhf315jtap4edo
+9:19AM INF request completed code=unknown duration=198.8061 endpoint=graphqlPost service=auth span_id=h2mbetr8g6uvq trace_id=j2d9gtgap6filhf315jtap4edo
+9:20AM INF starting request endpoint=graphqlPost service=auth span_id=eod2urc6vpoi0 trace_id=qtj5etjgjh5ahuj0r20hdf210s
+9:20AM INF request completed code=unknown duration=286.5424 endpoint=graphqlPost service=auth span_id=eod2urc6vpoi0 trace_id=qtj5etjgjh5ahuj0r20hdf210s
+9:20AM INF starting request endpoint=graphqlPost service=auth span_id=to8jh47bo9ges trace_id=1idsk768463epr33o7shffghk0
+9:20AM INF request completed code=unknown duration=53.9554 endpoint=graphqlPost service=auth span_id=to8jh47bo9ges trace_id=1idsk768463epr33o7shffghk0
+9:21AM INF starting request endpoint=graphqlPost service=auth span_id=pi65i4oh00ah4 trace_id=nsh7fq23rcsnh398p9e5j6ieao
+9:21AM INF request completed code=unknown duration=125.2159 endpoint=graphqlPost service=auth span_id=pi65i4oh00ah4 trace_id=nsh7fq23rcsnh398p9e5j6ieao
+9:21AM INF starting request endpoint=graphqlPost service=auth span_id=cbm2r7fcr009o trace_id=2kq9pkblbd00cpc608tdh9l76k
+9:21AM INF request completed code=unknown duration=40.0836 endpoint=graphqlPost service=auth span_id=cbm2r7fcr009o trace_id=2kq9pkblbd00cpc608tdh9l76k
+9:21AM INF starting request endpoint=graphqlPost service=auth span_id=b0galh0674b38 trace_id=10jdekoi3u9gs2eq9fqivlvnhs
+9:21AM INF request completed code=unknown duration=19.2604 endpoint=graphqlPost service=auth span_id=b0galh0674b38 trace_id=10jdekoi3u9gs2eq9fqivlvnhs
+9:21AM INF starting request endpoint=graphqlPost service=billing span_id=969e9p0aa3b8c trace_id=5bo91maoae61982gossilm3q9g
+9:21AM INF request completed code=unknown duration=10.9235 endpoint=graphqlPost service=billing span_id=969e9p0aa3b8c trace_id=5bo91maoae61982gossilm3q9g
+9:21AM INF starting request endpoint=graphqlPost service=auth span_id=h7n43jtloncd4 trace_id=5sok145frf2c6vno3l52rt5jf0
+9:21AM INF starting request endpoint=graphqlPost service=auth span_id=ko8tv99rb67ci trace_id=oabqogk1houdalmrjrkcrq5dos
+9:21AM INF request completed code=unknown duration=68.7339 endpoint=graphqlPost service=auth span_id=h7n43jtloncd4 trace_id=5sok145frf2c6vno3l52rt5jf0
+9:21AM INF request completed code=unknown duration=69.6575 endpoint=graphqlPost service=auth span_id=ko8tv99rb67ci trace_id=oabqogk1houdalmrjrkcrq5dos
+9:21AM INF starting request endpoint=graphqlPost service=auth span_id=vib0pqbemtu14 trace_id=cn4leh0jqrkcns177eaka7o8ak
+9:21AM INF starting request endpoint=graphqlPost service=auth span_id=lgsq3njh39c7k trace_id=3lmd01t7vntnih1vhftoi8k1ig
+9:21AM INF request completed code=unknown duration=54.2604 endpoint=graphqlPost service=auth span_id=vib0pqbemtu14 trace_id=cn4leh0jqrkcns177eaka7o8ak
+9:21AM INF starting request endpoint=graphqlPost service=billing span_id=17vsbkeuifcdc trace_id=rkvb165fr0tfmd9rf4je3f1ujk
+9:21AM INF request completed code=unknown duration=59.7217 endpoint=graphqlPost service=auth span_id=lgsq3njh39c7k trace_id=3lmd01t7vntnih1vhftoi8k1ig
+9:21AM INF request completed code=unknown duration=5.681 endpoint=graphqlPost service=billing span_id=17vsbkeuifcdc trace_id=rkvb165fr0tfmd9rf4je3f1ujk
+9:21AM INF starting request endpoint=graphqlPost service=billing span_id=kmb8mjuo7jhu8 trace_id=ok2omfgr1kidgne0h83ij187o4
+9:21AM INF request completed code=unknown duration=7.9376 endpoint=graphqlPost service=billing span_id=kmb8mjuo7jhu8 trace_id=ok2omfgr1kidgne0h83ij187o4
+9:21AM INF starting request endpoint=graphqlPost service=wealth span_id=oq825kf8gmi3m trace_id=mhuvn7rb6c0dfe6igd0pu3io94
+9:21AM INF request completed code=unknown duration=411.5915 endpoint=graphqlPost service=wealth span_id=oq825kf8gmi3m trace_id=mhuvn7rb6c0dfe6igd0pu3io94
+9:21AM INF starting request endpoint=graphqlPost service=auth span_id=j5ruoi7jkp1de trace_id=icsj86c28hjn1089oltmn8t000
+9:21AM INF starting request endpoint=graphqlPost service=auth span_id=5et26p4aeisqc trace_id=es2i5j6jprosu8iv9qbs3pn6k4
+9:21AM INF request completed code=unknown duration=128.1023 endpoint=graphqlPost service=auth span_id=j5ruoi7jkp1de trace_id=icsj86c28hjn1089oltmn8t000
+9:21AM INF request completed code=unknown duration=128.5014 endpoint=graphqlPost service=auth span_id=5et26p4aeisqc trace_id=es2i5j6jprosu8iv9qbs3pn6k4
+9:21AM INF starting request endpoint=graphqlPost service=auth span_id=79330b8kt91r8 trace_id=7notghnqk6i18b4ep8r3bfulr0
+9:21AM INF starting request endpoint=graphqlPost service=auth span_id=ibsu4a42i875s trace_id=85ft66khor3qa8kfca692a9de8
+9:21AM INF request completed code=unknown duration=109.2846 endpoint=graphqlPost service=auth span_id=79330b8kt91r8 trace_id=7notghnqk6i18b4ep8r3bfulr0
+9:21AM INF starting request endpoint=graphqlPost service=billing span_id=o39u5dp2b8uao trace_id=hvfp0h498uckcssfnkoahu9894
+9:21AM INF request completed code=unknown duration=122.5201 endpoint=graphqlPost service=auth span_id=ibsu4a42i875s trace_id=85ft66khor3qa8kfca692a9de8
+9:21AM INF request completed code=unknown duration=11.8129 endpoint=graphqlPost service=billing span_id=o39u5dp2b8uao trace_id=hvfp0h498uckcssfnkoahu9894
+9:21AM INF starting request endpoint=graphqlPost service=billing span_id=6trcr826u2spm trace_id=cg8cnihssbs7d4dfksnje9iph4
+9:21AM INF request completed code=unknown duration=6.0659 endpoint=graphqlPost service=billing span_id=6trcr826u2spm trace_id=cg8cnihssbs7d4dfksnje9iph4
+9:21AM INF starting request endpoint=graphqlPost service=wealth span_id=qke6mt38p6vfk trace_id=ionr2qvelnbqtj3ri96i6m190k
+9:21AM INF request completed code=unknown duration=140.6231 endpoint=graphqlPost service=wealth span_id=qke6mt38p6vfk trace_id=ionr2qvelnbqtj3ri96i6m190k
+9:21AM INF starting request endpoint=graphqlPost service=auth span_id=o3asrpp70ps6k trace_id=daj916ajsll0qpr20vjoqoc9mc
+9:21AM INF starting request endpoint=graphqlPost service=auth span_id=kh28rroo68ec4 trace_id=87erb7v1vphu1kqe3ccu2bdrg8
+9:21AM INF request completed code=unknown duration=22.3199 endpoint=graphqlPost service=auth span_id=kh28rroo68ec4 trace_id=87erb7v1vphu1kqe3ccu2bdrg8
+9:21AM INF request completed code=unknown duration=23.0225 endpoint=graphqlPost service=auth span_id=o3asrpp70ps6k trace_id=daj916ajsll0qpr20vjoqoc9mc
+9:21AM INF starting request endpoint=graphqlPost service=auth span_id=vofknmolq02hm trace_id=svstp19m3jsrp48hjruth10rcc
+9:21AM INF starting request endpoint=graphqlPost service=auth span_id=u57iimmhfafp6 trace_id=h327k41r2sr421qtpmbrs43bvc
+9:21AM INF request completed code=unknown duration=26.6031 endpoint=graphqlPost service=auth span_id=vofknmolq02hm trace_id=svstp19m3jsrp48hjruth10rcc
+9:21AM INF starting request endpoint=graphqlPost service=billing span_id=lulra9or7vhg8 trace_id=28fitr4k0jnfcjej1aefvuh4so
+9:21AM INF request completed code=unknown duration=6.1717 endpoint=graphqlPost service=billing span_id=lulra9or7vhg8 trace_id=28fitr4k0jnfcjej1aefvuh4so
+9:21AM INF request completed code=unknown duration=44.5619 endpoint=graphqlPost service=auth span_id=u57iimmhfafp6 trace_id=h327k41r2sr421qtpmbrs43bvc
+9:21AM INF starting request endpoint=graphqlPost service=billing span_id=872lpc61cpcmo trace_id=t3jvgg81fb2rduknae1seih788
+9:21AM INF request completed code=unknown duration=8.8037 endpoint=graphqlPost service=billing span_id=872lpc61cpcmo trace_id=t3jvgg81fb2rduknae1seih788
+9:21AM INF starting request endpoint=graphqlPost service=wealth span_id=tuusm8tcqjov0 trace_id=maldl8e3ka8le999v3vrt8eke0
+9:21AM INF starting request endpoint=graphqlPost service=wealth span_id=i2iqajmm74264 trace_id=suetigfnu3beti0m9i4puqfr0o
+9:21AM INF request completed code=unknown duration=18.8433 endpoint=graphqlPost service=wealth span_id=tuusm8tcqjov0 trace_id=maldl8e3ka8le999v3vrt8eke0
+9:21AM INF request completed code=unknown duration=33.336 endpoint=graphqlPost service=wealth span_id=i2iqajmm74264 trace_id=suetigfnu3beti0m9i4puqfr0o
+9:21AM INF starting request endpoint=graphqlPost service=auth span_id=fhvoiquc5a3fa trace_id=r7kbj620v6l68armpqulo2tj2k
+9:21AM INF starting request endpoint=graphqlPost service=auth span_id=hrassfdlnuqh4 trace_id=scksjslhdffibptn5r927ims0s
+9:21AM INF request completed code=unknown duration=15.5669 endpoint=graphqlPost service=auth span_id=fhvoiquc5a3fa trace_id=r7kbj620v6l68armpqulo2tj2k
+9:21AM INF request completed code=unknown duration=15.574 endpoint=graphqlPost service=auth span_id=hrassfdlnuqh4 trace_id=scksjslhdffibptn5r927ims0s
+9:21AM INF starting request endpoint=graphqlPost service=auth span_id=4b5ef07hf304a trace_id=fpdueiisgtpknj5taie0efn6n0
+9:21AM INF starting request endpoint=graphqlPost service=auth span_id=gqesie8g39d8u trace_id=mqt1fpigo7pe739eq7ok9p1r7g
+9:21AM INF request completed code=unknown duration=30.5886 endpoint=graphqlPost service=auth span_id=4b5ef07hf304a trace_id=fpdueiisgtpknj5taie0efn6n0
+9:21AM INF starting request endpoint=graphqlPost service=billing span_id=89lrkocpcb3qg trace_id=csb20vbbpoafn94rqri42ns1fg
+9:21AM INF request completed code=unknown duration=6.9389 endpoint=graphqlPost service=billing span_id=89lrkocpcb3qg trace_id=csb20vbbpoafn94rqri42ns1fg
+9:21AM INF request completed code=unknown duration=49.8705 endpoint=graphqlPost service=auth span_id=gqesie8g39d8u trace_id=mqt1fpigo7pe739eq7ok9p1r7g
+9:21AM INF starting request endpoint=graphqlPost service=billing span_id=6sujmhjkngas4 trace_id=aenckic9drs4mru6ogabnjvip4
+9:21AM INF request completed code=unknown duration=9.255 endpoint=graphqlPost service=billing span_id=6sujmhjkngas4 trace_id=aenckic9drs4mru6ogabnjvip4
+9:21AM INF starting request endpoint=graphqlPost service=wealth span_id=4no7sb89u33su trace_id=3fvn1bj8ocjlrk4a4rmfi7lg90
+9:21AM INF starting request endpoint=graphqlPost service=wealth span_id=hsl7fr9pril04 trace_id=k6vg5cclhb0i6v82r1upeocgo8
+9:21AM INF starting request endpoint=graphqlPost service=wealth span_id=b5htleg0llui2 trace_id=hejpm2bcs2v5onn6f0so5lhvg0
+9:21AM INF starting request endpoint=graphqlPost service=wealth span_id=3vpvlc9qgko8o trace_id=41ilejvuo0bhbgmgeag0r43np0
+9:21AM INF request completed code=unknown duration=33.063 endpoint=graphqlPost service=wealth span_id=4no7sb89u33su trace_id=3fvn1bj8ocjlrk4a4rmfi7lg90
+9:21AM INF request completed code=unknown duration=145.4026 endpoint=graphqlPost service=wealth span_id=hsl7fr9pril04 trace_id=k6vg5cclhb0i6v82r1upeocgo8
+9:21AM INF request completed code=unknown duration=143.0121 endpoint=graphqlPost service=wealth span_id=b5htleg0llui2 trace_id=hejpm2bcs2v5onn6f0so5lhvg0
+9:21AM INF request completed code=unknown duration=187.5883 endpoint=graphqlPost service=wealth span_id=3vpvlc9qgko8o trace_id=41ilejvuo0bhbgmgeag0r43np0
+9:21AM INF starting request endpoint=graphqlPost service=auth span_id=ootdo6n8s0fqi trace_id=sal9mruthomh29dnjfindt0clg
+9:21AM INF starting request endpoint=graphqlPost service=auth span_id=2mn47u4lb91o4 trace_id=u2u3dok0f8eb2tpuag39i77a8o
+9:21AM INF request completed code=unknown duration=23.716 endpoint=graphqlPost service=auth span_id=ootdo6n8s0fqi trace_id=sal9mruthomh29dnjfindt0clg
+9:21AM INF request completed code=unknown duration=22.802 endpoint=graphqlPost service=auth span_id=2mn47u4lb91o4 trace_id=u2u3dok0f8eb2tpuag39i77a8o
+9:21AM INF starting request endpoint=graphqlPost service=auth span_id=o24t1o5cgb1hi trace_id=4j49aqv37qmfe0m69ubchf12io
+9:21AM INF starting request endpoint=graphqlPost service=auth span_id=fdouj348e8ljg trace_id=v925mgfrd7c4uvgbdcbemp74h8
+9:21AM INF request completed code=unknown duration=28.5092 endpoint=graphqlPost service=auth span_id=o24t1o5cgb1hi trace_id=4j49aqv37qmfe0m69ubchf12io
+9:21AM INF starting request endpoint=graphqlPost service=billing span_id=im4brn94hpvn4 trace_id=r2f6i8jf5g6g72vddnb3i8rsio
+9:21AM INF request completed code=unknown duration=8.3216 endpoint=graphqlPost service=billing span_id=im4brn94hpvn4 trace_id=r2f6i8jf5g6g72vddnb3i8rsio
+9:21AM INF request completed code=unknown duration=50.9315 endpoint=graphqlPost service=auth span_id=fdouj348e8ljg trace_id=v925mgfrd7c4uvgbdcbemp74h8
+9:21AM INF starting request endpoint=graphqlPost service=billing span_id=fvukigueo8qdi trace_id=dbpco9264d39bm12cb8j4rhdac
+9:21AM INF request completed code=unknown duration=8.1174 endpoint=graphqlPost service=billing span_id=fvukigueo8qdi trace_id=dbpco9264d39bm12cb8j4rhdac
+9:21AM INF starting request endpoint=graphqlPost service=wealth span_id=n9jq2u66buah4 trace_id=t6lrfchif2b8f6t91rkjnd4k3g
+9:21AM INF starting request endpoint=graphqlPost service=wealth span_id=abdpueov3m74a trace_id=0aju4lidii08vf9q5rhchl7iso
+9:21AM INF starting request endpoint=graphqlPost service=wealth span_id=l7i9h9igekj0m trace_id=7p6p7ns4kb41mhfntnh22i7h0g
+9:21AM INF starting request endpoint=graphqlPost service=wealth span_id=hgaqvtf4i5s8u trace_id=sdeehc8g54gto2stshcvbdner4
+9:21AM INF request completed code=unknown duration=28.9661 endpoint=graphqlPost service=wealth span_id=n9jq2u66buah4 trace_id=t6lrfchif2b8f6t91rkjnd4k3g
+9:21AM INF request completed code=unknown duration=35.0471 endpoint=graphqlPost service=wealth span_id=abdpueov3m74a trace_id=0aju4lidii08vf9q5rhchl7iso
+9:21AM INF request completed code=unknown duration=148.9192 endpoint=graphqlPost service=wealth span_id=l7i9h9igekj0m trace_id=7p6p7ns4kb41mhfntnh22i7h0g
+9:21AM INF request completed code=unknown duration=155.9033 endpoint=graphqlPost service=wealth span_id=hgaqvtf4i5s8u trace_id=sdeehc8g54gto2stshcvbdner4
+9:21AM INF starting request endpoint=graphqlPost service=auth span_id=bnufm6qkr80hg trace_id=vhq4gssu8uueu8sudr2ub02jac
+9:21AM INF starting request endpoint=graphqlPost service=auth span_id=r19smitjh04o8 trace_id=7gp3t5j2jheobe79po8u3e3c70
+9:21AM INF request completed code=unknown duration=48.884 endpoint=graphqlPost service=auth span_id=bnufm6qkr80hg trace_id=vhq4gssu8uueu8sudr2ub02jac
+9:21AM INF request completed code=unknown duration=49.5941 endpoint=graphqlPost service=auth span_id=r19smitjh04o8 trace_id=7gp3t5j2jheobe79po8u3e3c70
+9:21AM INF starting request endpoint=graphqlPost service=auth span_id=lau0782bql5vm trace_id=cjp2gt98gvkbimr8fe0qsj110k
+9:21AM INF starting request endpoint=graphqlPost service=auth span_id=8ntsjm1n4pum2 trace_id=e0mbgr8i7o7rlfk6vm03mq0in8
+9:21AM INF request completed code=unknown duration=29.8763 endpoint=graphqlPost service=auth span_id=lau0782bql5vm trace_id=cjp2gt98gvkbimr8fe0qsj110k
+9:21AM INF starting request endpoint=graphqlPost service=billing span_id=i4qgnobl4n72m trace_id=eopqr3etpalq8bojacai9v59pg
+9:21AM INF request completed code=unknown duration=8.9787 endpoint=graphqlPost service=billing span_id=i4qgnobl4n72m trace_id=eopqr3etpalq8bojacai9v59pg
+9:21AM INF request completed code=unknown duration=48.116 endpoint=graphqlPost service=auth span_id=8ntsjm1n4pum2 trace_id=e0mbgr8i7o7rlfk6vm03mq0in8
+9:21AM INF starting request endpoint=graphqlPost service=billing span_id=3rj7pssvoq7ju trace_id=hja60n14enedmfsggj7ph3d4rk
+9:21AM INF request completed code=unknown duration=9.3197 endpoint=graphqlPost service=billing span_id=3rj7pssvoq7ju trace_id=hja60n14enedmfsggj7ph3d4rk
+9:21AM INF starting request endpoint=graphqlPost service=wealth span_id=47pvjblrkkgdg trace_id=s0a5kcg2tv4p3kouk6s393hmog
+9:21AM INF starting request endpoint=graphqlPost service=wealth span_id=dfvifua2madra trace_id=40uo65bcil0b84h4jil58nq57s
+9:21AM INF starting request endpoint=graphqlPost service=wealth span_id=viofnn7qtsahk trace_id=k39f873loc6seth0hn9dea85sk
+9:21AM INF request completed code=unknown duration=18.1388 endpoint=graphqlPost service=wealth span_id=dfvifua2madra trace_id=40uo65bcil0b84h4jil58nq57s
+9:21AM INF request completed code=unknown duration=24.9461 endpoint=graphqlPost service=wealth span_id=47pvjblrkkgdg trace_id=s0a5kcg2tv4p3kouk6s393hmog
+9:21AM INF request completed code=unknown duration=125.8062 endpoint=graphqlPost service=wealth span_id=viofnn7qtsahk trace_id=k39f873loc6seth0hn9dea85sk
+9:21AM INF starting request endpoint=graphqlPost service=auth span_id=4gprdtss1jkqi trace_id=nlf8vbkq31id7nbgc2fbtnc4f0
+9:21AM INF starting request endpoint=graphqlPost service=auth span_id=clepedb4fol5k trace_id=k469son5d7pjfgj5se1j5pd1v0
+9:21AM INF request completed code=unknown duration=17.3992 endpoint=graphqlPost service=auth span_id=4gprdtss1jkqi trace_id=nlf8vbkq31id7nbgc2fbtnc4f0
+9:21AM INF request completed code=unknown duration=17.3442 endpoint=graphqlPost service=auth span_id=clepedb4fol5k trace_id=k469son5d7pjfgj5se1j5pd1v0
+9:21AM INF starting request endpoint=graphqlPost service=auth span_id=r3qms0mbsgmb8 trace_id=rbb73a0rjbqj4f2lgdau55b0po
+9:21AM INF starting request endpoint=graphqlPost service=auth span_id=6bdiphplio3sa trace_id=si89vu49ebc4eea4ji454kgiho
+9:21AM INF request completed code=unknown duration=30.4639 endpoint=graphqlPost service=auth span_id=r3qms0mbsgmb8 trace_id=rbb73a0rjbqj4f2lgdau55b0po
+9:21AM INF starting request endpoint=graphqlPost service=billing span_id=g9i2h1q0v3j24 trace_id=rpubdh5kad8jk3so5frligf9eg
+9:21AM INF request completed code=unknown duration=7.6141 endpoint=graphqlPost service=billing span_id=g9i2h1q0v3j24 trace_id=rpubdh5kad8jk3so5frligf9eg
+9:21AM INF request completed code=unknown duration=47.3374 endpoint=graphqlPost service=auth span_id=6bdiphplio3sa trace_id=si89vu49ebc4eea4ji454kgiho
+9:21AM INF starting request endpoint=graphqlPost service=billing span_id=hqce7o5ls82fi trace_id=ifcuus4lofbgs2lpeg696bbs44
+9:21AM INF request completed code=unknown duration=9.4134 endpoint=graphqlPost service=billing span_id=hqce7o5ls82fi trace_id=ifcuus4lofbgs2lpeg696bbs44
+9:21AM INF starting request endpoint=graphqlPost service=wealth span_id=odp22m6m3sfj4 trace_id=v1g4q0iffcmck3e2o8jcbsjn14
+9:21AM INF request completed code=unknown duration=296.7699 endpoint=graphqlPost service=wealth span_id=odp22m6m3sfj4 trace_id=v1g4q0iffcmck3e2o8jcbsjn14
+9:21AM INF starting request endpoint=graphqlPost service=auth span_id=qmu3cgg174uj2 trace_id=2rsvo9i5h337st7vs0l1gaet4c
+9:21AM INF starting request endpoint=graphqlPost service=auth span_id=r8jiao81j6h00 trace_id=hl7ck5t461ahf93t61kptfr4ag
+9:21AM INF request completed code=unknown duration=14.5949 endpoint=graphqlPost service=auth span_id=qmu3cgg174uj2 trace_id=2rsvo9i5h337st7vs0l1gaet4c
+9:21AM INF request completed code=unknown duration=14.5409 endpoint=graphqlPost service=auth span_id=r8jiao81j6h00 trace_id=hl7ck5t461ahf93t61kptfr4ag
+9:21AM INF starting request endpoint=graphqlPost service=auth span_id=d8lk3dbc6c4e4 trace_id=1npf9r9orkk9bggiemd82i7kno
+9:21AM INF starting request endpoint=graphqlPost service=auth span_id=5fqmf4s1u0cgm trace_id=mpg1d4ks89emq1rn663i5lk8lk
+9:21AM INF request completed code=unknown duration=30.676 endpoint=graphqlPost service=auth span_id=d8lk3dbc6c4e4 trace_id=1npf9r9orkk9bggiemd82i7kno
+9:21AM INF starting request endpoint=graphqlPost service=billing span_id=bv3gsrdg99b7i trace_id=gv6mgefm25cljampq5qdj904v8
+9:21AM INF request completed code=unknown duration=46.2386 endpoint=graphqlPost service=auth span_id=5fqmf4s1u0cgm trace_id=mpg1d4ks89emq1rn663i5lk8lk
+9:21AM INF request completed code=unknown duration=7.2334 endpoint=graphqlPost service=billing span_id=bv3gsrdg99b7i trace_id=gv6mgefm25cljampq5qdj904v8
+9:21AM INF starting request endpoint=graphqlPost service=billing span_id=phs6iq6ie56u6 trace_id=s4p2co3ro4cv21tt02m147u978
+9:21AM INF request completed code=unknown duration=9.1888 endpoint=graphqlPost service=billing span_id=phs6iq6ie56u6 trace_id=s4p2co3ro4cv21tt02m147u978
+9:32AM INF starting request endpoint=graphqlPost service=auth span_id=b6nvdeba848tc trace_id=pbqiesh538pkthle2ma89v3458
+9:32AM INF request completed code=unknown duration=150.9619 endpoint=graphqlPost service=auth span_id=b6nvdeba848tc trace_id=pbqiesh538pkthle2ma89v3458
+9:32AM INF starting request endpoint=graphqlPost service=auth span_id=cumg81hsgc9jg trace_id=g2tace27cgt8p1jh9vp39a2kl8
+9:32AM INF request completed code=unknown duration=91.0376 endpoint=graphqlPost service=auth span_id=cumg81hsgc9jg trace_id=g2tace27cgt8p1jh9vp39a2kl8
+9:32AM INF starting request endpoint=graphqlPost service=billing span_id=qnrn1fdtk0j7i trace_id=2or0f8kefphdg7hqfthhthctsk
+9:32AM INF request completed code=unknown duration=130.2366 endpoint=graphqlPost service=billing span_id=qnrn1fdtk0j7i trace_id=2or0f8kefphdg7hqfthhthctsk
+9:33AM INF starting request endpoint=graphqlPost service=auth span_id=igl7i4dj8vo26 trace_id=ondgd47c2tiac3lh91ti21b4d8
+9:33AM INF request completed code=unknown duration=182.0477 endpoint=graphqlPost service=auth span_id=igl7i4dj8vo26 trace_id=ondgd47c2tiac3lh91ti21b4d8
+9:33AM INF starting request endpoint=graphqlPost service=auth span_id=u73412c3h2f5e trace_id=9qppdhq0thqmdkk3c9jursp3tc
+9:33AM INF request completed code=unknown duration=200.0264 endpoint=graphqlPost service=auth span_id=u73412c3h2f5e trace_id=9qppdhq0thqmdkk3c9jursp3tc
+9:33AM INF starting request endpoint=graphqlPost service=auth span_id=0d08cln9r1ui6 trace_id=p0i77jm9b0f77nth6kl9hugifo
+9:33AM INF request completed code=unknown duration=6.9493 endpoint=graphqlPost service=auth span_id=0d08cln9r1ui6 trace_id=p0i77jm9b0f77nth6kl9hugifo
+9:33AM INF starting request endpoint=graphqlPost service=auth span_id=cg14h9scqju6g trace_id=3h7sin1ebach5k2tj9mmnv3ln8
+9:33AM INF request completed code=unknown duration=47.2696 endpoint=graphqlPost service=auth span_id=cg14h9scqju6g trace_id=3h7sin1ebach5k2tj9mmnv3ln8
+9:35AM INF starting request endpoint=graphqlPost service=auth span_id=58763j7ffk246 trace_id=lpcl84u2lfuurd8bvdso8cr1q4
+9:35AM INF request completed code=unknown duration=72.4579 endpoint=graphqlPost service=auth span_id=58763j7ffk246 trace_id=lpcl84u2lfuurd8bvdso8cr1q4
+9:38AM INF starting request endpoint=graphqlPost service=auth span_id=9j03qlegou5ei trace_id=nt12t8oti3860nnoj2f8r7jkeo
+9:38AM INF request completed code=unknown duration=191.2641 endpoint=graphqlPost service=auth span_id=9j03qlegou5ei trace_id=nt12t8oti3860nnoj2f8r7jkeo
+9:47AM INF starting request endpoint=graphqlPost service=auth span_id=elkkqiq92nu2c trace_id=1h5to0d87tc6re6vnpjf75akpg
+9:47AM INF request completed code=unknown duration=73.8738 endpoint=graphqlPost service=auth span_id=elkkqiq92nu2c trace_id=1h5to0d87tc6re6vnpjf75akpg
+9:47AM INF starting request endpoint=graphqlPost service=auth span_id=58t5dtd384gic trace_id=bl9b63ggurcpc00kgeb89pc4d0
+9:47AM INF request completed code=unknown duration=284.0805 endpoint=graphqlPost service=auth span_id=58t5dtd384gic trace_id=bl9b63ggurcpc00kgeb89pc4d0
+9:47AM INF starting request endpoint=graphqlPost service=auth span_id=letgmglifr6r6 trace_id=104o33gnsupq81jmcqmafaq0co
+9:47AM INF request completed code=unknown duration=45.8797 endpoint=graphqlPost service=auth span_id=letgmglifr6r6 trace_id=104o33gnsupq81jmcqmafaq0co
+9:47AM INF starting request endpoint=graphqlPost service=auth span_id=2ndtdjpkrjv3k trace_id=fs8e6l2csbruk0ffv8jou4og3s
+9:47AM INF request completed code=unknown duration=28.6595 endpoint=graphqlPost service=auth span_id=2ndtdjpkrjv3k trace_id=fs8e6l2csbruk0ffv8jou4og3s
+9:47AM INF starting request endpoint=graphqlPost service=billing span_id=ao296kf4msgd8 trace_id=a6p50v1h5f9a36df04icjmu2kg
+9:47AM INF request completed code=unknown duration=10.685 endpoint=graphqlPost service=billing span_id=ao296kf4msgd8 trace_id=a6p50v1h5f9a36df04icjmu2kg
+9:47AM INF starting request endpoint=graphqlPost service=wealth span_id=ppm4vrt7r4cb8 trace_id=92vsq1oig9djn7mkbldv8qnvbg
+9:47AM INF request completed code=unknown duration=261.1265 endpoint=graphqlPost service=wealth span_id=ppm4vrt7r4cb8 trace_id=92vsq1oig9djn7mkbldv8qnvbg
+9:47AM INF starting request endpoint=graphqlPost service=auth span_id=pub7dsrmdb7u8 trace_id=3gpcb46k9n5jqe88onupk0b35o
+9:47AM INF starting request endpoint=graphqlPost service=auth span_id=c48v5fia21mc6 trace_id=3scgso08le8kkcodkugua64h84
+9:47AM INF request completed code=unknown duration=29.3984 endpoint=graphqlPost service=auth span_id=pub7dsrmdb7u8 trace_id=3gpcb46k9n5jqe88onupk0b35o
+9:47AM INF request completed code=unknown duration=44.1821 endpoint=graphqlPost service=auth span_id=c48v5fia21mc6 trace_id=3scgso08le8kkcodkugua64h84
+9:47AM INF starting request endpoint=graphqlPost service=auth span_id=nhg09209cb2i6 trace_id=jpou6plvliu9jv3caa6q19p94o
+9:47AM INF starting request endpoint=graphqlPost service=auth span_id=fdul12vpc5udm trace_id=6jahatjbugq1drep4jng70d0is
+9:47AM INF request completed code=unknown duration=30.141 endpoint=graphqlPost service=auth span_id=nhg09209cb2i6 trace_id=jpou6plvliu9jv3caa6q19p94o
+9:47AM INF starting request endpoint=graphqlPost service=billing span_id=4or550jo0g3mo trace_id=vfi31pb3jge9ki7jjnh16ipc74
+9:47AM INF request completed code=unknown duration=10.2069 endpoint=graphqlPost service=billing span_id=4or550jo0g3mo trace_id=vfi31pb3jge9ki7jjnh16ipc74
+9:47AM INF request completed code=unknown duration=124.3576 endpoint=graphqlPost service=auth span_id=fdul12vpc5udm trace_id=6jahatjbugq1drep4jng70d0is
+9:47AM INF starting request endpoint=graphqlPost service=billing span_id=vo8caii9gjrf2 trace_id=77t497ttrndp4sennpheiabv78
+9:47AM INF request completed code=unknown duration=13.0695 endpoint=graphqlPost service=billing span_id=vo8caii9gjrf2 trace_id=77t497ttrndp4sennpheiabv78
+9:47AM INF starting request endpoint=graphqlPost service=wealth span_id=d93efmuu5hp8a trace_id=a0jflpvd08l1hao6ocj19rn2ho
+9:47AM INF request completed code=unknown duration=34.1389 endpoint=graphqlPost service=wealth span_id=d93efmuu5hp8a trace_id=a0jflpvd08l1hao6ocj19rn2ho
+9:48AM INF starting request endpoint=graphqlPost service=auth span_id=oea7909u8e992 trace_id=migu4d7knqjm9khhg9qb8mctkc
+9:48AM INF starting request endpoint=graphqlPost service=auth span_id=93k9kf59p0g7o trace_id=ut1gct21cifpp1cene25sepds8
+9:48AM INF request completed code=unknown duration=101.7267 endpoint=graphqlPost service=auth span_id=93k9kf59p0g7o trace_id=ut1gct21cifpp1cene25sepds8
+9:48AM INF request completed code=unknown duration=107.4231 endpoint=graphqlPost service=auth span_id=oea7909u8e992 trace_id=migu4d7knqjm9khhg9qb8mctkc
+9:48AM INF starting request endpoint=graphqlPost service=auth span_id=ah4qrvm68ehfc trace_id=7qjnr5kuhmdfmbmqtflh58feec
+9:48AM INF starting request endpoint=graphqlPost service=auth span_id=jrhqbm350ijk2 trace_id=rqu4jkqkp8tlcshf9temkd6atg
+9:48AM INF request completed code=unknown duration=121.0087 endpoint=graphqlPost service=auth span_id=ah4qrvm68ehfc trace_id=7qjnr5kuhmdfmbmqtflh58feec
+9:48AM INF request completed code=unknown duration=113.8306 endpoint=graphqlPost service=auth span_id=jrhqbm350ijk2 trace_id=rqu4jkqkp8tlcshf9temkd6atg
+9:48AM INF starting request endpoint=graphqlPost service=billing span_id=5mcmsa3u31ct2 trace_id=glc7nu4j6blgpq19htkitutm8c
+9:48AM INF starting request endpoint=graphqlPost service=billing span_id=52vkseu7ihuei trace_id=p7dqb3svpm19ifolp8e483surc
+9:48AM INF request completed code=unknown duration=12.2046 endpoint=graphqlPost service=billing span_id=5mcmsa3u31ct2 trace_id=glc7nu4j6blgpq19htkitutm8c
+9:48AM INF request completed code=unknown duration=15.2559 endpoint=graphqlPost service=billing span_id=52vkseu7ihuei trace_id=p7dqb3svpm19ifolp8e483surc
+9:48AM INF starting request endpoint=graphqlPost service=wealth span_id=hc7b2tm12ftnu trace_id=2e401ehrb5sje87vvfnbkjnbbs
+9:48AM INF request completed code=unknown duration=587.8833 endpoint=graphqlPost service=wealth span_id=hc7b2tm12ftnu trace_id=2e401ehrb5sje87vvfnbkjnbbs
+9:48AM INF starting request endpoint=graphqlPost service=auth span_id=hmoho4mlqpsok trace_id=ptvfipjeoqqffs6m9rgpmgvg20
+9:48AM INF starting request endpoint=graphqlPost service=auth span_id=82t97ps32uaqm trace_id=bt26c28h8n2j5rg46rv9sbap0k
+9:48AM INF request completed code=unknown duration=14.4108 endpoint=graphqlPost service=auth span_id=hmoho4mlqpsok trace_id=ptvfipjeoqqffs6m9rgpmgvg20
+9:48AM INF request completed code=unknown duration=19.8291 endpoint=graphqlPost service=auth span_id=82t97ps32uaqm trace_id=bt26c28h8n2j5rg46rv9sbap0k
+9:48AM INF starting request endpoint=graphqlPost service=auth span_id=oi68gui25hmpe trace_id=9opsuhmndr6ee9mbm76hgmm294
+9:48AM INF starting request endpoint=graphqlPost service=auth span_id=kpmvn9gptbduu trace_id=0npgi4jkqe42d6prej1n7uudd0
+9:48AM INF request completed code=unknown duration=30.0796 endpoint=graphqlPost service=auth span_id=oi68gui25hmpe trace_id=9opsuhmndr6ee9mbm76hgmm294
+9:48AM INF request completed code=unknown duration=35.4175 endpoint=graphqlPost service=auth span_id=kpmvn9gptbduu trace_id=0npgi4jkqe42d6prej1n7uudd0
+9:48AM INF starting request endpoint=graphqlPost service=billing span_id=isu6lsm32eddg trace_id=cifsrlkndu2nfv6lvjlvic7gmk
+9:48AM INF request completed code=unknown duration=9.8664 endpoint=graphqlPost service=billing span_id=isu6lsm32eddg trace_id=cifsrlkndu2nfv6lvjlvic7gmk
+9:48AM INF starting request endpoint=graphqlPost service=billing span_id=eu03ecgp6es96 trace_id=1dtjr5c1jljql6sj84qg6hb0ek
+9:48AM INF request completed code=unknown duration=8.7687 endpoint=graphqlPost service=billing span_id=eu03ecgp6es96 trace_id=1dtjr5c1jljql6sj84qg6hb0ek
+9:48AM INF starting request endpoint=graphqlPost service=wealth span_id=2nhmlrg4khdii trace_id=94jm4kdgti9f9j8vp0ukanp0mk
+9:48AM INF request completed code=unknown duration=11.6298 endpoint=graphqlPost service=wealth span_id=2nhmlrg4khdii trace_id=94jm4kdgti9f9j8vp0ukanp0mk
+9:48AM INF starting request endpoint=graphqlPost service=auth span_id=lrp87jivdmjag trace_id=knvj01tg7ja4di884o8lpng4h8
+9:48AM INF starting request endpoint=graphqlPost service=auth span_id=hntoamos5khsk trace_id=5jvge0varoou1anlfcap8pk550
+9:48AM INF request completed code=unknown duration=8.4139 endpoint=graphqlPost service=auth span_id=lrp87jivdmjag trace_id=knvj01tg7ja4di884o8lpng4h8
+9:48AM INF request completed code=unknown duration=10.7323 endpoint=graphqlPost service=auth span_id=hntoamos5khsk trace_id=5jvge0varoou1anlfcap8pk550
+9:48AM INF starting request endpoint=graphqlPost service=auth span_id=vbf3q9007o54s trace_id=k8oikbllr1o3mh3tlovg05i6to
+9:48AM INF starting request endpoint=graphqlPost service=auth span_id=t9nsot4ch33gs trace_id=btg99rds23c5d30eecnmf763uk
+9:48AM INF request completed code=unknown duration=16.4751 endpoint=graphqlPost service=auth span_id=vbf3q9007o54s trace_id=k8oikbllr1o3mh3tlovg05i6to
+9:48AM INF request completed code=unknown duration=15.0025 endpoint=graphqlPost service=auth span_id=t9nsot4ch33gs trace_id=btg99rds23c5d30eecnmf763uk
+9:48AM INF starting request endpoint=graphqlPost service=billing span_id=f3vq92vo1c4eg trace_id=ensp8c32a35jvtn0sim5j51p7g
+9:48AM INF starting request endpoint=graphqlPost service=billing span_id=ouf7efbl7bh44 trace_id=ob2p0c8o99cnn0ni070rajihj4
+9:48AM INF request completed code=unknown duration=4.6848 endpoint=graphqlPost service=billing span_id=f3vq92vo1c4eg trace_id=ensp8c32a35jvtn0sim5j51p7g
+9:48AM INF request completed code=unknown duration=5.0112 endpoint=graphqlPost service=billing span_id=ouf7efbl7bh44 trace_id=ob2p0c8o99cnn0ni070rajihj4
+9:48AM INF starting request endpoint=graphqlPost service=wealth span_id=qmtu3gbgsg4io trace_id=0qdr4usavf8plulo3064d9lc50
+9:48AM INF starting request endpoint=graphqlPost service=wealth span_id=6alkec653kgcq trace_id=du2redq0ft6he0res3no9eq5ns
+9:48AM INF request completed code=unknown duration=12.7135 endpoint=graphqlPost service=wealth span_id=6alkec653kgcq trace_id=du2redq0ft6he0res3no9eq5ns
+9:48AM INF request completed code=unknown duration=15.5575 endpoint=graphqlPost service=wealth span_id=qmtu3gbgsg4io trace_id=0qdr4usavf8plulo3064d9lc50
+9:48AM INF starting request endpoint=graphqlPost service=auth span_id=mbnbk0a0s3e7k trace_id=pijcng55nuv2f49vhhr84se7sg
+9:48AM INF starting request endpoint=graphqlPost service=auth span_id=tv5prr47e3f9a trace_id=vc729dr754tvst0j88593nbfgo
+9:48AM INF request completed code=unknown duration=22.6203 endpoint=graphqlPost service=auth span_id=mbnbk0a0s3e7k trace_id=pijcng55nuv2f49vhhr84se7sg
+9:48AM INF request completed code=unknown duration=11.8397 endpoint=graphqlPost service=auth span_id=tv5prr47e3f9a trace_id=vc729dr754tvst0j88593nbfgo
+9:48AM INF starting request endpoint=graphqlPost service=auth span_id=k4jd2kctak3im trace_id=ih9ch1u9qi81e9703lld94s9r4
+9:48AM INF starting request endpoint=graphqlPost service=auth span_id=th9ppv788ccv6 trace_id=00lp2kmdeg73k69pcshioivers
+9:48AM INF request completed code=unknown duration=27.484 endpoint=graphqlPost service=auth span_id=k4jd2kctak3im trace_id=ih9ch1u9qi81e9703lld94s9r4
+9:48AM INF request completed code=unknown duration=38.5145 endpoint=graphqlPost service=auth span_id=th9ppv788ccv6 trace_id=00lp2kmdeg73k69pcshioivers
+9:48AM INF starting request endpoint=graphqlPost service=billing span_id=arkhbd5fo282a trace_id=89b1fslhg6et6i3uk69beofsk8
+9:48AM INF starting request endpoint=graphqlPost service=billing span_id=2p6lp5lovjgh0 trace_id=i2t6d1eo29uidatn6sjd60qocg
+9:48AM INF request completed code=unknown duration=6.9284 endpoint=graphqlPost service=billing span_id=arkhbd5fo282a trace_id=89b1fslhg6et6i3uk69beofsk8
+9:48AM INF request completed code=unknown duration=8.5178 endpoint=graphqlPost service=billing span_id=2p6lp5lovjgh0 trace_id=i2t6d1eo29uidatn6sjd60qocg
+9:48AM INF starting request endpoint=graphqlPost service=wealth span_id=kak7cf8uiikni trace_id=lmnh7tqvchvbtt2ficfmpijrjs
+9:48AM INF request completed code=unknown duration=10.7837 endpoint=graphqlPost service=wealth span_id=kak7cf8uiikni trace_id=lmnh7tqvchvbtt2ficfmpijrjs
+9:48AM INF starting request endpoint=graphqlPost service=auth span_id=k5d7tl2qrcfkk trace_id=fjtlgj3fhiurk69gkfib7rdkug
+9:48AM INF starting request endpoint=graphqlPost service=auth span_id=uqtt34no1btsm trace_id=8dudcup3mk8srf17qhpbc2k380
+9:48AM INF request completed code=unknown duration=12.8563 endpoint=graphqlPost service=auth span_id=k5d7tl2qrcfkk trace_id=fjtlgj3fhiurk69gkfib7rdkug
+9:48AM INF request completed code=unknown duration=13.3497 endpoint=graphqlPost service=auth span_id=uqtt34no1btsm trace_id=8dudcup3mk8srf17qhpbc2k380
+9:48AM INF starting request endpoint=graphqlPost service=auth span_id=kr10h0214v9um trace_id=h64ptokttsgdojups20mh7d7m4
+9:48AM INF starting request endpoint=graphqlPost service=auth span_id=4se22to852sk0 trace_id=3je6qma7624di7jskcfqdebo54
+9:48AM INF request completed code=unknown duration=15.5527 endpoint=graphqlPost service=auth span_id=kr10h0214v9um trace_id=h64ptokttsgdojups20mh7d7m4
+9:48AM INF request completed code=unknown duration=25.1733 endpoint=graphqlPost service=auth span_id=4se22to852sk0 trace_id=3je6qma7624di7jskcfqdebo54
+9:48AM INF starting request endpoint=graphqlPost service=billing span_id=tour2rtdi1lai trace_id=vvovq12lmr582osa87a940rlr0
+9:48AM INF request completed code=unknown duration=5.1573 endpoint=graphqlPost service=billing span_id=tour2rtdi1lai trace_id=vvovq12lmr582osa87a940rlr0
+9:48AM INF starting request endpoint=graphqlPost service=billing span_id=c4j0gvbcr9iig trace_id=33eaacl8fhao13rcjgmmelle94
+9:48AM INF request completed code=unknown duration=6.193 endpoint=graphqlPost service=billing span_id=c4j0gvbcr9iig trace_id=33eaacl8fhao13rcjgmmelle94
+9:48AM INF starting request endpoint=graphqlPost service=wealth span_id=ei29mptvt86aa trace_id=1obs9gbc5aqu4ki12942e52v68
+9:48AM INF starting request endpoint=graphqlPost service=wealth span_id=lb9eg7d6flrf0 trace_id=jfpu40gpkaethmtupqs9rk695c
+9:48AM INF starting request endpoint=graphqlPost service=wealth span_id=7du3u9baopv6s trace_id=p1ppqa6jmbqkb5icje8q0b5kpg
+9:48AM INF request completed code=unknown duration=12.9839 endpoint=graphqlPost service=wealth span_id=ei29mptvt86aa trace_id=1obs9gbc5aqu4ki12942e52v68
+9:48AM INF request completed code=unknown duration=14.1086 endpoint=graphqlPost service=wealth span_id=lb9eg7d6flrf0 trace_id=jfpu40gpkaethmtupqs9rk695c
+9:48AM INF starting request endpoint=graphqlPost service=wealth span_id=070t1aijq15ie trace_id=r2gtrtuikbbrancnrf0ogh42o8
+9:48AM INF request completed code=unknown duration=14.5455 endpoint=graphqlPost service=wealth span_id=070t1aijq15ie trace_id=r2gtrtuikbbrancnrf0ogh42o8
+9:48AM INF request completed code=unknown duration=25.4811 endpoint=graphqlPost service=wealth span_id=7du3u9baopv6s trace_id=p1ppqa6jmbqkb5icje8q0b5kpg
+9:48AM INF starting request endpoint=graphqlPost service=auth span_id=sotn7nvovrcu4 trace_id=si1cii0jvfoo3auu8l8mk8epp4
+9:48AM INF starting request endpoint=graphqlPost service=auth span_id=plnikha23nn3e trace_id=h9hjiio2l337gps04v2ipq6iog
+9:48AM INF request completed code=unknown duration=21.7633 endpoint=graphqlPost service=auth span_id=sotn7nvovrcu4 trace_id=si1cii0jvfoo3auu8l8mk8epp4
+9:48AM INF request completed code=unknown duration=22.1395 endpoint=graphqlPost service=auth span_id=plnikha23nn3e trace_id=h9hjiio2l337gps04v2ipq6iog
+9:48AM INF starting request endpoint=graphqlPost service=auth span_id=2eon4dbf8k7je trace_id=dahjdqmkoai3u2691gajjvg6d0
+9:48AM INF starting request endpoint=graphqlPost service=auth span_id=2dv1j73ph3b2m trace_id=pbl81d9b4a2nj1k1ke28hsu96k
+9:48AM INF request completed code=unknown duration=19.4504 endpoint=graphqlPost service=auth span_id=2dv1j73ph3b2m trace_id=pbl81d9b4a2nj1k1ke28hsu96k
+9:48AM INF starting request endpoint=graphqlPost service=billing span_id=gjkrv7jrq5e9q trace_id=em2p4i159emjhthmhfk6l9ras4
+9:48AM INF request completed code=unknown duration=33.1833 endpoint=graphqlPost service=auth span_id=2eon4dbf8k7je trace_id=dahjdqmkoai3u2691gajjvg6d0
+9:48AM INF request completed code=unknown duration=4.3913 endpoint=graphqlPost service=billing span_id=gjkrv7jrq5e9q trace_id=em2p4i159emjhthmhfk6l9ras4
+9:48AM INF starting request endpoint=graphqlPost service=billing span_id=hbrl463rs18aa trace_id=5tra888ss99k3td2sh9k6ls3hk
+9:48AM INF request completed code=unknown duration=5.1385 endpoint=graphqlPost service=billing span_id=hbrl463rs18aa trace_id=5tra888ss99k3td2sh9k6ls3hk
+9:48AM INF starting request endpoint=graphqlPost service=wealth span_id=uctungdv8vqhc trace_id=0in2m7cuol50i5hvhqig8qlodc
+9:48AM INF starting request endpoint=graphqlPost service=wealth span_id=eghuuqvu6fota trace_id=vp24in1b0eglrmm7i0bpvbkqmc
+9:48AM INF starting request endpoint=graphqlPost service=wealth span_id=o77bj95lknu9a trace_id=2g58i81lghi3k7jsvhe22bkso4
+9:48AM INF starting request endpoint=graphqlPost service=wealth span_id=631204fc4p70o trace_id=0intrb8314cs12p0krd91u14gk
+9:48AM INF request completed code=unknown duration=30.7452 endpoint=graphqlPost service=wealth span_id=eghuuqvu6fota trace_id=vp24in1b0eglrmm7i0bpvbkqmc
+9:48AM INF request completed code=unknown duration=31.6662 endpoint=graphqlPost service=wealth span_id=o77bj95lknu9a trace_id=2g58i81lghi3k7jsvhe22bkso4
+9:48AM INF request completed code=unknown duration=185.1983 endpoint=graphqlPost service=wealth span_id=uctungdv8vqhc trace_id=0in2m7cuol50i5hvhqig8qlodc
+9:48AM INF request completed code=unknown duration=194.4579 endpoint=graphqlPost service=wealth span_id=631204fc4p70o trace_id=0intrb8314cs12p0krd91u14gk
+9:48AM INF starting request endpoint=graphqlPost service=auth span_id=s668n58s05ugu trace_id=sj2re9omtfeaaj5eh6a5st8d8c
+9:48AM INF starting request endpoint=graphqlPost service=auth span_id=t3rbej52qfeta trace_id=uphnaicvcv9jnmbbrliekkd2ic
+9:48AM INF request completed code=unknown duration=14.4112 endpoint=graphqlPost service=auth span_id=s668n58s05ugu trace_id=sj2re9omtfeaaj5eh6a5st8d8c
+9:48AM INF request completed code=unknown duration=14.9163 endpoint=graphqlPost service=auth span_id=t3rbej52qfeta trace_id=uphnaicvcv9jnmbbrliekkd2ic
+9:48AM INF starting request endpoint=graphqlPost service=auth span_id=110muvquosukm trace_id=2t7fkeoc1u3fusphtskbbqi074
+9:48AM INF starting request endpoint=graphqlPost service=auth span_id=m3tm7plc1fcam trace_id=kkd1o53ank64544r1j3ff1a734
+9:48AM INF request completed code=unknown duration=19.914 endpoint=graphqlPost service=auth span_id=110muvquosukm trace_id=2t7fkeoc1u3fusphtskbbqi074
+9:48AM INF request completed code=unknown duration=31.7562 endpoint=graphqlPost service=auth span_id=m3tm7plc1fcam trace_id=kkd1o53ank64544r1j3ff1a734
+9:48AM INF starting request endpoint=graphqlPost service=billing span_id=12er010ukcf2e trace_id=o57rjcd59o3ooc8tedghe3gfns
+9:48AM INF request completed code=unknown duration=5.6944 endpoint=graphqlPost service=billing span_id=12er010ukcf2e trace_id=o57rjcd59o3ooc8tedghe3gfns
+9:48AM INF starting request endpoint=graphqlPost service=billing span_id=0sp98a0raelcc trace_id=l5qgfe6lat2dk3uig00pfcf7fg
+9:48AM INF request completed code=unknown duration=6.6315 endpoint=graphqlPost service=billing span_id=0sp98a0raelcc trace_id=l5qgfe6lat2dk3uig00pfcf7fg
+9:48AM INF starting request endpoint=graphqlPost service=wealth span_id=qklbpkhnblvv2 trace_id=fkavbc4sso6ukb6e6si42k41fo
+9:48AM INF starting request endpoint=graphqlPost service=wealth span_id=p5805snj57f8g trace_id=8m1aprdkgird3mo5fiq0c2cmgs
+9:48AM INF starting request endpoint=graphqlPost service=wealth span_id=dcqmta6oh21ho trace_id=96ss2ucd2g3dripnguoioueink
+9:48AM INF request completed code=unknown duration=12.2263 endpoint=graphqlPost service=wealth span_id=qklbpkhnblvv2 trace_id=fkavbc4sso6ukb6e6si42k41fo
+9:48AM INF request completed code=unknown duration=17.4496 endpoint=graphqlPost service=wealth span_id=p5805snj57f8g trace_id=8m1aprdkgird3mo5fiq0c2cmgs
+9:48AM INF request completed code=unknown duration=26.7838 endpoint=graphqlPost service=wealth span_id=dcqmta6oh21ho trace_id=96ss2ucd2g3dripnguoioueink
+9:48AM INF starting request endpoint=graphqlPost service=auth span_id=096jl0cqr9beo trace_id=seof04nisti91gpevdalaoseds
+9:48AM INF starting request endpoint=graphqlPost service=auth span_id=cbtstntp2udt2 trace_id=kt4i0veo051u6e96b192b1paos
+9:48AM INF request completed code=unknown duration=22.9627 endpoint=graphqlPost service=auth span_id=096jl0cqr9beo trace_id=seof04nisti91gpevdalaoseds
+9:48AM INF request completed code=unknown duration=18.7673 endpoint=graphqlPost service=auth span_id=cbtstntp2udt2 trace_id=kt4i0veo051u6e96b192b1paos
+9:48AM INF starting request endpoint=graphqlPost service=auth span_id=63tb5so2q0pts trace_id=85fgr2br9thru5ocvmsdbpkkvs
+9:48AM INF starting request endpoint=graphqlPost service=auth span_id=ftjlnm0tsgn96 trace_id=p9druc0cav1r37oksmh7888uj4
+9:48AM INF request completed code=unknown duration=20.6009 endpoint=graphqlPost service=auth span_id=ftjlnm0tsgn96 trace_id=p9druc0cav1r37oksmh7888uj4
+9:48AM INF starting request endpoint=graphqlPost service=billing span_id=sgtsilvel5cl0 trace_id=shb0qn1gaa1j62mru021c28drg
+9:48AM INF request completed code=unknown duration=38.8167 endpoint=graphqlPost service=auth span_id=63tb5so2q0pts trace_id=85fgr2br9thru5ocvmsdbpkkvs
+9:48AM INF request completed code=unknown duration=10.0817 endpoint=graphqlPost service=billing span_id=sgtsilvel5cl0 trace_id=shb0qn1gaa1j62mru021c28drg
+9:48AM INF starting request endpoint=graphqlPost service=billing span_id=ft2p5kq6oq0gm trace_id=3huikjitk1dj5ghjih5ma2lhhg
+9:48AM INF request completed code=unknown duration=7.185 endpoint=graphqlPost service=billing span_id=ft2p5kq6oq0gm trace_id=3huikjitk1dj5ghjih5ma2lhhg
+9:48AM INF starting request endpoint=graphqlPost service=wealth span_id=cripp7u8ko71c trace_id=ajmpchlpck1824i032k14ie61k
+9:48AM INF starting request endpoint=graphqlPost service=wealth span_id=qnm1om9m8e5ie trace_id=l40crfh3frb8s69f2efn0eco6c
+9:48AM INF request completed code=unknown duration=13.4135 endpoint=graphqlPost service=wealth span_id=cripp7u8ko71c trace_id=ajmpchlpck1824i032k14ie61k
+9:48AM INF request completed code=unknown duration=16.1496 endpoint=graphqlPost service=wealth span_id=qnm1om9m8e5ie trace_id=l40crfh3frb8s69f2efn0eco6c
+9:48AM INF starting request endpoint=graphqlPost service=auth span_id=iej4luong52vg trace_id=alhepm2g3mvkmdfbmnbi2i982s
+9:48AM INF starting request endpoint=graphqlPost service=auth span_id=n94ehuvlrjrju trace_id=bb7j32vc4vnqu9e7dl7hfuv4k8
+9:48AM INF request completed code=unknown duration=14.0333 endpoint=graphqlPost service=auth span_id=iej4luong52vg trace_id=alhepm2g3mvkmdfbmnbi2i982s
+9:48AM INF request completed code=unknown duration=14.3472 endpoint=graphqlPost service=auth span_id=n94ehuvlrjrju trace_id=bb7j32vc4vnqu9e7dl7hfuv4k8
+9:48AM INF starting request endpoint=graphqlPost service=auth span_id=ias7kdvh0k5g4 trace_id=3f0op52bp37b1q0h5fsehr08p0
+9:48AM INF starting request endpoint=graphqlPost service=auth span_id=2ggvtdauld8iu trace_id=qomo9gljjq4i6bnk3k5cnuthj0
+9:48AM INF request completed code=unknown duration=20.9059 endpoint=graphqlPost service=auth span_id=ias7kdvh0k5g4 trace_id=3f0op52bp37b1q0h5fsehr08p0
+9:48AM INF starting request endpoint=graphqlPost service=billing span_id=6t941lrgalq6m trace_id=7efqj4434047dgn074ogq1lp0g
+9:48AM INF request completed code=unknown duration=33.8491 endpoint=graphqlPost service=auth span_id=2ggvtdauld8iu trace_id=qomo9gljjq4i6bnk3k5cnuthj0
+9:48AM INF request completed code=unknown duration=10.6228 endpoint=graphqlPost service=billing span_id=6t941lrgalq6m trace_id=7efqj4434047dgn074ogq1lp0g
+9:48AM INF starting request endpoint=graphqlPost service=billing span_id=46agjvb8v8tfs trace_id=tcc5sagkutg2431itrptih2br0
+9:48AM INF request completed code=unknown duration=10.5696 endpoint=graphqlPost service=billing span_id=46agjvb8v8tfs trace_id=tcc5sagkutg2431itrptih2br0
+9:48AM INF starting request endpoint=graphqlPost service=wealth span_id=4briflmodjulu trace_id=7oebldhoc5cetk5moif4uboas4
+9:48AM INF request completed code=unknown duration=272.8362 endpoint=graphqlPost service=wealth span_id=4briflmodjulu trace_id=7oebldhoc5cetk5moif4uboas4
+9:48AM INF starting request endpoint=graphqlPost service=auth span_id=i22gjchs26314 trace_id=22lpg9qvfcqfc9mtb3kr9sf47s
+9:48AM INF starting request endpoint=graphqlPost service=auth span_id=ru7acvgf4u334 trace_id=aebn208rib91f9ke6cdotorkes
+9:48AM INF request completed code=unknown duration=13.3077 endpoint=graphqlPost service=auth span_id=ru7acvgf4u334 trace_id=aebn208rib91f9ke6cdotorkes
+9:48AM INF request completed code=unknown duration=13.9564 endpoint=graphqlPost service=auth span_id=i22gjchs26314 trace_id=22lpg9qvfcqfc9mtb3kr9sf47s
+9:48AM INF starting request endpoint=graphqlPost service=auth span_id=22rcljbdoe9to trace_id=u2mq290lf2vfm4bn6vpgqo26gc
+9:48AM INF starting request endpoint=graphqlPost service=auth span_id=khm0acstbghqm trace_id=j0gebf1a8a170m4vg8ncih4t44
+9:48AM INF request completed code=unknown duration=21.2362 endpoint=graphqlPost service=auth span_id=22rcljbdoe9to trace_id=u2mq290lf2vfm4bn6vpgqo26gc
+9:48AM INF request completed code=unknown duration=35.9628 endpoint=graphqlPost service=auth span_id=khm0acstbghqm trace_id=j0gebf1a8a170m4vg8ncih4t44
+9:48AM INF starting request endpoint=graphqlPost service=billing span_id=f7n2uhrsbbkf0 trace_id=4v89vt8uh5nm9pi1u3qclahdd8
+9:48AM INF request completed code=unknown duration=7.2647 endpoint=graphqlPost service=billing span_id=f7n2uhrsbbkf0 trace_id=4v89vt8uh5nm9pi1u3qclahdd8
+9:48AM INF starting request endpoint=graphqlPost service=billing span_id=e6jou523iccd0 trace_id=e0ip1teeh7k3gfr0u1ovg0rbn8
+9:48AM INF request completed code=unknown duration=5.5615 endpoint=graphqlPost service=billing span_id=e6jou523iccd0 trace_id=e0ip1teeh7k3gfr0u1ovg0rbn8
+9:48AM INF starting request endpoint=graphqlPost service=wealth span_id=93kit7ddj58ai trace_id=3hf6choqj416vhijolgjbgf9a4
+9:48AM INF request completed code=unknown duration=59.9415 endpoint=graphqlPost service=wealth span_id=93kit7ddj58ai trace_id=3hf6choqj416vhijolgjbgf9a4
+9:53AM INF starting request endpoint=graphqlPost service=auth span_id=lprkl720ttiui trace_id=558qkd9nuhkdvbdb0e580snc38
+9:53AM INF request completed code=unknown duration=67.807 endpoint=graphqlPost service=auth span_id=lprkl720ttiui trace_id=558qkd9nuhkdvbdb0e580snc38
+9:53AM INF starting request endpoint=graphqlPost service=wealth span_id=ttfe3d6t0uise trace_id=arputdab9nldadl51nt5824r1k
+9:53AM INF starting request endpoint=graphqlPost service=auth span_id=i77at1hlj2078 trace_id=bj7etjndr91lu4qj3ru01q7lic
+9:53AM INF request completed code=unknown duration=27.1633 endpoint=graphqlPost service=auth span_id=i77at1hlj2078 trace_id=bj7etjndr91lu4qj3ru01q7lic
+9:53AM INF starting request endpoint=graphqlPost service=billing span_id=3mkng0up8em60 trace_id=2q8h6ee179t2sb6k1aeqf9gnoo
+9:53AM INF request completed code=unknown duration=184.3483 endpoint=graphqlPost service=wealth span_id=ttfe3d6t0uise trace_id=arputdab9nldadl51nt5824r1k
+9:53AM INF request completed code=unknown duration=8.1601 endpoint=graphqlPost service=billing span_id=3mkng0up8em60 trace_id=2q8h6ee179t2sb6k1aeqf9gnoo
+10:01AM INF starting request endpoint=graphqlPost service=wealth span_id=f54sc103eabu8 trace_id=moogmqaei6dki9e71dasbd6jao
+10:01AM INF request completed code=unknown duration=908.7134 endpoint=graphqlPost service=wealth span_id=f54sc103eabu8 trace_id=moogmqaei6dki9e71dasbd6jao
+10:02AM INF starting request endpoint=graphqlPost service=wealth span_id=toi1p54vgurc8 trace_id=qrg6quj2u93gvajimljomd7nt0
+10:02AM INF request completed code=unknown duration=59.8605 endpoint=graphqlPost service=wealth span_id=toi1p54vgurc8 trace_id=qrg6quj2u93gvajimljomd7nt0
+10:02AM INF starting request endpoint=graphqlPost service=wealth span_id=c7ebj67ekq4ck trace_id=gkoa1gs7r740lo5pb7m0frt61k
+10:02AM INF request completed code=unknown duration=205.9607 endpoint=graphqlPost service=wealth span_id=c7ebj67ekq4ck trace_id=gkoa1gs7r740lo5pb7m0frt61k
+10:03AM INF starting request endpoint=graphqlPost service=wealth span_id=64tntakn9id2i trace_id=l6ti08ho6hg2ds1gkhmsoc49vg
+10:03AM INF request completed code=unknown duration=333.7137 endpoint=graphqlPost service=wealth span_id=64tntakn9id2i trace_id=l6ti08ho6hg2ds1gkhmsoc49vg
+10:03AM INF starting request endpoint=graphqlPost service=wealth span_id=ieuokrao4m750 trace_id=0daj9od20eu9u05bulkjfvti4g
+10:03AM INF request completed code=unknown duration=18.5582 endpoint=graphqlPost service=wealth span_id=ieuokrao4m750 trace_id=0daj9od20eu9u05bulkjfvti4g
+10:03AM INF starting request endpoint=graphqlPost service=wealth span_id=d3rsps8ittp1a trace_id=i0pbdcfi99n7lttorgs3i9o19s
+10:03AM INF request completed code=unknown duration=108.7469 endpoint=graphqlPost service=wealth span_id=d3rsps8ittp1a trace_id=i0pbdcfi99n7lttorgs3i9o19s
+invalid package.json: expected value at line 1 column 1
+10:06AM INF starting request endpoint=graphqlPost service=auth span_id=3hgvrui8hpjju trace_id=dv202lkbv0emac93cujsang188
+10:06AM INF starting request endpoint=graphqlPost service=auth span_id=gcf9csvdstd04 trace_id=f79hcuc3fdlgf6morp0gqgu63c
+10:06AM INF request completed code=unknown duration=147.5981 endpoint=graphqlPost service=auth span_id=3hgvrui8hpjju trace_id=dv202lkbv0emac93cujsang188
+10:06AM INF request completed code=unknown duration=149.1122 endpoint=graphqlPost service=auth span_id=gcf9csvdstd04 trace_id=f79hcuc3fdlgf6morp0gqgu63c
+10:06AM INF starting request endpoint=graphqlPost service=auth span_id=e6f5sdp9svbii trace_id=a8iu1e1ln019me70fdj0i297jk
+10:06AM INF starting request endpoint=graphqlPost service=auth span_id=prrts058tgb6a trace_id=33154g4fac656prvur3j63gvf4
+10:06AM INF request completed code=unknown duration=66.0354 endpoint=graphqlPost service=auth span_id=e6f5sdp9svbii trace_id=a8iu1e1ln019me70fdj0i297jk
+10:06AM INF request completed code=unknown duration=71.4478 endpoint=graphqlPost service=auth span_id=prrts058tgb6a trace_id=33154g4fac656prvur3j63gvf4
+10:06AM INF starting request endpoint=graphqlPost service=billing span_id=gio1kgtu1i8qs trace_id=3oqdh1onvo74474h7mifmtpnek
+10:06AM INF starting request endpoint=graphqlPost service=billing span_id=qc9i1b6qcdgvs trace_id=kep22k3f2svjupfssd38ld6638
+10:06AM INF request completed code=unknown duration=139.9099 endpoint=graphqlPost service=billing span_id=gio1kgtu1i8qs trace_id=3oqdh1onvo74474h7mifmtpnek
+10:06AM INF request completed code=unknown duration=136.3028 endpoint=graphqlPost service=billing span_id=qc9i1b6qcdgvs trace_id=kep22k3f2svjupfssd38ld6638
+10:06AM INF starting request endpoint=graphqlPost service=wealth span_id=lf4nksjt2a2fs trace_id=9qkb6n9i2gs02e8fctnjv0r17o
+10:06AM INF request completed code=unknown duration=110.2607 endpoint=graphqlPost service=wealth span_id=lf4nksjt2a2fs trace_id=9qkb6n9i2gs02e8fctnjv0r17o
+10:15AM INF starting request endpoint=graphqlPost service=auth span_id=6132ehptnapsm trace_id=lmos1psso375c8bf2r84cb5dak
+10:15AM INF starting request endpoint=graphqlPost service=auth span_id=q247r3feqtqnk trace_id=5s2mb9kbdt3i7evbtrcc5th484
+10:15AM INF request completed code=unknown duration=155.616 endpoint=graphqlPost service=auth span_id=q247r3feqtqnk trace_id=5s2mb9kbdt3i7evbtrcc5th484
+10:15AM INF request completed code=unknown duration=165.1859 endpoint=graphqlPost service=auth span_id=6132ehptnapsm trace_id=lmos1psso375c8bf2r84cb5dak
+10:15AM INF starting request endpoint=graphqlPost service=auth span_id=a9ccquqa7kssu trace_id=3rfrc6iu6s8ijjme6qan3ako8k
+10:15AM INF starting request endpoint=graphqlPost service=auth span_id=8ebgsm3c7240s trace_id=sovuhglqfubc496120dghf5cfo
+10:15AM INF request completed code=unknown duration=130.0345 endpoint=graphqlPost service=auth span_id=8ebgsm3c7240s trace_id=sovuhglqfubc496120dghf5cfo
+10:15AM INF starting request endpoint=graphqlPost service=billing span_id=51g748bnt7tpe trace_id=197jjbssvhqh3hthim484ibte0
+10:15AM INF request completed code=unknown duration=12.8314 endpoint=graphqlPost service=billing span_id=51g748bnt7tpe trace_id=197jjbssvhqh3hthim484ibte0
+10:15AM INF request completed code=unknown duration=163.5357 endpoint=graphqlPost service=auth span_id=a9ccquqa7kssu trace_id=3rfrc6iu6s8ijjme6qan3ako8k
+10:15AM INF starting request endpoint=graphqlPost service=billing span_id=sp7263rtj59n6 trace_id=ciiesdn8ss0rgc40ofms0f1mpg
+10:15AM INF request completed code=unknown duration=13.9527 endpoint=graphqlPost service=billing span_id=sp7263rtj59n6 trace_id=ciiesdn8ss0rgc40ofms0f1mpg
+10:15AM INF starting request endpoint=graphqlPost service=wealth span_id=e2d6n2s7mnjcm trace_id=qp9umr669m7enceuatnuepi86o
+10:15AM INF request completed code=unknown duration=140.967 endpoint=graphqlPost service=wealth span_id=e2d6n2s7mnjcm trace_id=qp9umr669m7enceuatnuepi86o
+10:23AM INF starting request endpoint=graphqlPost service=auth span_id=cg1ul3fb611bs trace_id=86o6a02mq029rtpinruqeu20ps
+10:23AM INF starting request endpoint=graphqlPost service=auth span_id=8q43jgic5errs trace_id=cu08tcrgvnejgo90k0khlcq704
+10:23AM INF request completed code=unknown duration=116.6155 endpoint=graphqlPost service=auth span_id=8q43jgic5errs trace_id=cu08tcrgvnejgo90k0khlcq704
+10:23AM INF request completed code=unknown duration=117.336 endpoint=graphqlPost service=auth span_id=cg1ul3fb611bs trace_id=86o6a02mq029rtpinruqeu20ps
+10:23AM INF starting request endpoint=graphqlPost service=auth span_id=ibtdd0o2gl4oq trace_id=ap8pfh5j0vv8u2d50i54fbesi8
+10:23AM INF starting request endpoint=graphqlPost service=auth span_id=n0dn05eht9lp6 trace_id=rm5gv63lfs48baqc0vll2pdqdc
+10:23AM INF request completed code=unknown duration=58.5889 endpoint=graphqlPost service=auth span_id=n0dn05eht9lp6 trace_id=rm5gv63lfs48baqc0vll2pdqdc
+10:23AM INF request completed code=unknown duration=68.8129 endpoint=graphqlPost service=auth span_id=ibtdd0o2gl4oq trace_id=ap8pfh5j0vv8u2d50i54fbesi8
+10:23AM INF starting request endpoint=graphqlPost service=billing span_id=9t5g4mo9l2gn4 trace_id=s5661b8vtccc9j92ggs32r4v74
+10:23AM INF starting request endpoint=graphqlPost service=billing span_id=edbd8dmqp4ba6 trace_id=rbiv2pdlf9q565if70f4n50gg8
+10:23AM INF request completed code=unknown duration=101.1986 endpoint=graphqlPost service=billing span_id=9t5g4mo9l2gn4 trace_id=s5661b8vtccc9j92ggs32r4v74
+10:23AM INF request completed code=unknown duration=98.7823 endpoint=graphqlPost service=billing span_id=edbd8dmqp4ba6 trace_id=rbiv2pdlf9q565if70f4n50gg8
+10:23AM INF starting request endpoint=graphqlPost service=wealth span_id=2m3kbmjv26apu trace_id=6pf8ualkcs2gik3spo7jjr2vvk
+10:23AM INF request completed code=unknown duration=77.0086 endpoint=graphqlPost service=wealth span_id=2m3kbmjv26apu trace_id=6pf8ualkcs2gik3spo7jjr2vvk
+10:23AM INF starting request endpoint=graphqlPost service=auth span_id=151os88q4dsb8 trace_id=eguiu981ufmr4s4ug1qkun8mgg
+10:23AM INF starting request endpoint=graphqlPost service=auth span_id=huv508kqvdi9e trace_id=8m9jtl3a9mbt52fmt6spttcia0
+10:23AM INF request completed code=unknown duration=78.5173 endpoint=graphqlPost service=auth span_id=151os88q4dsb8 trace_id=eguiu981ufmr4s4ug1qkun8mgg
+10:23AM INF request completed code=unknown duration=80.2714 endpoint=graphqlPost service=auth span_id=huv508kqvdi9e trace_id=8m9jtl3a9mbt52fmt6spttcia0
+10:23AM INF starting request endpoint=graphqlPost service=auth span_id=rh1ov7olg3ds0 trace_id=bbo0fegebrem1d41g8h1pjk7mg
+10:23AM INF starting request endpoint=graphqlPost service=auth span_id=939ltu4ohamim trace_id=8gu42rcej59a6q2lq883fe9rpk
+10:23AM INF request completed code=unknown duration=64.11 endpoint=graphqlPost service=auth span_id=rh1ov7olg3ds0 trace_id=bbo0fegebrem1d41g8h1pjk7mg
+10:23AM INF starting request endpoint=graphqlPost service=billing span_id=u0n5i83v1ahcm trace_id=ti2vt1kmjoirjb9m17eulotels
+10:23AM INF request completed code=unknown duration=71.9437 endpoint=graphqlPost service=auth span_id=939ltu4ohamim trace_id=8gu42rcej59a6q2lq883fe9rpk
+10:23AM INF request completed code=unknown duration=8.0622 endpoint=graphqlPost service=billing span_id=u0n5i83v1ahcm trace_id=ti2vt1kmjoirjb9m17eulotels
+10:23AM INF starting request endpoint=graphqlPost service=billing span_id=870sgvjiko65a trace_id=0ie7gar37ut0p64etjok65116g
+10:23AM INF request completed code=unknown duration=7.9402 endpoint=graphqlPost service=billing span_id=870sgvjiko65a trace_id=0ie7gar37ut0p64etjok65116g
+10:23AM INF starting request endpoint=graphqlPost service=wealth span_id=hd8425c06n2dk trace_id=1q6c95c8d9lmu4660eunrlk638
+10:23AM INF request completed code=unknown duration=54.7106 endpoint=graphqlPost service=wealth span_id=hd8425c06n2dk trace_id=1q6c95c8d9lmu4660eunrlk638
+11:34AM INF starting request endpoint=graphqlPost service=auth span_id=0hbfq2g2nn4s0 trace_id=io27bg067o8ff6amvsqkbd1sac
+11:34AM INF starting request endpoint=graphqlPost service=auth span_id=pm5puo2ckvksm trace_id=j8j1jn5tcda1enijcio02knjeg
+11:34AM INF request completed code=unknown duration=129.7097 endpoint=graphqlPost service=auth span_id=0hbfq2g2nn4s0 trace_id=io27bg067o8ff6amvsqkbd1sac
+11:34AM INF request completed code=unknown duration=128.3445 endpoint=graphqlPost service=auth span_id=pm5puo2ckvksm trace_id=j8j1jn5tcda1enijcio02knjeg
+11:34AM INF starting request endpoint=graphqlPost service=auth span_id=bufrc6s2jp134 trace_id=olg8lqblukm3gci53qgueu16ik
+11:34AM INF starting request endpoint=graphqlPost service=auth span_id=qbh1vf3l3sbna trace_id=a4e3m8fmktjd9md7l35v5rhlbg
+11:34AM INF request completed code=unknown duration=65.1099 endpoint=graphqlPost service=auth span_id=qbh1vf3l3sbna trace_id=a4e3m8fmktjd9md7l35v5rhlbg
+11:34AM INF starting request endpoint=graphqlPost service=billing span_id=ikjcpsa5gh7gs trace_id=7f6jogum6vmddm5orcclrlco9s
+11:34AM INF request completed code=unknown duration=79.3365 endpoint=graphqlPost service=auth span_id=bufrc6s2jp134 trace_id=olg8lqblukm3gci53qgueu16ik
+11:34AM INF starting request endpoint=graphqlPost service=billing span_id=91m6jpvrn6ejm trace_id=sru76altfl0e08n2gqroh8s3cs
+11:34AM INF request completed code=unknown duration=15.9808 endpoint=graphqlPost service=billing span_id=ikjcpsa5gh7gs trace_id=7f6jogum6vmddm5orcclrlco9s
+11:34AM INF request completed code=unknown duration=10.6804 endpoint=graphqlPost service=billing span_id=91m6jpvrn6ejm trace_id=sru76altfl0e08n2gqroh8s3cs
+11:34AM INF starting request endpoint=graphqlPost service=wealth span_id=3b4kui0i33ido trace_id=jc9246h8ag655prpuoilg0nn4s
+11:34AM INF request completed code=unknown duration=63.7202 endpoint=graphqlPost service=wealth span_id=3b4kui0i33ido trace_id=jc9246h8ag655prpuoilg0nn4s
+11:34AM INF starting request endpoint=graphqlPost service=wealth span_id=58vngvovqj4mu trace_id=2mvpbj2jtjljcl2n0fd1b00tv8
+11:34AM INF request completed code=unknown duration=201.0733 endpoint=graphqlPost service=wealth span_id=58vngvovqj4mu trace_id=2mvpbj2jtjljcl2n0fd1b00tv8
+11:34AM INF starting request endpoint=graphqlPost service=wealth span_id=4jk1abeorfuac trace_id=l6bhn0r0i19d6bokh8icg7qgd8
+11:34AM INF request completed code=unknown duration=11.8768 endpoint=graphqlPost service=wealth span_id=4jk1abeorfuac trace_id=l6bhn0r0i19d6bokh8icg7qgd8
+11:34AM INF starting request endpoint=graphqlPost service=auth span_id=vis52thg46nac trace_id=s7ra99v9bkhioghtn3pl4h2cug
+11:34AM INF starting request endpoint=graphqlPost service=auth span_id=b38kcelok99ru trace_id=e5m2mc80v5f705bn9uhp9i1d78
+11:34AM INF request completed code=unknown duration=27.9654 endpoint=graphqlPost service=auth span_id=vis52thg46nac trace_id=s7ra99v9bkhioghtn3pl4h2cug
+11:34AM INF starting request endpoint=graphqlPost service=auth span_id=rqsfrtjb4tj5q trace_id=gigc5oqi23mhght5gpm4ufmea4
+11:34AM INF request completed code=unknown duration=14.2884 endpoint=graphqlPost service=auth span_id=rqsfrtjb4tj5q trace_id=gigc5oqi23mhght5gpm4ufmea4
+11:34AM INF starting request endpoint=graphqlPost service=billing span_id=fgqta9l36etoq trace_id=o31p40o2mfpfn30188vjjtmd6s
+11:34AM INF request completed code=unknown duration=5.4808 endpoint=graphqlPost service=billing span_id=fgqta9l36etoq trace_id=o31p40o2mfpfn30188vjjtmd6s
+11:34AM INF request completed code=unknown duration=66.3207 endpoint=graphqlPost service=auth span_id=b38kcelok99ru trace_id=e5m2mc80v5f705bn9uhp9i1d78
+11:34AM INF starting request endpoint=graphqlPost service=auth span_id=8b81u1a45v5mq trace_id=3ita8kc8m8i6lpj4v5vs0li3t4
+11:34AM INF request completed code=unknown duration=21.6633 endpoint=graphqlPost service=auth span_id=8b81u1a45v5mq trace_id=3ita8kc8m8i6lpj4v5vs0li3t4
+11:34AM INF starting request endpoint=graphqlPost service=billing span_id=6voku7v80btq6 trace_id=e9g2b33qvp66lrp8c2ebm8hles
+11:34AM INF request completed code=unknown duration=6.3189 endpoint=graphqlPost service=billing span_id=6voku7v80btq6 trace_id=e9g2b33qvp66lrp8c2ebm8hles
+11:34AM INF starting request endpoint=graphqlPost service=wealth span_id=7vcg5q4b1o87g trace_id=76d1rj3oouo32hp2o0dg1rotbs
+11:34AM INF request completed code=unknown duration=11.8365 endpoint=graphqlPost service=wealth span_id=7vcg5q4b1o87g trace_id=76d1rj3oouo32hp2o0dg1rotbs
+11:34AM INF starting request endpoint=graphqlPost service=wealth span_id=bt3m58hmfpphs trace_id=s02665ks1rasfjeb91uau7f3fk
+11:34AM INF request completed code=unknown duration=95.9336 endpoint=graphqlPost service=wealth span_id=bt3m58hmfpphs trace_id=s02665ks1rasfjeb91uau7f3fk
+11:35AM INF starting request endpoint=graphqlPost service=wealth span_id=t54bohq8t6tjo trace_id=2443ctbtl1hqu9bkq0ss9du3s8
+11:35AM INF request completed code=unknown duration=106.7796 endpoint=graphqlPost service=wealth span_id=t54bohq8t6tjo trace_id=2443ctbtl1hqu9bkq0ss9du3s8
+11:35AM INF starting request endpoint=graphqlPost service=wealth span_id=ku9957bhnsrl2 trace_id=p348o1411e98sgt5f0nfev4sps
+11:35AM INF starting request endpoint=graphqlPost service=wealth span_id=hthlid30frf8m trace_id=ek7ecuukfg57p07vij7m8e7rek
+11:35AM INF request completed code=unknown duration=16.7817 endpoint=graphqlPost service=wealth span_id=ku9957bhnsrl2 trace_id=p348o1411e98sgt5f0nfev4sps
+11:35AM INF request completed code=unknown duration=74.2869 endpoint=graphqlPost service=wealth span_id=hthlid30frf8m trace_id=ek7ecuukfg57p07vij7m8e7rek
+11:35AM INF starting request endpoint=graphqlPost service=wealth span_id=gm884pdbk83u6 trace_id=5efp3u7p10fd33tmj6v2i6qkd8
+11:35AM INF request completed code=unknown duration=133.9488 endpoint=graphqlPost service=wealth span_id=gm884pdbk83u6 trace_id=5efp3u7p10fd33tmj6v2i6qkd8
+11:37AM INF starting request endpoint=graphqlPost service=auth span_id=41ouge18nio5q trace_id=lhu7pm9sqqtctthc8mp0831oh4
+11:37AM INF starting request endpoint=graphqlPost service=auth span_id=frmtrq2b8lo0i trace_id=slkrjoth75e2c6scvisr7rprsc
+11:37AM INF request completed code=unknown duration=143.1619 endpoint=graphqlPost service=auth span_id=41ouge18nio5q trace_id=lhu7pm9sqqtctthc8mp0831oh4
+11:37AM INF request completed code=unknown duration=138.4152 endpoint=graphqlPost service=auth span_id=frmtrq2b8lo0i trace_id=slkrjoth75e2c6scvisr7rprsc
+11:37AM INF starting request endpoint=graphqlPost service=auth span_id=ohuefeknkinde trace_id=c5smpamgp27avf0pfpb254rlkg
+11:37AM INF starting request endpoint=graphqlPost service=auth span_id=hn6jcji188q80 trace_id=bb3mgg4jks2eokiorpl5uismek
+11:37AM INF request completed code=unknown duration=62.5216 endpoint=graphqlPost service=auth span_id=ohuefeknkinde trace_id=c5smpamgp27avf0pfpb254rlkg
+11:37AM INF starting request endpoint=graphqlPost service=billing span_id=dnn5thgdmtrki trace_id=nasfks35tv1crqc0agvp5tea5s
+11:37AM INF request completed code=unknown duration=66.6624 endpoint=graphqlPost service=auth span_id=hn6jcji188q80 trace_id=bb3mgg4jks2eokiorpl5uismek
+11:37AM INF starting request endpoint=graphqlPost service=billing span_id=bmus87fui0vvq trace_id=se7s59d5eklidd1cv6ocn6g038
+11:37AM INF request completed code=unknown duration=147.8792 endpoint=graphqlPost service=billing span_id=dnn5thgdmtrki trace_id=nasfks35tv1crqc0agvp5tea5s
+11:37AM INF request completed code=unknown duration=143.1442 endpoint=graphqlPost service=billing span_id=bmus87fui0vvq trace_id=se7s59d5eklidd1cv6ocn6g038
+11:37AM INF starting request endpoint=graphqlPost service=wealth span_id=abivm2rs5case trace_id=0c3oh6p3lcdq758ptuhr4kns34
+11:37AM INF request completed code=unknown duration=90.2897 endpoint=graphqlPost service=wealth span_id=abivm2rs5case trace_id=0c3oh6p3lcdq758ptuhr4kns34
+11:38AM INF starting request endpoint=graphqlPost service=auth span_id=4h3pfghogdt7o trace_id=f06j3fe8ce4prjpb55cd0eb2k4
+11:38AM INF starting request endpoint=graphqlPost service=auth span_id=9s4banf9pio3s trace_id=37hc90jcif6ghet6gsoi8pb3jg
+11:38AM INF request completed code=unknown duration=82.2033 endpoint=graphqlPost service=auth span_id=4h3pfghogdt7o trace_id=f06j3fe8ce4prjpb55cd0eb2k4
+11:38AM INF request completed code=unknown duration=82.7294 endpoint=graphqlPost service=auth span_id=9s4banf9pio3s trace_id=37hc90jcif6ghet6gsoi8pb3jg
+11:38AM INF starting request endpoint=graphqlPost service=auth span_id=ddrna62j111og trace_id=5lbdlkc0dcuauk9rekolhgl1kk
+11:38AM INF starting request endpoint=graphqlPost service=auth span_id=n4vsvj7l8g2p0 trace_id=tt7dhh9n2uh9ouq8fu9kt6ere8
+11:38AM INF request completed code=unknown duration=105.4681 endpoint=graphqlPost service=auth span_id=ddrna62j111og trace_id=5lbdlkc0dcuauk9rekolhgl1kk
+11:38AM INF request completed code=unknown duration=104.2278 endpoint=graphqlPost service=auth span_id=n4vsvj7l8g2p0 trace_id=tt7dhh9n2uh9ouq8fu9kt6ere8
+11:38AM INF starting request endpoint=graphqlPost service=billing span_id=amsffcdqdq8e2 trace_id=0kefmkls1mf42avihkhllfc0q4
+11:38AM INF starting request endpoint=graphqlPost service=billing span_id=qp9d1q2h0m28o trace_id=eektjkq0uahqlguaontfsrq97c
+11:38AM INF request completed code=unknown duration=11.8015 endpoint=graphqlPost service=billing span_id=amsffcdqdq8e2 trace_id=0kefmkls1mf42avihkhllfc0q4
+11:38AM INF request completed code=unknown duration=10.2494 endpoint=graphqlPost service=billing span_id=qp9d1q2h0m28o trace_id=eektjkq0uahqlguaontfsrq97c
+11:38AM INF starting request endpoint=graphqlPost service=wealth span_id=86bdeb8v9ghli trace_id=69mbcf5sqvu3e6dcn1j2dsua9o
+11:38AM INF request completed code=unknown duration=103.6685 endpoint=graphqlPost service=wealth span_id=86bdeb8v9ghli trace_id=69mbcf5sqvu3e6dcn1j2dsua9o
+11:38AM INF starting request endpoint=graphqlPost service=auth span_id=9fukcg9upmjp4 trace_id=39e0nt9koiggg7q7cn6fq4n954
+11:38AM INF starting request endpoint=graphqlPost service=auth span_id=2p2cf0k52c7jm trace_id=o0a5pejm73l21i4m6uev4i4p6s
+11:38AM INF request completed code=unknown duration=63.3483 endpoint=graphqlPost service=auth span_id=9fukcg9upmjp4 trace_id=39e0nt9koiggg7q7cn6fq4n954
+11:38AM INF starting request endpoint=graphqlPost service=auth span_id=rht6sf4igb260 trace_id=k5od03fpnd2nnsgff87k6685ek
+11:38AM INF request completed code=unknown duration=69.2085 endpoint=graphqlPost service=auth span_id=2p2cf0k52c7jm trace_id=o0a5pejm73l21i4m6uev4i4p6s
+11:38AM INF starting request endpoint=graphqlPost service=auth span_id=16pqbimqcfpra trace_id=2fsk15n7f2via0g11e7u3jvrhg
+11:38AM INF request completed code=unknown duration=69.1658 endpoint=graphqlPost service=auth span_id=rht6sf4igb260 trace_id=k5od03fpnd2nnsgff87k6685ek
+11:38AM INF starting request endpoint=graphqlPost service=billing span_id=90qfegtd69k6e trace_id=j0vfmuudc7puidb6usut2bsa14
+11:38AM INF request completed code=unknown duration=8.2722 endpoint=graphqlPost service=billing span_id=90qfegtd69k6e trace_id=j0vfmuudc7puidb6usut2bsa14
+11:38AM INF request completed code=unknown duration=78.0194 endpoint=graphqlPost service=auth span_id=16pqbimqcfpra trace_id=2fsk15n7f2via0g11e7u3jvrhg
+11:38AM INF starting request endpoint=graphqlPost service=billing span_id=isd842jnnl018 trace_id=aakp2ead4b3baqakv0onq6dtbs
+11:38AM INF request completed code=unknown duration=9.5978 endpoint=graphqlPost service=billing span_id=isd842jnnl018 trace_id=aakp2ead4b3baqakv0onq6dtbs
+11:38AM INF starting request endpoint=graphqlPost service=wealth span_id=9la647uosjcr2 trace_id=rksroiq4ne7g4ji6b75sulua9o
+11:38AM INF request completed code=unknown duration=287.6829 endpoint=graphqlPost service=wealth span_id=9la647uosjcr2 trace_id=rksroiq4ne7g4ji6b75sulua9o
+11:51AM INF starting request endpoint=graphqlPost service=auth span_id=n7si5ku3rkdtq trace_id=bmdqavfpvg1s5pepv2hrqpr7eg
+11:51AM INF starting request endpoint=graphqlPost service=auth span_id=5hg4ko1l4eg3m trace_id=87mpac3o5n37dbpob62ksrkcsk
+11:51AM INF request completed code=unknown duration=102.0196 endpoint=graphqlPost service=auth span_id=5hg4ko1l4eg3m trace_id=87mpac3o5n37dbpob62ksrkcsk
+11:51AM INF request completed code=unknown duration=109.4378 endpoint=graphqlPost service=auth span_id=n7si5ku3rkdtq trace_id=bmdqavfpvg1s5pepv2hrqpr7eg
+11:51AM INF starting request endpoint=graphqlPost service=auth span_id=71c76p30dsjv8 trace_id=os740cgho9rusnrj1hlbvpcj0k
+11:51AM INF starting request endpoint=graphqlPost service=auth span_id=0kabee1vspi6k trace_id=bkqv1i6lvdnveuqdflh3s7a2k4
+11:51AM INF request completed code=unknown duration=81.1334 endpoint=graphqlPost service=auth span_id=71c76p30dsjv8 trace_id=os740cgho9rusnrj1hlbvpcj0k
+11:51AM INF request completed code=unknown duration=84.3685 endpoint=graphqlPost service=auth span_id=0kabee1vspi6k trace_id=bkqv1i6lvdnveuqdflh3s7a2k4
+11:51AM INF starting request endpoint=graphqlPost service=billing span_id=5ivg6b5cj3vna trace_id=kbuj2vgffa4s8nd1d8qj17akak
+11:51AM INF starting request endpoint=graphqlPost service=billing span_id=uom30ve4k1tfg trace_id=huubgg7kr8853f2897l0e898nc
+11:51AM INF request completed code=unknown duration=14.2424 endpoint=graphqlPost service=billing span_id=5ivg6b5cj3vna trace_id=kbuj2vgffa4s8nd1d8qj17akak
+11:51AM INF request completed code=unknown duration=16.255 endpoint=graphqlPost service=billing span_id=uom30ve4k1tfg trace_id=huubgg7kr8853f2897l0e898nc
+11:51AM INF starting request endpoint=graphqlPost service=wealth span_id=mbo8pbsivlacg trace_id=4l7jp7f2n6nm7pvpqe98er4uvc
+11:51AM INF request completed code=unknown duration=93.8645 endpoint=graphqlPost service=wealth span_id=mbo8pbsivlacg trace_id=4l7jp7f2n6nm7pvpqe98er4uvc
+11:51AM INF starting request endpoint=graphqlPost service=wealth span_id=bvccp8gfif0g2 trace_id=1vg8al99u567p615n3ed8aeuc4
+11:51AM INF request completed code=unknown duration=141.1669 endpoint=graphqlPost service=wealth span_id=bvccp8gfif0g2 trace_id=1vg8al99u567p615n3ed8aeuc4
+11:51AM INF starting request endpoint=graphqlPost service=wealth span_id=qk0ra7rmth4dk trace_id=qubfdni2oobcm5qc35dd54lva8
+11:51AM INF request completed code=unknown duration=7.6561 endpoint=graphqlPost service=wealth span_id=qk0ra7rmth4dk trace_id=qubfdni2oobcm5qc35dd54lva8
+11:51AM INF starting request endpoint=graphqlPost service=auth span_id=6n9087o4oh7ic trace_id=e1t807c1e0ooia7lqnv1ttoslo
+11:51AM INF starting request endpoint=graphqlPost service=auth span_id=2stpj2neriil0 trace_id=g00f056bf93nl61bd921b2c924
+11:51AM INF request completed code=unknown duration=5.4605 endpoint=graphqlPost service=auth span_id=6n9087o4oh7ic trace_id=e1t807c1e0ooia7lqnv1ttoslo
+11:51AM INF request completed code=unknown duration=13.8389 endpoint=graphqlPost service=auth span_id=2stpj2neriil0 trace_id=g00f056bf93nl61bd921b2c924
+11:51AM INF starting request endpoint=graphqlPost service=auth span_id=ei9qhlssj461a trace_id=09per3ohd25q3se8sg77mev66o
+11:51AM INF request completed code=unknown duration=45.4797 endpoint=graphqlPost service=auth span_id=ei9qhlssj461a trace_id=09per3ohd25q3se8sg77mev66o
+11:51AM INF starting request endpoint=graphqlPost service=auth span_id=gof1hvuoum2pi trace_id=em7c47jh8vtptbn99r6u9f3hb4
+11:51AM INF request completed code=unknown duration=10.0273 endpoint=graphqlPost service=auth span_id=gof1hvuoum2pi trace_id=em7c47jh8vtptbn99r6u9f3hb4
+11:51AM INF starting request endpoint=graphqlPost service=auth span_id=5f1chgk3rsea2 trace_id=kjs8g4rnsd98qvhmupd7pf3ihc
+11:51AM INF starting request endpoint=graphqlPost service=auth span_id=hatiihe85vp4c trace_id=oi8l784k9crgjoha6f0tegnpf8
+11:51AM INF starting request endpoint=graphqlPost service=auth span_id=qe527cv3bd1mq trace_id=r2sd222kufvkeb1jst8rn1p640
+11:51AM INF request completed code=unknown duration=42.9557 endpoint=graphqlPost service=auth span_id=5f1chgk3rsea2 trace_id=kjs8g4rnsd98qvhmupd7pf3ihc
+11:51AM INF starting request endpoint=graphqlPost service=auth span_id=g944tonfm7d44 trace_id=s47kjrvkeim0i51dcmd724kk3c
+11:51AM INF request completed code=unknown duration=64.9368 endpoint=graphqlPost service=auth span_id=qe527cv3bd1mq trace_id=r2sd222kufvkeb1jst8rn1p640
+11:51AM INF request completed code=unknown duration=95.8267 endpoint=graphqlPost service=auth span_id=hatiihe85vp4c trace_id=oi8l784k9crgjoha6f0tegnpf8
+11:51AM INF request completed code=unknown duration=26.5501 endpoint=graphqlPost service=auth span_id=g944tonfm7d44 trace_id=s47kjrvkeim0i51dcmd724kk3c
+11:51AM INF starting request endpoint=graphqlPost service=billing span_id=6vi5gk16u4ksm trace_id=ljjnafe39034242ses8491n0rk
+11:51AM INF starting request endpoint=graphqlPost service=auth span_id=r2n54g4g4rkq6 trace_id=diucc2f3ha8gnr9ad816sibng0
+11:51AM INF request completed code=unknown duration=14.2615 endpoint=graphqlPost service=billing span_id=6vi5gk16u4ksm trace_id=ljjnafe39034242ses8491n0rk
+11:51AM INF request completed code=unknown duration=41.4787 endpoint=graphqlPost service=auth span_id=r2n54g4g4rkq6 trace_id=diucc2f3ha8gnr9ad816sibng0
+11:51AM INF starting request endpoint=graphqlPost service=billing span_id=fjah1rsqqgohi trace_id=929o487aqp11hqsdena8gi9eos
+11:51AM INF request completed code=unknown duration=25.1942 endpoint=graphqlPost service=billing span_id=fjah1rsqqgohi trace_id=929o487aqp11hqsdena8gi9eos
+11:51AM INF starting request endpoint=graphqlPost service=wealth span_id=33aie98u5fa3q trace_id=jl8uov5i6mbfq06r36s4rlh3h0
+11:51AM INF starting request endpoint=graphqlPost service=wealth span_id=hunhlhbbtk1ig trace_id=q9v19s4tu7av22667u0gr09uu8
+11:51AM INF request completed code=unknown duration=34.979 endpoint=graphqlPost service=wealth span_id=33aie98u5fa3q trace_id=jl8uov5i6mbfq06r36s4rlh3h0
+11:51AM INF request completed code=unknown duration=111.8632 endpoint=graphqlPost service=wealth span_id=hunhlhbbtk1ig trace_id=q9v19s4tu7av22667u0gr09uu8
+11:51AM INF starting request endpoint=graphqlPost service=auth span_id=c7j3m8ltfi8f4 trace_id=6dlep96vkulpss8r80vgmvmp18
+11:51AM INF starting request endpoint=graphqlPost service=auth span_id=hc35qok4d83m8 trace_id=f2quk2sibsurunpg87dhb1i8as
+11:51AM INF request completed code=unknown duration=8.2854 endpoint=graphqlPost service=auth span_id=c7j3m8ltfi8f4 trace_id=6dlep96vkulpss8r80vgmvmp18
+11:51AM INF request completed code=unknown duration=8.3351 endpoint=graphqlPost service=auth span_id=hc35qok4d83m8 trace_id=f2quk2sibsurunpg87dhb1i8as
+11:52AM INF starting request endpoint=graphqlPost service=wealth span_id=17jlijgbflqbm trace_id=ulcg9mevlmhqve71veq2k7iars
+11:52AM INF request completed code=unknown duration=182.329 endpoint=graphqlPost service=wealth span_id=17jlijgbflqbm trace_id=ulcg9mevlmhqve71veq2k7iars
+11:52AM INF starting request endpoint=graphqlPost service=wealth span_id=4u2b2gr25005q trace_id=etonqdvcjn4lsgidfn9evalrho
+11:52AM INF starting request endpoint=graphqlPost service=wealth span_id=2cnajj5ntnimc trace_id=vobogkn80405jhb8jovqb9nak4
+11:52AM INF request completed code=unknown duration=17.7027 endpoint=graphqlPost service=wealth span_id=4u2b2gr25005q trace_id=etonqdvcjn4lsgidfn9evalrho
+11:52AM INF request completed code=unknown duration=70.7093 endpoint=graphqlPost service=wealth span_id=2cnajj5ntnimc trace_id=vobogkn80405jhb8jovqb9nak4
+11:52AM INF starting request endpoint=graphqlPost service=auth span_id=vl19n97sq0eb8 trace_id=vmaqta46v3sgbqta15frdsgfm0
+11:52AM INF starting request endpoint=graphqlPost service=auth span_id=fndm8tqk0k69i trace_id=jqgqj43q19ccico8dn1iro9aa4
+11:52AM INF request completed code=unknown duration=48.0693 endpoint=graphqlPost service=auth span_id=vl19n97sq0eb8 trace_id=vmaqta46v3sgbqta15frdsgfm0
+11:52AM INF starting request endpoint=graphqlPost service=auth span_id=olh732t4krenq trace_id=ka2s3oamg5blpd89khrvq5utas
+11:52AM INF request completed code=unknown duration=18.5769 endpoint=graphqlPost service=auth span_id=olh732t4krenq trace_id=ka2s3oamg5blpd89khrvq5utas
+11:52AM INF starting request endpoint=graphqlPost service=billing span_id=1co14bis9cuv6 trace_id=v08jaffg94j68l499r1uqfpuqs
+11:52AM INF request completed code=unknown duration=94.0326 endpoint=graphqlPost service=auth span_id=fndm8tqk0k69i trace_id=jqgqj43q19ccico8dn1iro9aa4
+11:52AM INF request completed code=unknown duration=6.1197 endpoint=graphqlPost service=billing span_id=1co14bis9cuv6 trace_id=v08jaffg94j68l499r1uqfpuqs
+11:52AM INF starting request endpoint=graphqlPost service=auth span_id=kpo6ueo3nj0li trace_id=3ouuq99l9vukcnukrpi977686s
+11:52AM INF request completed code=unknown duration=21.471 endpoint=graphqlPost service=auth span_id=kpo6ueo3nj0li trace_id=3ouuq99l9vukcnukrpi977686s
+11:52AM INF starting request endpoint=graphqlPost service=billing span_id=bv93iovh996lc trace_id=9i86he545f6qlh50r5es09i9rk
+11:52AM INF request completed code=unknown duration=9.9991 endpoint=graphqlPost service=billing span_id=bv93iovh996lc trace_id=9i86he545f6qlh50r5es09i9rk
+11:52AM INF starting request endpoint=graphqlPost service=wealth span_id=m559t1rupi1se trace_id=pmb15jc3j1tq1ktt48lsrie928
+11:52AM INF request completed code=unknown duration=30.0515 endpoint=graphqlPost service=wealth span_id=m559t1rupi1se trace_id=pmb15jc3j1tq1ktt48lsrie928
+11:53AM INF starting request endpoint=graphqlPost service=wealth span_id=3s3l3pucm9qk8 trace_id=npc2vv5i8ot9po8hdsn8h68ui0
+11:53AM INF request completed code=unknown duration=163.3713 endpoint=graphqlPost service=wealth span_id=3s3l3pucm9qk8 trace_id=npc2vv5i8ot9po8hdsn8h68ui0
+11:53AM INF starting request endpoint=graphqlPost service=wealth span_id=ff379d3a5gj8e trace_id=mgv6uv1d1jpe31ih91809g6u2k
+11:53AM INF request completed code=unknown duration=155.3789 endpoint=graphqlPost service=wealth span_id=ff379d3a5gj8e trace_id=mgv6uv1d1jpe31ih91809g6u2k
+11:53AM INF starting request endpoint=graphqlPost service=wealth span_id=errnrcisr3emo trace_id=hv6i43eav8uec5ing4jqh45nd0
+11:53AM INF starting request endpoint=graphqlPost service=wealth span_id=erdch5c22hc4g trace_id=hjge7li7m80fd1scu4rvgab5bs
+11:53AM INF starting request endpoint=graphqlPost service=wealth span_id=chq41gacmgauo trace_id=d9r4hb46jgr7iou79n9viq5lco
+11:53AM INF request completed code=unknown duration=25.8272 endpoint=graphqlPost service=wealth span_id=errnrcisr3emo trace_id=hv6i43eav8uec5ing4jqh45nd0
+11:53AM INF request completed code=unknown duration=96.4082 endpoint=graphqlPost service=wealth span_id=erdch5c22hc4g trace_id=hjge7li7m80fd1scu4rvgab5bs
+11:53AM INF request completed code=unknown duration=152.9538 endpoint=graphqlPost service=wealth span_id=chq41gacmgauo trace_id=d9r4hb46jgr7iou79n9viq5lco
+11:53AM INF starting request endpoint=graphqlPost service=auth span_id=ed182ua4i62qa trace_id=do6vv00kn2dfkjf26ulre5ato8
+11:53AM INF starting request endpoint=graphqlPost service=auth span_id=7tkmh73p43leq trace_id=tvjjkucbde6g1inqhlpp7vmmas
+11:53AM INF request completed code=unknown duration=68.24 endpoint=graphqlPost service=auth span_id=7tkmh73p43leq trace_id=tvjjkucbde6g1inqhlpp7vmmas
+11:53AM INF request completed code=unknown duration=69.0597 endpoint=graphqlPost service=auth span_id=ed182ua4i62qa trace_id=do6vv00kn2dfkjf26ulre5ato8
+11:53AM INF starting request endpoint=graphqlPost service=auth span_id=9gaudttd14i1q trace_id=4dtr2mq4vc5hcrldjdd310p1g4
+11:53AM INF starting request endpoint=graphqlPost service=auth span_id=coil1tf0qsv9s trace_id=9mcuo821s16c8t3cjhfk1u4hcs
+11:53AM INF request completed code=unknown duration=62.7342 endpoint=graphqlPost service=auth span_id=9gaudttd14i1q trace_id=4dtr2mq4vc5hcrldjdd310p1g4
+11:53AM INF request completed code=unknown duration=74.6459 endpoint=graphqlPost service=auth span_id=coil1tf0qsv9s trace_id=9mcuo821s16c8t3cjhfk1u4hcs
+11:53AM INF starting request endpoint=graphqlPost service=billing span_id=htb3o862m3n82 trace_id=2ft2lmd741dbfmp6injkpj1jc4
+11:53AM INF request completed code=unknown duration=7.1199 endpoint=graphqlPost service=billing span_id=htb3o862m3n82 trace_id=2ft2lmd741dbfmp6injkpj1jc4
+11:53AM INF starting request endpoint=graphqlPost service=billing span_id=4ku0drvojq5o6 trace_id=csltp0t4fs3agougjg8ag6rul4
+11:53AM INF request completed code=unknown duration=6.2368 endpoint=graphqlPost service=billing span_id=4ku0drvojq5o6 trace_id=csltp0t4fs3agougjg8ag6rul4
+11:53AM INF starting request endpoint=graphqlPost service=wealth span_id=2angfcg9igthe trace_id=h5pir8tsa3v4tii840aco47pvs
+11:53AM INF request completed code=unknown duration=89.3803 endpoint=graphqlPost service=wealth span_id=2angfcg9igthe trace_id=h5pir8tsa3v4tii840aco47pvs
+11:54AM INF starting request endpoint=graphqlPost service=wealth span_id=k6joq5sta2ila trace_id=fcr01mq30e3k0jss5d659t3nuo
+11:54AM INF request completed code=unknown duration=148.7173 endpoint=graphqlPost service=wealth span_id=k6joq5sta2ila trace_id=fcr01mq30e3k0jss5d659t3nuo
+11:54AM INF starting request endpoint=graphqlPost service=wealth span_id=l3kf53k50k46i trace_id=cqnqutfb1si2do6eocsl8e8u24
+11:54AM INF request completed code=unknown duration=175.0435 endpoint=graphqlPost service=wealth span_id=l3kf53k50k46i trace_id=cqnqutfb1si2do6eocsl8e8u24
+11:54AM INF starting request endpoint=graphqlPost service=wealth span_id=n5o8scr11o6g4 trace_id=ohgf76l261628i5t4n31592t0o
+11:54AM INF starting request endpoint=graphqlPost service=wealth span_id=ai2e0cvp7isic trace_id=u6t8e5q1tbo9dsdm80d7slasmo
+11:54AM INF starting request endpoint=graphqlPost service=wealth span_id=qnojnt6d1btg2 trace_id=7bbnqn9crujd0q1kttt40okle4
+11:54AM INF request completed code=unknown duration=20.4002 endpoint=graphqlPost service=wealth span_id=n5o8scr11o6g4 trace_id=ohgf76l261628i5t4n31592t0o
+11:54AM INF request completed code=unknown duration=79.2987 endpoint=graphqlPost service=wealth span_id=qnojnt6d1btg2 trace_id=7bbnqn9crujd0q1kttt40okle4
+11:54AM INF request completed code=unknown duration=128.1312 endpoint=graphqlPost service=wealth span_id=ai2e0cvp7isic trace_id=u6t8e5q1tbo9dsdm80d7slasmo
+11:58AM INF starting request endpoint=graphqlPost service=auth span_id=ppp54gkmbmi8e trace_id=3o590gq0a4ekvjpb19iajfu4pg
+11:58AM INF starting request endpoint=graphqlPost service=auth span_id=guij25qngjl6q trace_id=6qm0j54ilj7erao9eutneduhm8
+11:58AM INF request completed code=unknown duration=191.9721 endpoint=graphqlPost service=auth span_id=ppp54gkmbmi8e trace_id=3o590gq0a4ekvjpb19iajfu4pg
+11:58AM INF request completed code=unknown duration=193.284 endpoint=graphqlPost service=auth span_id=guij25qngjl6q trace_id=6qm0j54ilj7erao9eutneduhm8
+11:58AM INF starting request endpoint=graphqlPost service=auth span_id=ri16q2lhsh2cs trace_id=sjikgoiqiv2m36gs7o3qvt1sm8
+11:58AM INF starting request endpoint=graphqlPost service=auth span_id=dt6bam4hi5c7u trace_id=12iougcl3r980mgck2pj3189o8
+11:58AM INF request completed code=unknown duration=62.6943 endpoint=graphqlPost service=auth span_id=dt6bam4hi5c7u trace_id=12iougcl3r980mgck2pj3189o8
+11:58AM INF starting request endpoint=graphqlPost service=billing span_id=bao0m2f88tq6u trace_id=vckdkf6i05f3ue2c5bt1e2jlms
+11:58AM INF request completed code=unknown duration=166.3769 endpoint=graphqlPost service=billing span_id=bao0m2f88tq6u trace_id=vckdkf6i05f3ue2c5bt1e2jlms
+11:58AM INF request completed code=unknown duration=243.6304 endpoint=graphqlPost service=auth span_id=ri16q2lhsh2cs trace_id=sjikgoiqiv2m36gs7o3qvt1sm8
+11:58AM INF starting request endpoint=graphqlPost service=billing span_id=pesi3al93lc96 trace_id=5g0ei93tsvvsj1dd8nsjfi4pkk
+11:58AM INF request completed code=unknown duration=18.8262 endpoint=graphqlPost service=billing span_id=pesi3al93lc96 trace_id=5g0ei93tsvvsj1dd8nsjfi4pkk
+11:58AM INF starting request endpoint=graphqlPost service=wealth span_id=qojvevv12e9a4 trace_id=c1cfjf18mjlgjk507n49ir527k
+11:58AM INF starting request endpoint=graphqlPost service=wealth span_id=00e8mv5sc5mfu trace_id=bflr6jqhf88trmck3d6l9okhk0
+11:58AM INF starting request endpoint=graphqlPost service=wealth span_id=8jfjpcict0t8s trace_id=kdjk3g64u5t4f95hf8u52ij77c
+11:58AM INF starting request endpoint=graphqlPost service=wealth span_id=bt406evvdjhc0 trace_id=t2civvfhohk0fci76uj9eahmss
+11:58AM INF request completed code=unknown duration=240.6595 endpoint=graphqlPost service=wealth span_id=00e8mv5sc5mfu trace_id=bflr6jqhf88trmck3d6l9okhk0
+11:58AM INF request completed code=unknown duration=323.2909 endpoint=graphqlPost service=wealth span_id=8jfjpcict0t8s trace_id=kdjk3g64u5t4f95hf8u52ij77c
+11:58AM INF request completed code=unknown duration=332.3164 endpoint=graphqlPost service=wealth span_id=qojvevv12e9a4 trace_id=c1cfjf18mjlgjk507n49ir527k
+11:58AM INF request completed code=unknown duration=329.1408 endpoint=graphqlPost service=wealth span_id=bt406evvdjhc0 trace_id=t2civvfhohk0fci76uj9eahmss
+11:58AM INF starting request endpoint=graphqlPost service=auth span_id=e73cuufogshra trace_id=snnkf7dd01k0mr8ai8rd6ri2k0
+11:58AM INF starting request endpoint=graphqlPost service=auth span_id=s2kucrubk7qai trace_id=r06c4frn7mb0r7sh7386b4l2ac
+11:58AM INF request completed code=unknown duration=73.4606 endpoint=graphqlPost service=auth span_id=e73cuufogshra trace_id=snnkf7dd01k0mr8ai8rd6ri2k0
+11:58AM INF request completed code=unknown duration=75.8661 endpoint=graphqlPost service=auth span_id=s2kucrubk7qai trace_id=r06c4frn7mb0r7sh7386b4l2ac
+11:58AM INF starting request endpoint=graphqlPost service=auth span_id=20gu15qstlf5a trace_id=b3kt49jrd09gr8g37g05752pgo
+11:58AM INF starting request endpoint=graphqlPost service=auth span_id=2e01hd47t43ba trace_id=k9voqq7m0qecnef38t3m314odo
+11:58AM INF request completed code=unknown duration=56.3851 endpoint=graphqlPost service=auth span_id=20gu15qstlf5a trace_id=b3kt49jrd09gr8g37g05752pgo
+11:58AM INF starting request endpoint=graphqlPost service=billing span_id=q556k1o2krkhg trace_id=o801qqlfcvstbbfjo36k36enuc
+11:58AM INF request completed code=unknown duration=64.5937 endpoint=graphqlPost service=auth span_id=2e01hd47t43ba trace_id=k9voqq7m0qecnef38t3m314odo
+11:58AM INF request completed code=unknown duration=8.1737 endpoint=graphqlPost service=billing span_id=q556k1o2krkhg trace_id=o801qqlfcvstbbfjo36k36enuc
+11:58AM INF starting request endpoint=graphqlPost service=billing span_id=llsud9u1gnkio trace_id=npvp1ocghajn71jbntnh3f7kac
+11:58AM INF request completed code=unknown duration=13.8732 endpoint=graphqlPost service=billing span_id=llsud9u1gnkio trace_id=npvp1ocghajn71jbntnh3f7kac
+11:58AM INF starting request endpoint=graphqlPost service=wealth span_id=5rlphhuvnd1so trace_id=s40e62rtejanioti65f66v9b68
+11:58AM INF request completed code=unknown duration=63.716 endpoint=graphqlPost service=wealth span_id=5rlphhuvnd1so trace_id=s40e62rtejanioti65f66v9b68
+11:58AM INF starting request endpoint=graphqlPost service=wealth span_id=nan3ka073q1m2 trace_id=sutcs3sjg8e3m6uvfkvktl4je4
+11:58AM INF request completed code=unknown duration=25.9601 endpoint=graphqlPost service=wealth span_id=nan3ka073q1m2 trace_id=sutcs3sjg8e3m6uvfkvktl4je4
+12:19PM INF starting request endpoint=graphqlPost service=auth span_id=78if18fuhl34k trace_id=8j2bp3baesc1pq7ll527accaa8
+12:19PM INF starting request endpoint=graphqlPost service=auth span_id=ml2ke86u9v66i trace_id=icthefq9fck7fhc0ibjbclh9u8
+12:19PM INF request completed code=unknown duration=207.9495 endpoint=graphqlPost service=auth span_id=ml2ke86u9v66i trace_id=icthefq9fck7fhc0ibjbclh9u8
+12:19PM INF request completed code=unknown duration=208.1964 endpoint=graphqlPost service=auth span_id=78if18fuhl34k trace_id=8j2bp3baesc1pq7ll527accaa8
+12:19PM INF starting request endpoint=graphqlPost service=auth span_id=onkcnu13lrfic trace_id=536j037eak7jfq8csic1fu6em4
+12:19PM INF starting request endpoint=graphqlPost service=auth span_id=st2vpobri7lto trace_id=2a1ulsdrk3au8g67ppmgj00030
+12:19PM INF request completed code=unknown duration=78.9078 endpoint=graphqlPost service=auth span_id=st2vpobri7lto trace_id=2a1ulsdrk3au8g67ppmgj00030
+12:19PM INF request completed code=unknown duration=88.0861 endpoint=graphqlPost service=auth span_id=onkcnu13lrfic trace_id=536j037eak7jfq8csic1fu6em4
+12:19PM INF starting request endpoint=graphqlPost service=billing span_id=mbph1f8t1p9f2 trace_id=64hoqm499na1snq6mcjbaja3mg
+12:19PM INF starting request endpoint=graphqlPost service=billing span_id=nbphllh9cnrv4 trace_id=a5sbs96pfpnfpsmorp5hi7qo88
+12:19PM INF request completed code=unknown duration=173.7077 endpoint=graphqlPost service=billing span_id=mbph1f8t1p9f2 trace_id=64hoqm499na1snq6mcjbaja3mg
+12:19PM INF request completed code=unknown duration=170.9455 endpoint=graphqlPost service=billing span_id=nbphllh9cnrv4 trace_id=a5sbs96pfpnfpsmorp5hi7qo88
+12:20PM INF starting request endpoint=graphqlPost service=auth span_id=5f7e39kaq518c trace_id=n6kssn00u0okeq60at29l54e24
+12:20PM INF request completed code=unknown duration=125.8231 endpoint=graphqlPost service=auth span_id=5f7e39kaq518c trace_id=n6kssn00u0okeq60at29l54e24
+12:20PM INF starting request endpoint=graphqlPost service=auth span_id=6o3fdkdavb2em trace_id=ua83rj5h2id1fjgputqj671i80
+12:20PM INF request completed code=unknown duration=13.6414 endpoint=graphqlPost service=auth span_id=6o3fdkdavb2em trace_id=ua83rj5h2id1fjgputqj671i80
+12:20PM INF starting request endpoint=graphqlPost service=auth span_id=coju6gg72rhb8 trace_id=egtc9e3apo9360dkngptthm310
+12:20PM INF request completed code=unknown duration=19.2659 endpoint=graphqlPost service=auth span_id=coju6gg72rhb8 trace_id=egtc9e3apo9360dkngptthm310
+12:20PM INF starting request endpoint=graphqlPost service=billing span_id=ca7hr349jedgo trace_id=87onjkhsq6ieg780rqhum4g7us
+12:20PM INF request completed code=unknown duration=82.5833 endpoint=graphqlPost service=billing span_id=ca7hr349jedgo trace_id=87onjkhsq6ieg780rqhum4g7us
+12:20PM INF starting request endpoint=graphqlPost service=wealth span_id=njrtdk7fa100o trace_id=snl2toojeh01mmv4cehlrlqpcg
+12:20PM INF request completed code=unknown duration=148.9074 endpoint=graphqlPost service=wealth span_id=njrtdk7fa100o trace_id=snl2toojeh01mmv4cehlrlqpcg
+12:20PM INF starting request endpoint=graphqlPost service=auth span_id=u513eb8ppftgq trace_id=tc25bgvdhu1dveuachncd7f59c
+12:20PM INF starting request endpoint=graphqlPost service=auth span_id=mnvq808iht60a trace_id=urijfrba1chgvr2us575omt0es
+12:20PM INF request completed code=unknown duration=23.748 endpoint=graphqlPost service=auth span_id=u513eb8ppftgq trace_id=tc25bgvdhu1dveuachncd7f59c
+12:20PM INF starting request endpoint=graphqlPost service=auth span_id=b6rp99mjp11ci trace_id=0jur9crghnr9g382v49q3kjb2o
+12:20PM INF request completed code=unknown duration=95.9541 endpoint=graphqlPost service=auth span_id=mnvq808iht60a trace_id=urijfrba1chgvr2us575omt0es
+12:20PM INF starting request endpoint=graphqlPost service=auth span_id=9463maql2l03s trace_id=gbc775gfmq9kb31ub4pnmtegmc
+12:20PM INF request completed code=unknown duration=70.7515 endpoint=graphqlPost service=auth span_id=b6rp99mjp11ci trace_id=0jur9crghnr9g382v49q3kjb2o
+12:20PM INF starting request endpoint=graphqlPost service=billing span_id=rlu3p2094l2s8 trace_id=ec09mnq4uliuk5lma0jltsfkk0
+12:20PM INF request completed code=unknown duration=68.2753 endpoint=graphqlPost service=auth span_id=9463maql2l03s trace_id=gbc775gfmq9kb31ub4pnmtegmc
+12:20PM INF request completed code=unknown duration=55.4865 endpoint=graphqlPost service=billing span_id=rlu3p2094l2s8 trace_id=ec09mnq4uliuk5lma0jltsfkk0
+12:20PM INF starting request endpoint=graphqlPost service=billing span_id=64mv5qome60le trace_id=79ujh4m6lc273i4g2rj7i580pk
+12:20PM INF request completed code=unknown duration=61.3484 endpoint=graphqlPost service=billing span_id=64mv5qome60le trace_id=79ujh4m6lc273i4g2rj7i580pk
+12:20PM INF starting request endpoint=graphqlPost service=auth span_id=o8s0ivon3qc26 trace_id=27adu5ho5dmtcbj659lk6qtbmg
+12:20PM INF request completed code=unknown duration=88.8454 endpoint=graphqlPost service=auth span_id=o8s0ivon3qc26 trace_id=27adu5ho5dmtcbj659lk6qtbmg
+12:20PM INF starting request endpoint=graphqlPost service=auth span_id=55e7prqqjr8b6 trace_id=ggli05d84diiidk5hgn6cbtbo8
+12:20PM INF request completed code=unknown duration=4.5243 endpoint=graphqlPost service=auth span_id=55e7prqqjr8b6 trace_id=ggli05d84diiidk5hgn6cbtbo8
+12:20PM INF starting request endpoint=graphqlPost service=auth span_id=63c268q041288 trace_id=tkrfifmqb7vgdffv953ji0vrao
+12:20PM INF request completed code=unknown duration=16.836 endpoint=graphqlPost service=auth span_id=63c268q041288 trace_id=tkrfifmqb7vgdffv953ji0vrao
+12:20PM INF starting request endpoint=graphqlPost service=auth span_id=rkcpr3unkl42e trace_id=ngh9bmtn755v4j2ep7ji8umgbo
+12:20PM INF request completed code=unknown duration=15.2868 endpoint=graphqlPost service=auth span_id=rkcpr3unkl42e trace_id=ngh9bmtn755v4j2ep7ji8umgbo
+12:20PM INF starting request endpoint=graphqlPost service=auth span_id=sde1l7eo0mpvs trace_id=v6a0snskpujd1mj9305q78akbs
+12:20PM INF request completed code=unknown duration=47.1999 endpoint=graphqlPost service=auth span_id=sde1l7eo0mpvs trace_id=v6a0snskpujd1mj9305q78akbs
+12:27PM INF starting request endpoint=graphqlPost service=auth span_id=rldlr5phqp8sc trace_id=rfj1s9jkhhv09colf6q8fra3o4
+12:27PM INF request completed code=unknown duration=116.3553 endpoint=graphqlPost service=auth span_id=rldlr5phqp8sc trace_id=rfj1s9jkhhv09colf6q8fra3o4
+12:27PM INF starting request endpoint=graphqlPost service=auth span_id=3lrqaqsgb23n6 trace_id=od78njcjt9jjc7pi96bag3i240
+12:27PM INF request completed code=unknown duration=66.8837 endpoint=graphqlPost service=auth span_id=3lrqaqsgb23n6 trace_id=od78njcjt9jjc7pi96bag3i240
+12:27PM INF starting request endpoint=graphqlPost service=auth span_id=7v1t0trfbmdf2 trace_id=qtql14jcmq6vtgtj4q9li5d01k
+12:27PM INF request completed code=unknown duration=18.3142 endpoint=graphqlPost service=auth span_id=7v1t0trfbmdf2 trace_id=qtql14jcmq6vtgtj4q9li5d01k
+12:27PM INF starting request endpoint=graphqlPost service=auth span_id=onngdr49nvnni trace_id=387h9r6fp8cud59f23j4hn85vs
+12:27PM INF request completed code=unknown duration=19.3644 endpoint=graphqlPost service=auth span_id=onngdr49nvnni trace_id=387h9r6fp8cud59f23j4hn85vs
+12:27PM INF starting request endpoint=graphqlPost service=billing span_id=8m1jd32n4j82s trace_id=hsk4k149dsg2ca27ltaq3v9c30
+12:27PM INF request completed code=unknown duration=47.4269 endpoint=graphqlPost service=billing span_id=8m1jd32n4j82s trace_id=hsk4k149dsg2ca27ltaq3v9c30
+12:27PM INF starting request endpoint=graphqlPost service=wealth span_id=tkhju0k57im5e trace_id=97ic0paa38purrta8i2b04aavg
+12:27PM INF request completed code=unknown duration=122.8849 endpoint=graphqlPost service=wealth span_id=tkhju0k57im5e trace_id=97ic0paa38purrta8i2b04aavg
+12:28PM INF starting request endpoint=graphqlPost service=auth span_id=tqvi57apl60jq trace_id=570i8u6lab3g8uenb57uf7jhm8
+12:28PM INF starting request endpoint=graphqlPost service=auth span_id=stu4fk9vpp1ua trace_id=9j3v6sc1mespadcn3fipn9vcjg
+12:28PM INF request completed code=unknown duration=77.6115 endpoint=graphqlPost service=auth span_id=tqvi57apl60jq trace_id=570i8u6lab3g8uenb57uf7jhm8
+12:28PM INF request completed code=unknown duration=76.8304 endpoint=graphqlPost service=auth span_id=stu4fk9vpp1ua trace_id=9j3v6sc1mespadcn3fipn9vcjg
+12:28PM INF starting request endpoint=graphqlPost service=auth span_id=cu92c83osndau trace_id=6la8m82h1ls23hqpjdn2oc0308
+12:28PM INF starting request endpoint=graphqlPost service=auth span_id=bn8iedm5h82vg trace_id=jmttbbv49l99q92r8q60dg7quk
+12:28PM INF request completed code=unknown duration=20.3386 endpoint=graphqlPost service=auth span_id=cu92c83osndau trace_id=6la8m82h1ls23hqpjdn2oc0308
+12:28PM INF starting request endpoint=graphqlPost service=billing span_id=70vot94bsq3ao trace_id=uuffauc9hlftr57ml0hgjub260
+12:28PM INF request completed code=unknown duration=38.1895 endpoint=graphqlPost service=auth span_id=bn8iedm5h82vg trace_id=jmttbbv49l99q92r8q60dg7quk
+12:28PM INF starting request endpoint=graphqlPost service=billing span_id=u66nfq58nqldc trace_id=523i82l3eh3dv0gsu1l45fai94
+12:28PM INF request completed code=unknown duration=91.8627 endpoint=graphqlPost service=billing span_id=70vot94bsq3ao trace_id=uuffauc9hlftr57ml0hgjub260
+12:28PM INF request completed code=unknown duration=85.5255 endpoint=graphqlPost service=billing span_id=u66nfq58nqldc trace_id=523i82l3eh3dv0gsu1l45fai94
+12:28PM INF starting request endpoint=graphqlPost service=wealth span_id=2favdt5bplmig trace_id=oi4chqqon294ajd3gac7ak65fg
+12:28PM INF request completed code=unknown duration=199.109 endpoint=graphqlPost service=wealth span_id=2favdt5bplmig trace_id=oi4chqqon294ajd3gac7ak65fg
+12:38PM INF starting request endpoint=graphqlPost service=wealth span_id=h8g9jibk53hme trace_id=tov7iiin8e8nj143b0ssg8l674
+12:38PM INF request completed code=unknown duration=372.5755 endpoint=graphqlPost service=wealth span_id=h8g9jibk53hme trace_id=tov7iiin8e8nj143b0ssg8l674
+12:38PM INF starting request endpoint=graphqlPost service=wealth span_id=f102b8n8iji24 trace_id=mrn2ss6epohfuhm3gd708k69ok
+12:38PM INF request completed code=unknown duration=11.2259 endpoint=graphqlPost service=wealth span_id=f102b8n8iji24 trace_id=mrn2ss6epohfuhm3gd708k69ok
+12:41PM INF starting request endpoint=graphqlPost service=wealth span_id=v3j899f7ofoko trace_id=ap66271aaflsjeu0nhuutaema4
+12:41PM INF request completed code=unknown duration=450.5198 endpoint=graphqlPost service=wealth span_id=v3j899f7ofoko trace_id=ap66271aaflsjeu0nhuutaema4
+12:41PM INF starting request endpoint=graphqlPost service=wealth span_id=k47dobn3i6eaq trace_id=fe5e8k6lrkj1ae1aohqcf9sme0
+12:41PM INF request completed code=unknown duration=223.2785 endpoint=graphqlPost service=wealth span_id=k47dobn3i6eaq trace_id=fe5e8k6lrkj1ae1aohqcf9sme0
+12:42PM INF starting request endpoint=graphqlPost service=wealth span_id=jdk65trohtcjm trace_id=9ufqunn445hkhmmfqlltq6nhf8
+12:42PM INF request completed code=unknown duration=156.6599 endpoint=graphqlPost service=wealth span_id=jdk65trohtcjm trace_id=9ufqunn445hkhmmfqlltq6nhf8
+12:42PM INF starting request endpoint=graphqlPost service=wealth span_id=ub8cibieapgoi trace_id=ri6ia1ahsl0bbl7q1limghrrng
+12:42PM INF request completed code=unknown duration=221.2364 endpoint=graphqlPost service=wealth span_id=ub8cibieapgoi trace_id=ri6ia1ahsl0bbl7q1limghrrng
+12:43PM INF starting request endpoint=graphqlPost service=wealth span_id=pblmdvq1l8gh2 trace_id=f1bnkim8ckgonk71hst5kscc6c
+12:43PM INF request completed code=unknown duration=177.1347 endpoint=graphqlPost service=wealth span_id=pblmdvq1l8gh2 trace_id=f1bnkim8ckgonk71hst5kscc6c
+12:43PM INF starting request endpoint=graphqlPost service=wealth span_id=7remj3ktp9plg trace_id=88rqhub3qqsrhcovqe3upag93k
+12:43PM INF request completed code=unknown duration=13.3583 endpoint=graphqlPost service=wealth span_id=7remj3ktp9plg trace_id=88rqhub3qqsrhcovqe3upag93k
+12:43PM INF starting request endpoint=graphqlPost service=wealth span_id=tl1pgobcmdj4q trace_id=8pfqfb2314ismtkpho3l6ddgjg
+12:43PM INF request completed code=unknown duration=193.6413 endpoint=graphqlPost service=wealth span_id=tl1pgobcmdj4q trace_id=8pfqfb2314ismtkpho3l6ddgjg
+12:44PM INF starting request endpoint=graphqlPost service=wealth span_id=ss5016015p4fe trace_id=sa0crrne9j192nee97in32uo84
+12:44PM INF request completed code=unknown duration=160.9988 endpoint=graphqlPost service=wealth span_id=ss5016015p4fe trace_id=sa0crrne9j192nee97in32uo84
+12:44PM INF starting request endpoint=graphqlPost service=wealth span_id=53fi3t2krtgfq trace_id=t4kv2ke6pqsrjk2917vrrqjdvc
+12:44PM INF request completed code=unknown duration=14.5037 endpoint=graphqlPost service=wealth span_id=53fi3t2krtgfq trace_id=t4kv2ke6pqsrjk2917vrrqjdvc
+12:47PM INF starting request endpoint=graphqlPost service=wealth span_id=gs7f6l50d8vg4 trace_id=2ls0rtm4q8564daknpe8c8v78g
+12:47PM INF request completed code=unknown duration=189.4641 endpoint=graphqlPost service=wealth span_id=gs7f6l50d8vg4 trace_id=2ls0rtm4q8564daknpe8c8v78g
+12:47PM INF starting request endpoint=graphqlPost service=wealth span_id=jud83bsu3odsm trace_id=2mtra9q3io3f3vfcueamtrg00k
+12:47PM INF request completed code=unknown duration=83.2964 endpoint=graphqlPost service=wealth span_id=jud83bsu3odsm trace_id=2mtra9q3io3f3vfcueamtrg00k
+12:47PM INF starting request endpoint=graphqlPost service=auth span_id=v7kugu3dnr588 trace_id=gmtiu3roduihnp9u6dt9pbfpao
+12:47PM INF request completed code=unknown duration=51.6698 endpoint=graphqlPost service=auth span_id=v7kugu3dnr588 trace_id=gmtiu3roduihnp9u6dt9pbfpao
+12:47PM INF starting request endpoint=graphqlPost service=auth span_id=j8jo61749ubmm trace_id=bg1pumd23ail8t8qdnbdicj1g0
+12:47PM INF request completed code=unknown duration=53.4517 endpoint=graphqlPost service=auth span_id=j8jo61749ubmm trace_id=bg1pumd23ail8t8qdnbdicj1g0
+12:47PM INF starting request endpoint=graphqlPost service=wealth span_id=6ftbm83lj0hik trace_id=u0ea563ll24c14budah0ci1je4
+12:47PM INF request completed code=unknown duration=157.5 endpoint=graphqlPost service=wealth span_id=6ftbm83lj0hik trace_id=u0ea563ll24c14budah0ci1je4
