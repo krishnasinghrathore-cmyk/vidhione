@@ -1,1 +1,0 @@
-import{c as n,j as s}from"./index-a2e62377.js";function o({label:e,children:l,className:p,labelClassName:t,style:i,htmlFor:a}){const c=n("app-notched-input__label",t);return s.jsxs("div",{className:n("app-notched-input",p),style:i,children:[a?s.jsx("label",{htmlFor:a,className:c,children:e}):s.jsx("span",{className:c,children:e}),l]})}export{o as A};

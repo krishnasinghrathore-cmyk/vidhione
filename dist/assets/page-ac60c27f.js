@@ -1,1 +1,0 @@
-import{j as e}from"./index-a2e62377.js";function r(){return e.jsxs("div",{className:"card",children:[e.jsx("h2",{className:"mb-2",children:"Inventory"}),e.jsx("p",{className:"text-600",children:"Products, stock, locations, and movements shared across industries will be implemented here."})]})}export{r as default};

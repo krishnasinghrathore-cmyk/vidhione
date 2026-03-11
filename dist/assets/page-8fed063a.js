@@ -1,1 +1,0 @@
-import{j as a}from"./index-a2e62377.js";function s(){return a.jsxs("div",{className:"card",children:[a.jsx("h2",{className:"mb-2",children:"Ad Campaigns"}),a.jsx("p",{className:"text-600 m-0",children:"Manage ad campaigns, placements, and performance for your tenant from this module."})]})}export{s as default};

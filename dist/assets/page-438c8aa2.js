@@ -1,1 +1,0 @@
-import{j as e}from"./index-a2e62377.js";function a(){return e.jsxs("div",{className:"card",children:[e.jsx("h2",{className:"mb-2",children:"Website"}),e.jsx("p",{className:"text-600 m-0",children:"Launch and manage your business website, templates, and content from this module."})]})}export{a as default};

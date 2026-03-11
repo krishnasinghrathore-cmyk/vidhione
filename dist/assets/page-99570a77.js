@@ -1,1 +1,0 @@
-import{j as e}from"./index-a2e62377.js";function a(){return e.jsxs("div",{className:"card",children:[e.jsx("h2",{className:"mb-2",children:"Retail"}),e.jsx("p",{className:"text-600",children:"Retail POS, billing, GST, and loyalty features will be implemented in this module."})]})}export{a as default};

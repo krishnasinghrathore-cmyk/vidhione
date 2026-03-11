@@ -1,1 +1,0 @@
-const c=e=>{var a;const r=e==null?void 0:e.match(/\[SEG:([^\]]+)\]/i);if(!r)return null;const t=(a=r[1])==null?void 0:a.trim().toUpperCase();return t==="CASH"||t==="SLBM"||t==="FAO"?t:null},l=e=>e.replace(/\[SEG:[^\]]+\]/gi,"").replace(/\[INV_DATE:\d{4}-\d{2}-\d{2}\]/gi,"").replace(/\s+/g," ").trim();export{c as e,l as s};

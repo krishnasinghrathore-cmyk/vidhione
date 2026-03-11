@@ -241,18 +241,31 @@ export type SmsAlertEvent = {
     alertCount: number;
     triggeredKeys: string[];
     alertsJson: string;
+    reviewStatus: 'open' | 'acknowledged';
+    reviewedByUserId: string | null;
+    reviewedByRole: string | null;
+    reviewNote: string | null;
+    reviewedAt: string | null;
     createdAt: string;
+};
+
+export type SmsAlertEmailDeliverySettings = {
+    enabled: boolean;
+    recipientEmails: string[];
+    subjectPrefix: string;
 };
 
 export type SmsSettings = {
     id: string;
     alertThresholds: SmsAlertThresholdSettings;
+    alertEmailDelivery: SmsAlertEmailDeliverySettings;
     createdAt: string;
     updatedAt: string;
 };
 
 export type UpsertSmsSettingsInput = {
     alertThresholds: SmsAlertThresholdSettings;
+    alertEmailDelivery?: SmsAlertEmailDeliverySettings | null;
 };
 
 export type SmsRetryPolicyConfig = {
@@ -373,6 +386,11 @@ export const getSmsSettings = async () => {
                     rateWindowDays
                     cooldownHours
                 }
+                alertEmailDelivery {
+                    enabled
+                    recipientEmails
+                    subjectPrefix
+                }
                 createdAt
                 updatedAt
             }
@@ -397,6 +415,11 @@ export const upsertSmsSettings = async (input: UpsertSmsSettingsInput) => {
                     rateWindowDays
                     cooldownHours
                 }
+                alertEmailDelivery {
+                    enabled
+                    recipientEmails
+                    subjectPrefix
+                }
                 createdAt
                 updatedAt
             }
@@ -417,12 +440,45 @@ export const listSmsAlertEvents = async (limit = 20) => {
                 alertCount
                 triggeredKeys
                 alertsJson
+                reviewStatus
+                reviewedByUserId
+                reviewedByRole
+                reviewNote
+                reviewedAt
                 createdAt
             }
         }`,
         { limit }
     );
     return data.smsAlertEvents;
+};
+
+export const setSmsAlertEventReview = async (input: {
+    eventId: string;
+    status: 'open' | 'acknowledged';
+    note?: string | null;
+}) => {
+    const data = await requestSmsGraphql<{ setSmsAlertEventReview: SmsAlertEvent }>(
+        `mutation SetSmsAlertEventReview($input: SetSmsAlertEventReviewInput!) {
+            setSmsAlertEventReview(input: $input) {
+                id
+                scopeApp
+                rateWindowDays
+                cooldownHours
+                alertCount
+                triggeredKeys
+                alertsJson
+                reviewStatus
+                reviewedByUserId
+                reviewedByRole
+                reviewNote
+                reviewedAt
+                createdAt
+            }
+        }`,
+        { input }
+    );
+    return data.setSmsAlertEventReview;
 };
 
 export const getSmsTemplateBinding = async (bindingKey: string) => {
@@ -946,5 +1002,8 @@ export const listSmsWebhookEvents = async (input: ListSmsWebhookEventsInput) => 
     );
     return data.smsWebhookEvents;
 };
+
+
+
 
 

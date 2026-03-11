@@ -28,8 +28,10 @@ import {
     previewSmsTemplateBinding,
     retrySmsMessage,
     runSmsRetrySweep,
+    setSmsAlertEventReview,
     upsertSmsSettings,
     upsertSmsTemplateBinding,
+    type SmsAlertEmailDeliverySettings,
     type SmsAlertThresholdSettings,
     type SmsAlertEvent,
     type SmsDeliverySummaryReport,
@@ -400,6 +402,12 @@ type SmsAlertSettingsForm = {
     cooldownHours: string;
 };
 
+type SmsAlertEmailDeliveryForm = {
+    enabled: boolean;
+    recipientEmails: string;
+    subjectPrefix: string;
+};
+
 type SmsTenantAlertPreviewItem = {
     key: string;
     label: string;
@@ -421,6 +429,12 @@ const DEFAULT_SMS_ALERT_THRESHOLDS: SmsAlertThresholdSettings = {
     oldestPendingHours: 6,
     rateWindowDays: 30,
     cooldownHours: 6
+};
+
+const DEFAULT_SMS_ALERT_EMAIL_DELIVERY: SmsAlertEmailDeliverySettings = {
+    enabled: false,
+    recipientEmails: [],
+    subjectPrefix: '[SMS Alerts]'
 };
 
 const findBindingConfig = (bindingKey: string) =>
@@ -516,6 +530,31 @@ const normalizeAlertSettingsForm = (form: SmsAlertSettingsForm): SmsAlertThresho
     )
 });
 
+const createAlertEmailDeliveryForm = (
+    settings: SmsAlertEmailDeliverySettings | null | undefined
+): SmsAlertEmailDeliveryForm => {
+    const next = settings ?? DEFAULT_SMS_ALERT_EMAIL_DELIVERY;
+    return {
+        enabled: next.enabled,
+        recipientEmails: next.recipientEmails.join('\n'),
+        subjectPrefix: next.subjectPrefix
+    };
+};
+
+const normalizeAlertEmailDeliveryForm = (
+    form: SmsAlertEmailDeliveryForm
+): SmsAlertEmailDeliverySettings => ({
+    enabled: form.enabled,
+    recipientEmails: Array.from(
+        new Set(
+            form.recipientEmails
+                .split(/[\n,]/)
+                .map((value) => value.trim().toLowerCase())
+                .filter(Boolean)
+        )
+    ),
+    subjectPrefix: form.subjectPrefix.trim() || DEFAULT_SMS_ALERT_EMAIL_DELIVERY.subjectPrefix
+});
 const SMS_HISTORY_LIMIT = 15;
 const SMS_WEBHOOK_EVENTS_LIMIT = 20;
 const SMS_EXPORT_LIMIT = 500;
@@ -711,6 +750,15 @@ const getSmsStatusSeverity = (status: string) => {
             return 'danger';
         default:
             return undefined;
+    }
+};
+
+const getSmsAlertEventReviewPresentation = (status: SmsAlertEvent['reviewStatus']) => {
+    switch (status) {
+        case 'acknowledged':
+            return { label: 'ACKNOWLEDGED', severity: 'success' as const };
+        default:
+            return { label: 'OPEN', severity: 'warning' as const };
     }
 };
 
@@ -1115,6 +1163,13 @@ export default function SmsAppPage() {
     const [alertEventsLoading, setAlertEventsLoading] = React.useState(false);
     const [alertEventsError, setAlertEventsError] = React.useState<string | null>(null);
     const [alertEvents, setAlertEvents] = React.useState<SmsAlertEvent[]>([]);
+    const [alertEventReviewDialogVisible, setAlertEventReviewDialogVisible] = React.useState(false);
+    const [alertEventReviewSaving, setAlertEventReviewSaving] = React.useState(false);
+    const [alertEventReviewError, setAlertEventReviewError] = React.useState<string | null>(null);
+    const [alertEventReviewNotice, setAlertEventReviewNotice] = React.useState<string | null>(null);
+    const [alertEventReviewTarget, setAlertEventReviewTarget] = React.useState<SmsAlertEvent | null>(null);
+    const [alertEventReviewStatus, setAlertEventReviewStatus] = React.useState<'open' | 'acknowledged'>('acknowledged');
+    const [alertEventReviewNote, setAlertEventReviewNote] = React.useState('');
     const [alertSettingsLoading, setAlertSettingsLoading] = React.useState(false);
     const [alertSettingsSaving, setAlertSettingsSaving] = React.useState(false);
     const [alertSettingsError, setAlertSettingsError] = React.useState<string | null>(null);
@@ -1122,6 +1177,9 @@ export default function SmsAppPage() {
     const [alertSettings, setAlertSettings] = React.useState<SmsSettings | null>(null);
     const [alertSettingsForm, setAlertSettingsForm] = React.useState<SmsAlertSettingsForm>(() =>
         createAlertSettingsForm(DEFAULT_SMS_ALERT_THRESHOLDS)
+    );
+    const [alertEmailDeliveryForm, setAlertEmailDeliveryForm] = React.useState<SmsAlertEmailDeliveryForm>(() =>
+        createAlertEmailDeliveryForm(DEFAULT_SMS_ALERT_EMAIL_DELIVERY)
     );
     const [operationalLoading, setOperationalLoading] = React.useState(false);
     const [operationalError, setOperationalError] = React.useState<string | null>(null);
@@ -1182,6 +1240,8 @@ export default function SmsAppPage() {
         (item) => !tenantOverviewSourceApp || item.sourceApp === tenantOverviewSourceApp
     );
     const normalizedAlertThresholds = normalizeAlertSettingsForm(alertSettingsForm);
+    const normalizedAlertEmailDelivery = normalizeAlertEmailDeliveryForm(alertEmailDeliveryForm);
+    const alertEmailRecipientCount = normalizedAlertEmailDelivery.recipientEmails.length;
     const tenantAlertPreviewItems = buildTenantAlertPreview(
         normalizedAlertThresholds,
         tenantAlertScopeItems,
@@ -1206,6 +1266,7 @@ export default function SmsAppPage() {
             if (alertSettingsRequestRef.current !== requestId) return;
             setAlertSettings(result);
             setAlertSettingsForm(createAlertSettingsForm(result.alertThresholds));
+            setAlertEmailDeliveryForm(createAlertEmailDeliveryForm(result.alertEmailDelivery));
         } catch (nextError) {
             if (alertSettingsRequestRef.current !== requestId) return;
             setAlertSettingsError(nextError instanceof Error ? nextError.message : 'Failed to load tenant SMS alert settings');
@@ -1222,11 +1283,13 @@ export default function SmsAppPage() {
         setAlertSettingsNotice(null);
         try {
             const saved = await upsertSmsSettings({
-                alertThresholds: normalizeAlertSettingsForm(alertSettingsForm)
+                alertThresholds: normalizeAlertSettingsForm(alertSettingsForm),
+                alertEmailDelivery: normalizeAlertEmailDeliveryForm(alertEmailDeliveryForm)
             });
             setAlertSettings(saved);
             setAlertSettingsForm(createAlertSettingsForm(saved.alertThresholds));
-            setAlertSettingsNotice('Tenant SMS alert thresholds saved.');
+            setAlertEmailDeliveryForm(createAlertEmailDeliveryForm(saved.alertEmailDelivery));
+            setAlertSettingsNotice('Tenant SMS alert settings saved.');
             await loadAlertSummary(saved.alertThresholds.rateWindowDays, tenantOverviewSourceApp);
             await loadAlertEvents();
         } catch (nextError) {
@@ -1438,6 +1501,49 @@ export default function SmsAppPage() {
             if (alertEventsRequestRef.current === requestId) {
                 setAlertEventsLoading(false);
             }
+        }
+    };
+
+    const openAlertEventReviewDialog = (event: SmsAlertEvent, status: 'open' | 'acknowledged') => {
+        setAlertEventReviewTarget(event);
+        setAlertEventReviewStatus(status);
+        setAlertEventReviewNote(event.reviewNote ?? '');
+        setAlertEventReviewError(null);
+        setAlertEventReviewNotice(null);
+        setAlertEventReviewDialogVisible(true);
+    };
+
+    const closeAlertEventReviewDialog = () => {
+        if (alertEventReviewSaving) return;
+        setAlertEventReviewDialogVisible(false);
+        setAlertEventReviewTarget(null);
+        setAlertEventReviewStatus('acknowledged');
+        setAlertEventReviewNote('');
+        setAlertEventReviewError(null);
+    };
+
+    const submitAlertEventReview = async () => {
+        if (!alertEventReviewTarget) return;
+        setAlertEventReviewSaving(true);
+        setAlertEventReviewError(null);
+        setAlertEventReviewNotice(null);
+        try {
+            const updated = await setSmsAlertEventReview({
+                eventId: alertEventReviewTarget.id,
+                status: alertEventReviewStatus,
+                note: alertEventReviewNote.trim() || null
+            });
+            setAlertEvents((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+            closeAlertEventReviewDialog();
+            setAlertEventReviewNotice(
+                updated.reviewStatus === 'acknowledged'
+                    ? 'SMS alert event acknowledged.'
+                    : 'SMS alert event reopened for follow-up.'
+            );
+        } catch (nextError) {
+            setAlertEventReviewError(nextError instanceof Error ? nextError.message : 'Failed to update SMS alert event review');
+        } finally {
+            setAlertEventReviewSaving(false);
         }
     };
 
@@ -2324,6 +2430,84 @@ export default function SmsAppPage() {
             </div>
             <div className="col-12">
                 <div className="card flex flex-column gap-3">
+                    <div>
+                        <h3 className="mb-2">Alert Email Delivery</h3>
+                        <p className="text-600 mb-0">
+                            Send a summary email through the Email add-on whenever the scheduler creates a new tenant SMS alert event.
+                        </p>
+                    </div>
+                    <Message severity="info" text="These fields are saved together with Tenant Alert Thresholds. The current Email add-on persists queued or sandbox messages; live provider delivery still depends on email-provider setup." />
+                    {normalizedAlertEmailDelivery.enabled ? (
+                        alertEmailRecipientCount > 0 ? (
+                            <Message
+                                severity="success"
+                                text={`${formatSmsCount(alertEmailRecipientCount)} alert email recipient(s) configured. New alert events will fan out through the Email add-on.`}
+                            />
+                        ) : (
+                            <Message
+                                severity="warn"
+                                text="Alert email delivery is enabled, but no recipient emails are configured yet."
+                            />
+                        )
+                    ) : (
+                        <Message
+                            severity="info"
+                            text="Alert email delivery is disabled. Scheduled alert events will remain visible in this SMS admin page only."
+                        />
+                    )}
+                    <div className="grid">
+                        <div className="col-12 md:col-6 lg:col-3">
+                            <div className="flex align-items-center gap-2 h-full surface-50 border-1 border-200 border-round p-3">
+                                <InputSwitch
+                                    inputId="tenant-alert-email-enabled"
+                                    checked={alertEmailDeliveryForm.enabled}
+                                    onChange={(event) =>
+                                        setAlertEmailDeliveryForm((current) => ({ ...current, enabled: !!event.value }))
+                                    }
+                                    disabled={alertSettingsLoading || alertSettingsSaving}
+                                />
+                                <label htmlFor="tenant-alert-email-enabled">Enable alert email delivery</label>
+                            </div>
+                        </div>
+                        <div className="col-12 md:col-6 lg:col-3">
+                            <label htmlFor="tenant-alert-email-subject-prefix" className="block text-700 mb-2">Subject prefix</label>
+                            <AppInput
+                                inputId="tenant-alert-email-subject-prefix"
+                                value={alertEmailDeliveryForm.subjectPrefix}
+                                onChange={(event) =>
+                                    setAlertEmailDeliveryForm((current) => ({ ...current, subjectPrefix: event.target.value }))
+                                }
+                                disabled={alertSettingsLoading || alertSettingsSaving}
+                            />
+                        </div>
+                        <div className="col-12 lg:col-6">
+                            <label htmlFor="tenant-alert-email-recipients" className="block text-700 mb-2">Recipient emails</label>
+                            <InputTextarea
+                                id="tenant-alert-email-recipients"
+                                value={alertEmailDeliveryForm.recipientEmails}
+                                onChange={(event) =>
+                                    setAlertEmailDeliveryForm((current) => ({ ...current, recipientEmails: event.target.value }))
+                                }
+                                rows={5}
+                                autoResize
+                                className="w-full"
+                                disabled={alertSettingsLoading || alertSettingsSaving}
+                                placeholder={'ops@example.com\nowner@example.com'}
+                            />
+                            <small className="text-600">Use one email per line or separate them with commas.</small>
+                        </div>
+                        <div className="col-12 md:col-6 lg:col-3 flex align-items-end">
+                            <div className="surface-50 border-1 border-200 border-round px-3 py-2 text-sm text-700 w-full line-height-3">
+                                <div><strong>Recipients:</strong> {formatSmsCount(alertEmailRecipientCount)}</div>
+                                <div><strong>Subject prefix:</strong> {normalizedAlertEmailDelivery.subjectPrefix}</div>
+                                <div><strong>Saved:</strong> {formatSmsDateTime(alertSettings?.updatedAt ?? null)}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div className="col-12">
+                <div className="card flex flex-column gap-3">
                     <div className="flex flex-column md:flex-row md:align-items-start md:justify-content-between gap-3">
                         <div>
                             <h3 className="mb-2">Recent Scheduled Alert Events</h3>
@@ -2341,6 +2525,8 @@ export default function SmsAppPage() {
                         </div>
                     </div>
                     <Message severity="info" text="Scheduled alert events are tenant-wide. The App filter above only changes the live preview, not the stored alert-event history." />
+                    {alertEventReviewError ? <Message severity="error" text={alertEventReviewError} /> : null}
+                    {alertEventReviewNotice ? <Message severity="success" text={alertEventReviewNotice} /> : null}
                     {alertEvents.length > 0 ? (
                         <div className="surface-0 border-1 border-200 border-round overflow-auto">
                             <table className="w-full text-sm" style={{ minWidth: '980px', borderCollapse: 'collapse' }}>
@@ -2351,28 +2537,64 @@ export default function SmsAppPage() {
                                         <th className="text-left p-3">Window</th>
                                         <th className="text-left p-3">Alerts</th>
                                         <th className="text-left p-3">Triggered Keys</th>
+                                        <th className="text-left p-3">Review</th>
                                         <th className="text-left p-3">Details</th>
+                                        <th className="text-left p-3">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {alertEvents.map((event) => (
-                                        <tr key={event.id} className="border-top-1 border-200">
-                                            <td className="p-3 align-top text-900">
-                                                <div>{formatSmsDateTime(event.createdAt)}</div>
-                                                <div className="text-600 mt-1">{event.id}</div>
-                                            </td>
-                                            <td className="p-3 align-top text-900">{event.scopeApp || 'All apps'}</td>
-                                            <td className="p-3 align-top text-900 line-height-3">
-                                                <div>Last {formatSmsCount(event.rateWindowDays)} days</div>
-                                                <div className="text-600">Cooldown {formatSmsCount(event.cooldownHours)} hours</div>
-                                            </td>
-                                            <td className="p-3 align-top text-900">{formatSmsCount(event.alertCount)}</td>
-                                            <td className="p-3 align-top text-900">{event.triggeredKeys.length > 0 ? event.triggeredKeys.join(', ') : '-'}</td>
-                                            <td className="p-3 align-top">
-                                                <pre className="m-0 text-xs white-space-pre-wrap line-height-3">{event.alertsJson}</pre>
-                                            </td>
-                                        </tr>
-                                    ))}
+                                    {alertEvents.map((event) => {
+                                        const review = getSmsAlertEventReviewPresentation(event.reviewStatus);
+                                        return (
+                                            <tr key={event.id} className="border-top-1 border-200">
+                                                <td className="p-3 align-top text-900">
+                                                    <div>{formatSmsDateTime(event.createdAt)}</div>
+                                                    <div className="text-600 mt-1">{event.id}</div>
+                                                </td>
+                                                <td className="p-3 align-top text-900">{event.scopeApp || 'All apps'}</td>
+                                                <td className="p-3 align-top text-900 line-height-3">
+                                                    <div>Last {formatSmsCount(event.rateWindowDays)} days</div>
+                                                    <div className="text-600">Cooldown {formatSmsCount(event.cooldownHours)} hours</div>
+                                                </td>
+                                                <td className="p-3 align-top text-900">{formatSmsCount(event.alertCount)}</td>
+                                                <td className="p-3 align-top text-900">{event.triggeredKeys.length > 0 ? event.triggeredKeys.join(', ') : '-'}</td>
+                                                <td className="p-3 align-top text-900 line-height-3">
+                                                    <Tag value={review.label} severity={review.severity} />
+                                                    <div className="text-600 mt-2">
+                                                        {event.reviewedAt
+                                                            ? `Reviewed ${formatSmsDateTime(event.reviewedAt)}`
+                                                            : 'Awaiting operator review.'}
+                                                    </div>
+                                                    {event.reviewedByUserId ? (
+                                                        <div className="text-600">{event.reviewedByUserId}{event.reviewedByRole ? ` (${event.reviewedByRole})` : ''}</div>
+                                                    ) : null}
+                                                    {event.reviewNote ? <div className="text-600">{event.reviewNote}</div> : null}
+                                                </td>
+                                                <td className="p-3 align-top">
+                                                    <pre className="m-0 text-xs white-space-pre-wrap line-height-3">{event.alertsJson}</pre>
+                                                </td>
+                                                <td className="p-3 align-top">
+                                                    {event.reviewStatus === 'acknowledged' ? (
+                                                        <Button
+                                                            label="Reopen"
+                                                            icon="pi pi-refresh"
+                                                            text
+                                                            className="app-action-compact p-button-sm"
+                                                            onClick={() => openAlertEventReviewDialog(event, 'open')}
+                                                        />
+                                                    ) : (
+                                                        <Button
+                                                            label="Acknowledge"
+                                                            icon="pi pi-check"
+                                                            text
+                                                            className="app-action-compact p-button-sm"
+                                                            onClick={() => openAlertEventReviewDialog(event, 'acknowledged')}
+                                                        />
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
                                 </tbody>
                             </table>
                         </div>
@@ -3229,6 +3451,59 @@ export default function SmsAppPage() {
                 </div>
             </div>
             <Dialog
+                header={
+                    alertEventReviewTarget
+                        ? `${alertEventReviewStatus === 'acknowledged' ? 'Acknowledge' : 'Reopen'} Alert Event`
+                        : 'Review Alert Event'
+                }
+                visible={alertEventReviewDialogVisible}
+                style={{ width: 'min(720px, 96vw)' }}
+                onHide={closeAlertEventReviewDialog}
+            >
+                <div className="flex flex-column gap-3">
+                    {alertEventReviewTarget ? (
+                        <div className="surface-50 border-1 border-200 border-round p-3 text-sm text-700 line-height-3">
+                            <div><strong>Created:</strong> {formatSmsDateTime(alertEventReviewTarget.createdAt)}</div>
+                            <div><strong>Scope:</strong> {alertEventReviewTarget.scopeApp || 'All apps'}</div>
+                            <div><strong>Triggered keys:</strong> {alertEventReviewTarget.triggeredKeys.length > 0 ? alertEventReviewTarget.triggeredKeys.join(', ') : '-'}</div>
+                            <div><strong>Current status:</strong> {alertEventReviewTarget.reviewStatus}</div>
+                        </div>
+                    ) : null}
+                    {alertEventReviewError ? <Message severity="error" text={alertEventReviewError} /> : null}
+                    <div>
+                        <label htmlFor="sms-alert-review-note" className="block text-700 mb-2">Review note</label>
+                        <InputTextarea
+                            id="sms-alert-review-note"
+                            value={alertEventReviewNote}
+                            onChange={(event) => setAlertEventReviewNote(event.target.value)}
+                            rows={5}
+                            className="w-full"
+                            placeholder={
+                                alertEventReviewStatus === 'acknowledged'
+                                    ? 'Optional note about the action taken or owner.'
+                                    : 'Optional reason for reopening this alert event.'
+                            }
+                            disabled={alertEventReviewSaving}
+                        />
+                    </div>
+                    <div className="flex justify-content-end gap-2">
+                        <Button
+                            label="Cancel"
+                            text
+                            onClick={closeAlertEventReviewDialog}
+                            disabled={alertEventReviewSaving}
+                        />
+                        <Button
+                            label={alertEventReviewStatus === 'acknowledged' ? 'Acknowledge' : 'Reopen'}
+                            icon={alertEventReviewStatus === 'acknowledged' ? 'pi pi-check' : 'pi pi-refresh'}
+                            onClick={() => void submitAlertEventReview()}
+                            loading={alertEventReviewSaving}
+                            disabled={!alertEventReviewTarget}
+                        />
+                    </div>
+                </div>
+            </Dialog>
+            <Dialog
                 header={selectedWebhookMessage ? `Webhook Events - ${selectedWebhookMessage.recipient.phone}` : 'Webhook Events'}
                 visible={webhookDialogVisible}
                 style={{ width: 'min(960px, 96vw)' }}
@@ -3284,6 +3559,7 @@ export default function SmsAppPage() {
         </div>
     );
 }
+
 
 
 

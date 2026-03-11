@@ -1,1 +1,0 @@
-return <Navigate to="/" replace />;

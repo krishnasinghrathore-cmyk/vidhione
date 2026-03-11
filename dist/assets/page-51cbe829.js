@@ -1,1 +1,0 @@
-import{j as e}from"./index-a2e62377.js";function s(){return e.jsxs("div",{className:"card",children:[e.jsx("h2",{className:"mb-2",children:"E-commerce"}),e.jsx("p",{className:"text-600 m-0",children:"Product catalog, online orders, and storefront tools will be managed here."})]})}export{s as default};
